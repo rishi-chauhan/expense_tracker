@@ -1,0 +1,19 @@
+{
+  "name": "expense_tracker",
+  "version": "1.0.0",
+  "description": "Node application to track expenses by going through monthly statement",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rishi-chauhan/expense_tracker.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rishi-chauhan/expense_tracker/issues"
+  },
+  "homepage": "https://github.com/rishi-chauhan/expense_tracker#readme"
+}
