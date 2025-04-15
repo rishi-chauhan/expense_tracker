@@ -17,7 +17,6 @@ export const extractTableData = async (file) => {
   const headers = ["Date", "Transaction Description", "Feature Reward Points", "Amount (in Rs.)"]
   let rows = []
   let currentRow = []
-  let lastY = null
   
   // Process each page
   for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
@@ -25,12 +24,18 @@ export const extractTableData = async (file) => {
     const textContent = await page.getTextContent()
     const items = textContent.items
 
+    console.log(`Processing page ${pageNum}...`) // Debugging log
+
     // First pass: look for table start
     for (let i = 0; i < items.length; i++) {
       const text = items[i].str.trim()
+      console.log(`Text item: ${text}`) // Debugging log
+
       // Check for variations of the table header
-      if (text.toLowerCase().includes('Domestic Transaction')) {
+      if (text.toLowerCase().includes('domestic transaction') || 
+          text.toLowerCase().includes('transaction description')) {
         foundTable = true
+        console.log('Table header found!') // Debugging log
         break
       }
     }
@@ -47,7 +52,7 @@ export const extractTableData = async (file) => {
         
         // Skip page numbers and table title
         if (text.match(/Page \d+/) || 
-            text.toLowerCase().includes('Domestic Transaction')) {
+            text.toLowerCase().includes('domestic transaction')) {
           continue
         }
 
@@ -59,6 +64,8 @@ export const extractTableData = async (file) => {
             // Check if current row matches expected format
             if (isValidTableRow(currentRow)) {
               rows.push([...currentRow])
+            } else {
+              console.log(`Invalid row skipped: ${currentRow}`) // Debugging log
             }
             currentRow = []
           }
@@ -81,6 +88,7 @@ export const extractTableData = async (file) => {
     .map(row => cleanRowData(row))
 
   if (rows.length === 0) {
+    console.error('No valid rows found in the PDF') // Debugging log
     throw new Error('No table data found in the PDF')
   }
 
