@@ -1,4 +1,5 @@
 import './FileUpload.css'
+import { ERROR_MESSAGES } from '../../utils/constants';
 
 function FileUpload({ onFileSelect }) {
   const handleFileChange = (e) => {
@@ -6,7 +7,7 @@ function FileUpload({ onFileSelect }) {
     if (file && file.type === 'application/pdf') {
       onFileSelect(file)
     } else {
-      throw new Error('Please select a valid PDF file')
+      throw new Error(ERROR_MESSAGES.INVALID_PDF_FILE)
     }
   }
 
