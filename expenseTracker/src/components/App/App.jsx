@@ -1,65 +1,66 @@
-import { useState, useEffect } from 'react'
-import { initializePdfWorker, extractTableData } from '../../utils/pdfUtils'
-import FileUpload from '../FileUpload/FileUpload'
-import TableDisplay from '../TableDisplay/TableDisplay'
-import './App.css'
+import { useState, useEffect } from 'react';
+import { initializePdfWorker, extractTableData } from '../../utils/pdfUtils';
+import { ERROR_MESSAGES, APP_TITLE, LOADING_MESSAGE, RESULTS_SUMMARY } from '../../utils/constants';
+import FileUpload from '../FileUpload/FileUpload';
+import TableDisplay from '../TableDisplay/TableDisplay';
+import './App.css';
 
 function App() {
-  const [tableData, setTableData] = useState({ headers: [], rows: [] })
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [tableData, setTableData] = useState({ headers: [], rows: [] });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     try {
-      initializePdfWorker()
-      console.log('PDF worker initialized')
+      initializePdfWorker();
+      console.log('PDF worker initialized');
     } catch (error) {
-      console.error('Error initializing PDF worker:', error)
-      setError('Failed to initialize PDF processor: ' + error.message)
+      console.error(ERROR_MESSAGES.ERROR_INITIALIZING_PDF_WORKER, error);
+      setError(ERROR_MESSAGES.ERROR_INITIALIZING_PDF_WORKER + error.message);
     }
-  }, [])
+  }, []);
 
   const handleFileSelect = async (file) => {
     try {
-      setIsLoading(true)
-      setError(null)
-      console.log('Processing file:', file.name)
-      
-      const data = await extractTableData(file)
-      
+      setIsLoading(true);
+      setError(null);
+      console.log('Processing file:', file.name);
+
+      const data = await extractTableData(file);
+
       if (data.rows.length > 0) {
-        console.log(`Successfully extracted ${data.rows.length} rows of table data`)
-        setTableData(data)
+        console.log(`Successfully extracted ${data.rows.length} rows of table data`);
+        setTableData(data);
       } else {
-        throw new Error('No rows were found in the table')
+        throw new Error(ERROR_MESSAGES.NO_ROWS_FOUND);
       }
     } catch (error) {
-      console.error('Error processing PDF:', error)
-      setError(error.message || 'Error reading PDF file')
-      setTableData({ headers: [], rows: [] })
+      console.error('Error processing PDF:', error);
+      setError(error.message || ERROR_MESSAGES.ERROR_READING_PDF);
+      setTableData({ headers: [], rows: [] });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="app-container">
-      <h1>PDF Table Extractor</h1>
-      
+      <h1>{APP_TITLE}</h1>
+
       <FileUpload onFileSelect={handleFileSelect} />
-      
-      {isLoading && <div className="loading">Loading PDF content...</div>}
-      
+
+      {isLoading && <div className="loading">{LOADING_MESSAGE}</div>}
+
       {error && !isLoading && (
         <div className="error-message">
           {error}
         </div>
       )}
-      
+
       {!isLoading && !error && tableData.rows.length > 0 && (
         <>
           <div className="results-summary">
-            Found {tableData.rows.length} transactions
+            {RESULTS_SUMMARY.replace('{count}', tableData.rows.length)}
           </div>
           <TableDisplay 
             headers={tableData.headers} 
@@ -68,7 +69,7 @@ function App() {
         </>
       )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

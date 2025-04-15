@@ -1,113 +1,105 @@
-import * as pdfjsLib from 'pdfjs-dist'
+import * as pdfjsLib from 'pdfjs-dist';
+import { TABLE_CONSTANTS, ERROR_MESSAGES } from './constants';
 
 // Make sure this function is properly exported
 export const initializePdfWorker = () => {
   pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.mjs',
     import.meta.url
-  ).toString()
-}
+  ).toString();
+};
 
 export const extractTableData = async (file) => {
-  const arrayBuffer = await file.arrayBuffer()
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer })
-  const pdfDoc = await pdf.promise
-  
-  let foundTable = false
-  const headers = ["Date", "Transaction Description", "Feature Reward Points", "Amount (in Rs.)"]
-  let rows = []
-  let currentRow = []
-  
-  // Process each page
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer });
+  const pdfDoc = await pdf.promise;
+
+  let foundTable = false;
+  const headers = TABLE_CONSTANTS.TABLE_HEADERS;
+  let rows = [];
+  let currentRow = [];
+
   for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-    const page = await pdfDoc.getPage(pageNum)
-    const textContent = await page.getTextContent()
-    const items = textContent.items
+    const page = await pdfDoc.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const items = textContent.items;
 
-    console.log(`Processing page ${pageNum}...`) // Debugging log
+    console.log(`Processing page ${pageNum}...`);
 
-    // First pass: look for table start
     for (let i = 0; i < items.length; i++) {
-      const text = items[i].str.trim()
-      console.log(`Text item: ${text}`) // Debugging log
+      const text = items[i].str.trim();
+      console.log(`Text item: ${text}`);
 
-      // Check for variations of the table header
       if (text.toLowerCase().includes('domestic transaction') || 
           text.toLowerCase().includes('transaction description')) {
-        foundTable = true
-        console.log('Table header found!') // Debugging log
-        break
+        foundTable = true;
+        console.log('Table header found!');
+        break;
       }
     }
 
     if (foundTable) {
-      // Second pass: process items with position information
-      let currentY = null
-      
+      let currentY = null;
+
       for (let i = 0; i < items.length; i++) {
-        const item = items[i]
-        const text = item.str.trim()
-        
-        if (!text) continue
-        
-        // Skip page numbers and table title
+        const item = items[i];
+        const text = item.str.trim();
+
+        if (!text) continue;
+
         if (text.match(/Page \d+/) || 
             text.toLowerCase().includes('domestic transaction')) {
-          continue
+          continue;
         }
 
-        const y = Math.round(item.transform[5])
-        
-        // If Y position is different by more than 2 units, consider it a new row
+        const y = Math.round(item.transform[5]);
+
         if (currentY === null || Math.abs(y - currentY) > 2) {
           if (currentRow.length > 0) {
-            // Check if current row matches expected format
             if (isValidTableRow(currentRow)) {
-              rows.push([...currentRow])
+              rows.push([...currentRow]);
             } else {
-              console.log(`Invalid row skipped: ${currentRow}`) // Debugging log
+              console.log(ERROR_MESSAGES.ERROR_INVALID_ROW, currentRow);
             }
-            currentRow = []
+            currentRow = [];
           }
-          currentY = y
+          currentY = y;
         }
-        
-        currentRow.push(text)
+
+        currentRow.push(text);
       }
-      
-      // Don't forget the last row
+
       if (currentRow.length > 0 && isValidTableRow(currentRow)) {
-        rows.push([...currentRow])
+        rows.push([...currentRow]);
       }
     }
   }
 
-  // Post-process rows to ensure data quality
   rows = rows
     .filter(row => isValidTableRow(row))
-    .map(row => cleanRowData(row))
+    .map(row => cleanRowData(row));
 
   if (rows.length === 0) {
-    console.error('No valid rows found in the PDF') // Debugging log
-    throw new Error('No table data found in the PDF')
+    console.error(ERROR_MESSAGES.ERROR_NO_TABLE_DATA);
+    throw new Error(ERROR_MESSAGES.ERROR_NO_TABLE_DATA);
   }
 
-  return { headers, rows }
-}
+  return { headers, rows };
+};
 
 // Helper function to validate row data
 function isValidTableRow(row) {
-  if (row.length !== 4) return false
+  if (row.length !== 4) return false;
   
   // Check if first column is a date (DD/MM/YYYY)
-  const datePattern = /^\d{2}\/\d{2}\/\d{4}$/
-  if (!datePattern.test(row[0])) return false
+  const datePattern = /^\d{2}\/\d{2}\/\d{4}$/;
+  if (!datePattern.test(row[0])) return false;
   
   // Check if last column is an amount
-  const amountPattern = /^[-+]?\d*\.?\d+$/
-  if (!amountPattern.test(row[3].replace(/[,₹\s]/g, ''))) return false
+  const amountPattern = /^[-+]?\d*\.?\d+$/;
+  if (!amountPattern.test(row[3].replace(/[,₹\s]/g, ''))) return false;
   
-  return true
+  return true;
 }
 
 // Helper function to clean row data
@@ -115,8 +107,8 @@ function cleanRowData(row) {
   return row.map((cell, index) => {
     // Clean up amount formatting
     if (index === 3) {
-      return cell.replace(/[₹\s]/g, '').trim()
+      return cell.replace(/[₹\s]/g, '').trim();
     }
-    return cell.trim()
-  })
+    return cell.trim();
+  });
 }
