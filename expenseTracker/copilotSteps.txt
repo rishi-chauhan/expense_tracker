@@ -11,3 +11,4 @@
 11. Integrated GoogleAuth into App.jsx and implemented Save to Drive logic.
 12. Fixed linting errors reported by get_errors.
 13. Re-added and exported initializePdfWorker in pdfUtils.js to fix browser error.
+14. 2025-04-24: Added copilot-instructions.md, copilotSteps.txt, and PRD.md to .gitignore.

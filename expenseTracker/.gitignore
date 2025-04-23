@@ -26,3 +26,8 @@ dist-ssr
 # Credit statements that are not supposed to be shared
 *.pdf
 *.PDF
+
+# Project specific files
+copilot-instructions.md
+copilotSteps.txt
+PRD.md
