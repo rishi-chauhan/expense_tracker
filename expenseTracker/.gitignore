@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Credit statements that are not supposed to be shared
+*.pdf
+*.PDF

@@ -116,7 +116,8 @@ table {
   color: var(--text-color);
 }
 
-th, td {
+th,
+td {
   padding: 12px;
   text-align: left;
   border: 1px solid var(--border-color);

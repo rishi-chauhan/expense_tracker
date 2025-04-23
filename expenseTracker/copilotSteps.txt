@@ -1,0 +1,13 @@
+1. Created and switched to branch 'prdFromStart'.
+2. Created copilotSteps.txt.
+3. Updated src/utils/constants.js with PRD-aligned values.
+4. Refactored PDF extraction logic in src/utils/pdfUtils.js.
+5. Updated App.jsx to use refactored PDF utils and display data.
+6. Updated TableDisplay.jsx to show Date, Description, Amount.
+7. Updated FileUpload.jsx prompt.
+8. Installed gapi-script for Google API access.
+9. Created GoogleAuth.jsx component for handling sign-in/out.
+10. Created googleDriveUtils.js for Drive API interactions (find/create folder, save file).
+11. Integrated GoogleAuth into App.jsx and implemented Save to Drive logic.
+12. Fixed linting errors reported by get_errors.
+13. Re-added and exported initializePdfWorker in pdfUtils.js to fix browser error.

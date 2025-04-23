@@ -1,114 +1,280 @@
-import * as pdfjsLib from 'pdfjs-dist';
-import { TABLE_CONSTANTS, ERROR_MESSAGES } from './constants';
+import * as pdfjsLib from "pdfjs-dist";
+import { ERROR_MESSAGES } from "./constants";
 
-// Make sure this function is properly exported
+// Set up the worker source for pdf.js
+// Make sure the worker file is copied to your public/dist folder or served correctly
+const PDF_WORKER_SRC = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+/**
+ * Initializes the PDF.js worker.
+ * Should be called once when the application loads.
+ */
 export const initializePdfWorker = () => {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/build/pdf.worker.mjs',
-    import.meta.url
-  ).toString();
+  if (typeof window !== 'undefined' && window.document) { // Ensure this runs only in the browser
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER_SRC;
+    console.log(`PDF.js worker source set to: ${PDF_WORKER_SRC}`);
+  } else {
+     console.warn("Skipping PDF worker initialization outside of browser environment.");
+  }
 };
+
+// --- Bank Specific Configuration ---
+const BANK_CONFIG = {
+  HDFC: {
+    name: "HDFC",
+    identifiers: ["HDFC Bank", "hdfcbank.com"], // Text likely found on page 1
+    tableHeaders: ["Date", "Transaction Description", "Amount (in Rs.)"], // Headers to find the table
+    columns: { // Mapping from standard name to actual header name
+      Date: "Date",
+      Description: "Transaction Description",
+      Amount: "Amount (in Rs.)",
+    },
+  },
+  ICICI: {
+    name: "ICICI",
+    identifiers: ["ICICI Bank"], // Text likely found on page 1
+    // ICICI headers can be tricky, sometimes split across lines. We look for key ones.
+    tableHeaders: ["Date", "Transaction Details", "Amount (in Rs.)"], // Headers to find the table
+    columns: { // Mapping from standard name to actual header name
+      Date: "Date",
+      Description: "Transaction Details",
+      Amount: "Amount (in Rs.)",
+    },
+  },
+};
+
+// --- Helper Functions ---
+
+/**
+ * Groups text items by line based on vertical position.
+ * @param {Array} items - Array of text items from pdf.js.
+ * @param {number} tolerance - Vertical distance tolerance for items on the same line.
+ * @returns {Array<Array>} Array of lines, where each line is an array of text items.
+ */
+function groupItemsByLine(items, tolerance = 5) {
+  if (!items || items.length === 0) return [];
+
+  // Sort items primarily by vertical position (top-to-bottom), then horizontal (left-to-right)
+  const sortedItems = items.sort((a, b) => {
+    const yDiff = a.transform[5] - b.transform[5]; // Compare y-coordinates
+    if (Math.abs(yDiff) > tolerance) {
+      return yDiff > 0 ? -1 : 1; // Sort descending by Y
+    }
+    // If y-coordinates are close, sort by x-coordinate (left-to-right)
+    return a.transform[4] - b.transform[4];
+  });
+
+  const lines = [];
+  let currentLine = [sortedItems[0]];
+
+  for (let i = 1; i < sortedItems.length; i++) {
+    const prevItem = sortedItems[i - 1];
+    const currentItem = sortedItems[i];
+
+    // Check if items are vertically aligned (within tolerance)
+    if (Math.abs(currentItem.transform[5] - prevItem.transform[5]) <= tolerance) {
+      currentLine.push(currentItem);
+    } else {
+      // New line detected
+      lines.push(currentLine);
+      currentLine = [currentItem];
+    }
+  }
+  // Add the last line
+  lines.push(currentLine);
+
+  return lines;
+}
+
+/**
+ * Identifies the bank based on text content from the first page.
+ * @param {object} pdfDoc - The loaded PDF document object from pdf.js.
+ * @returns {Promise<string|null>} The name of the identified bank (e.g., "HDFC", "ICICI") or null.
+ */
+async function identifyBank(pdfDoc) {
+  try {
+    const firstPage = await pdfDoc.getPage(1);
+    const textContent = await firstPage.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join(" ").toLowerCase();
+
+    for (const bankKey in BANK_CONFIG) {
+      const config = BANK_CONFIG[bankKey];
+      if (config.identifiers.some(id => pageText.includes(id.toLowerCase()))) {
+        console.log(`Identified bank: ${config.name}`);
+        return config.name;
+      }
+    }
+    console.warn("Could not identify bank from first page content.");
+    return null;
+  } catch (error) {
+    console.error("Error identifying bank:", error);
+    return null;
+  }
+}
+
+/**
+ * Parses the amount string, handling 'CR'/'cr' and removing commas.
+ * @param {string} amountStr - The amount string from the PDF.
+ * @returns {number|null} The parsed amount as a number, or null if invalid.
+ */
+function parseAmount(amountStr) {
+    if (!amountStr || typeof amountStr !== 'string') return null;
+
+    const cleanedStr = amountStr.replace(/,/g, '').trim(); // Remove commas
+    const isCredit = /cr$/i.test(cleanedStr); // Check for 'cr' at the end, case-insensitive
+    const numericPart = cleanedStr.replace(/cr$/i, '').trim(); // Remove 'cr'
+
+    const amount = parseFloat(numericPart);
+
+    if (isNaN(amount)) {
+        console.warn(`Could not parse amount: ${amountStr}`);
+        return null;
+    }
+
+    return isCredit ? -amount : amount;
+}
+
+/**
+ * Finds the line index containing the transaction table headers.
+ * @param {Array<Array>} lines - Array of lines (each line is an array of text items).
+ * @param {Array<string>} expectedHeaders - The headers to look for.
+ * @returns {number} The index of the header line, or -1 if not found.
+ */
+function findHeaderLineIndex(lines, expectedHeaders) {
+    for (let i = 0; i < lines.length; i++) {
+        const lineText = lines[i].map(item => item.str.trim()).join(' ').toLowerCase();
+        // Check if all expected headers are present in the line text
+        if (expectedHeaders.every(header => lineText.includes(header.toLowerCase()))) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * Extracts column indices based on header text.
+ * @param {Array} headerLineItems - The text items of the header line.
+ * @param {object} columnMapping - The bank's column configuration.
+ * @returns {object} An object mapping standard names (Date, Description, Amount) to their column index.
+ */
+function getColumnIndices(headerLineItems, columnMapping) {
+    const indices = { Date: -1, Description: -1, Amount: -1 };
+    const headerTexts = headerLineItems.map(item => item.str.trim());
+
+    for (const standardName in columnMapping) {
+        const actualHeader = columnMapping[standardName];
+        // Find the index of the actual header text
+        const index = headerTexts.findIndex(text => text.toLowerCase() === actualHeader.toLowerCase());
+        if (index !== -1) {
+            indices[standardName] = index;
+        } else {
+             // Try partial match if exact match fails (useful for headers split across items)
+             const partialIndex = headerTexts.findIndex(text => text.toLowerCase().includes(actualHeader.toLowerCase()));
+             if (partialIndex !== -1) {
+                 indices[standardName] = partialIndex;
+             } else {
+                console.warn(`Could not find index for header: ${actualHeader}`);
+             }
+        }
+    }
+
+    // A more robust approach might involve checking item positions (x-coordinates)
+    // if headers are consistently split or misaligned. For now, text matching is used.
+
+    if (indices.Date === -1 || indices.Description === -1 || indices.Amount === -1) {
+        console.error("Failed to map all required columns:", indices, "using headers:", headerTexts);
+        throw new Error("Could not find all required columns (Date, Description, Amount) in the table header.");
+    }
+
+    return indices;
+}
+
+// --- Main Extraction Logic ---
 
 export const extractTableData = async (file) => {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer });
   const pdfDoc = await pdf.promise;
 
-  let foundTable = false;
-  const headers = TABLE_CONSTANTS.TABLE_HEADERS;
-  let rows = [];
-  let currentRow = [];
+  const bankName = await identifyBank(pdfDoc);
+  if (!bankName) {
+    throw new Error(ERROR_MESSAGES.UNSUPPORTED_BANK);
+  }
+
+  const config = BANK_CONFIG[bankName];
+  let transactions = [];
+  // Use standard headers for the output, regardless of bank-specific names
+  const outputHeaders = ["Date", "Description", "Amount"];
+
+  console.log(`Starting PDF processing for ${bankName}...`);
 
   for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+    console.log(`Processing page ${pageNum}...`);
     const page = await pdfDoc.getPage(pageNum);
     const textContent = await page.getTextContent();
     const items = textContent.items;
+    const lines = groupItemsByLine(items);
 
-    console.log(`Processing page ${pageNum}...`);
+    // Find the header row for the transaction table
+    const headerLineIndex = findHeaderLineIndex(lines, config.tableHeaders);
 
-    for (let i = 0; i < items.length; i++) {
-      const text = items[i].str.trim();
-      console.log(`Text item: ${text}`);
+    if (headerLineIndex === -1) {
+      console.log(`Transaction table headers not found on page ${pageNum}. Skipping page.`);
+      continue; // Skip page if headers aren't found
+    }
+    console.log(`Found header line at index ${headerLineIndex} on page ${pageNum}.`);
 
-      if (text.toLowerCase().includes('domestic transaction') || 
-          text.toLowerCase().includes('transaction description')) {
-        foundTable = true;
-        console.log('Table header found!');
-        break;
-      }
+    let columnIndices;
+    try {
+        columnIndices = getColumnIndices(lines[headerLineIndex], config.columns);
+    } catch (error) {
+        console.error(`Error getting column indices on page ${pageNum}:`, error.message);
+        continue; // Skip page if columns can't be mapped
     }
 
-    if (foundTable) {
-      let currentY = null;
+    // Process lines *after* the header line + skip the first data row (as per PRD)
+    const startRowIndex = headerLineIndex + 2;
+    for (let i = startRowIndex; i < lines.length; i++) {
+      const lineItems = lines[i];
+      const rowTexts = lineItems.map(item => item.str.trim());
 
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        const text = item.str.trim();
-
-        if (!text) continue;
-
-        if (text.match(/Page \d+/) || 
-            text.toLowerCase().includes('domestic transaction')) {
+      // Basic check: Does the line seem to have enough columns based on header items?
+      // This is a weak check, might need refinement based on actual PDF structure.
+      if (rowTexts.length < Math.max(columnIndices.Date, columnIndices.Description, columnIndices.Amount)) {
+          // console.warn(`Skipping line ${i}: Fewer items than expected columns. Text: ${rowTexts.join(' ')}`);
           continue;
-        }
-
-        const y = Math.round(item.transform[5]);
-
-        if (currentY === null || Math.abs(y - currentY) > 2) {
-          if (currentRow.length > 0) {
-            if (isValidTableRow(currentRow)) {
-              rows.push([...currentRow]);
-            } else {
-              console.log(ERROR_MESSAGES.ERROR_INVALID_ROW, currentRow);
-            }
-            currentRow = [];
-          }
-          currentY = y;
-        }
-
-        currentRow.push(text);
       }
 
-      if (currentRow.length > 0 && isValidTableRow(currentRow)) {
-        rows.push([...currentRow]);
+      const date = rowTexts[columnIndices.Date];
+      const description = rowTexts[columnIndices.Description];
+      const amountStr = rowTexts[columnIndices.Amount];
+
+      // Validate date format (simple check)
+      if (!date || !/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+        // console.warn(`Skipping line ${i}: Invalid or missing date format. Text: ${rowTexts.join(' ')}`);
+        continue; // Skip row if date format is wrong
       }
+
+      const amount = parseAmount(amountStr);
+
+      if (amount === null) {
+        // console.warn(`Skipping line ${i}: Invalid or missing amount. Text: ${rowTexts.join(' ')}`);
+        continue; // Skip row if amount is invalid
+      }
+
+      // Add the extracted transaction
+      transactions.push([date, description || '', amount]); // Ensure description is at least an empty string
+      // console.log(`Extracted: D=${date}, Desc=${description}, Amt=${amount}`);
     }
   }
 
-  rows = rows
-    .filter(row => isValidTableRow(row))
-    .map(row => cleanRowData(row));
+  console.log(`Found ${transactions.length} potential transactions for ${bankName}.`);
 
-  if (rows.length === 0) {
-    console.error(ERROR_MESSAGES.ERROR_NO_TABLE_DATA);
-    throw new Error(ERROR_MESSAGES.ERROR_NO_TABLE_DATA);
+  if (transactions.length === 0) {
+    // Use a more specific error if possible
+    throw new Error(ERROR_MESSAGES.NO_ROWS_FOUND + ` (Detected Bank: ${bankName})`);
   }
 
-  return { headers, rows };
+  // Return data with standard headers and the identified bank name
+  return { bank: bankName, headers: outputHeaders, rows: transactions };
 };
-
-// Helper function to validate row data
-function isValidTableRow(row) {
-  if (row.length !== 4) return false;
-  
-  // Check if first column is a date (DD/MM/YYYY)
-  const datePattern = /^\d{2}\/\d{2}\/\d{4}$/;
-  if (!datePattern.test(row[0])) return false;
-  
-  // Check if last column is an amount
-  const amountPattern = /^[-+]?\d*\.?\d+$/;
-  if (!amountPattern.test(row[3].replace(/[,₹\s]/g, ''))) return false;
-  
-  return true;
-}
-
-// Helper function to clean row data
-function cleanRowData(row) {
-  return row.map((cell, index) => {
-    // Clean up amount formatting
-    if (index === 3) {
-      return cell.replace(/[₹\s]/g, '').trim();
-    }
-    return cell.trim();
-  });
-}
