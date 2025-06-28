@@ -14,14 +14,17 @@ import GoogleAuth from "../GoogleAuth/GoogleAuth";
 import "./App.css";
 
 function App() {
-  const [extractedData, setExtractedData] = useState({ bank: null, headers: [], rows: [] });
+  const [extractedData, setExtractedData] = useState({
+    bank: null,
+    headers: [],
+    rows: [],
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fileSelected, setFileSelected] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(null);
   const [saveError, setSaveError] = useState(null);
-
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [accessToken, setAccessToken] = useState(null);
 
@@ -40,7 +43,14 @@ function App() {
     setAccessToken(token);
     setSaveSuccess(null);
     setSaveError(null);
-    console.log("Auth status changed:", signedIn, "User:", profile?.name, "Token:", token ? 'Present' : 'Absent');
+    console.log(
+      "Auth status changed:",
+      signedIn,
+      "User:",
+      profile?.name,
+      "Token:",
+      token ? "Present" : "Absent"
+    );
   }, []);
 
   const handleFileSelect = async (file) => {
@@ -79,7 +89,9 @@ function App() {
       return;
     }
     if (extractedData.rows.length === 0 || !extractedData.bank) {
-      setSaveError("No data or bank info to save. Please upload and process a PDF first.");
+      setSaveError(
+        "No data or bank info to save. Please upload and process a PDF first."
+      );
       return;
     }
 
@@ -94,7 +106,9 @@ function App() {
         accessToken,
         extractedData.bank
       );
-      setSaveSuccess(`File '${result.name}' saved successfully to Google Drive!`);
+      setSaveSuccess(
+        `File '${result.name}' saved successfully to Google Drive!`
+      );
       console.log("Save successful:", result);
     } catch (err) {
       console.error("Error saving to Google Drive:", err);
@@ -110,7 +124,10 @@ function App() {
 
       <GoogleAuth onAuthChange={handleAuthChange} />
 
-      <FileUpload onFileSelect={handleFileSelect} uploadPrompt={UPLOAD_PROMPT} />
+      <FileUpload
+        onFileSelect={handleFileSelect}
+        uploadPrompt={UPLOAD_PROMPT}
+      />
 
       {isLoading && <div className="loading">{LOADING_MESSAGE}</div>}
       {error && !isLoading && <div className="error-message">{error}</div>}
@@ -118,22 +135,42 @@ function App() {
       {!isLoading && !error && extractedData.rows.length > 0 && (
         <>
           <div className="results-summary">
-            Detected Bank: {extractedData.bank}. {RESULTS_SUMMARY.replace("{count}", extractedData.rows.length)}
+            Detected Bank: {extractedData.bank}.{" "}
+            {RESULTS_SUMMARY.replace("{count}", extractedData.rows.length)}
           </div>
-          <TableDisplay headers={extractedData.headers} rows={extractedData.rows} />
+          <TableDisplay
+            headers={extractedData.headers}
+            rows={extractedData.rows}
+          />
 
-          <div style={{ marginTop: '20px', textAlign: 'center' }}>
-            <button onClick={handleSaveToDrive} disabled={!isSignedIn || isSaving || !extractedData.bank}>
-              {isSaving ? 'Saving...' : 'Save to Google Drive'}
+          <div style={{ marginTop: "20px", textAlign: "center" }}>
+            <button
+              onClick={handleSaveToDrive}
+              disabled={!isSignedIn || isSaving || !extractedData.bank}
+            >
+              {isSaving ? "Saving..." : "Save to Google Drive"}
             </button>
             {!isSignedIn && (
-              <p style={{ fontSize: '0.8em', color: '#888', marginTop: '5px' }}>
+              <p style={{ fontSize: "0.8em", color: "#888", marginTop: "5px" }}>
                 (Sign in required to save)
               </p>
             )}
-            {isSaving && <div className="loading">Saving data to Google Drive...</div>}
-            {saveSuccess && !isSaving && <div className="success-message" style={{ color: 'green', marginTop: '10px' }}>{saveSuccess}</div>}
-            {saveError && !isSaving && <div className="error-message" style={{ marginTop: '10px' }}>{saveError}</div>}
+            {isSaving && (
+              <div className="loading">Saving data to Google Drive...</div>
+            )}
+            {saveSuccess && !isSaving && (
+              <div
+                className="success-message"
+                style={{ color: "green", marginTop: "10px" }}
+              >
+                {saveSuccess}
+              </div>
+            )}
+            {saveError && !isSaving && (
+              <div className="error-message" style={{ marginTop: "10px" }}>
+                {saveError}
+              </div>
+            )}
           </div>
         </>
       )}
