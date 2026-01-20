@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { initializePdfWorker, extractTableData } from "../../utils/pdfUtils";
-import { saveToGoogleDrive } from "../../utils/googleDriveUtils";
 import {
   ERROR_MESSAGES,
   APP_TITLE,
@@ -10,7 +9,6 @@ import {
 } from "../../utils/constants";
 import FileUpload from "../FileUpload/FileUpload";
 import TableDisplay from "../TableDisplay/TableDisplay";
-import GoogleAuth from "../GoogleAuth/GoogleAuth";
 import "./App.css";
 
 function App() {
@@ -22,11 +20,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fileSelected, setFileSelected] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(null);
-  const [saveError, setSaveError] = useState(null);
-  const [isSignedIn, setIsSignedIn] = useState(false);
-  const [accessToken, setAccessToken] = useState(null);
+  const [bank, setBank] = useState("HDFC");
 
   useEffect(() => {
     try {
@@ -38,32 +32,15 @@ function App() {
     }
   }, []);
 
-  const handleAuthChange = useCallback((signedIn, profile, token) => {
-    setIsSignedIn(signedIn);
-    setAccessToken(token);
-    setSaveSuccess(null);
-    setSaveError(null);
-    console.log(
-      "Auth status changed:",
-      signedIn,
-      "User:",
-      profile?.name,
-      "Token:",
-      token ? "Present" : "Absent"
-    );
-  }, []);
-
   const handleFileSelect = async (file) => {
     try {
       setIsLoading(true);
       setError(null);
       setFileSelected(true);
       setExtractedData({ bank: null, headers: [], rows: [] });
-      setSaveSuccess(null);
-      setSaveError(null);
       console.log("Processing file:", file.name);
 
-      const data = await extractTableData(file);
+      const data = await extractTableData(file, bank);
 
       if (data.rows.length > 0) {
         console.log(
@@ -83,51 +60,20 @@ function App() {
     }
   };
 
-  const handleSaveToDrive = async () => {
-    if (!isSignedIn || !accessToken) {
-      setSaveError("Please sign in with Google first.");
-      return;
-    }
-    if (extractedData.rows.length === 0 || !extractedData.bank) {
-      setSaveError(
-        "No data or bank info to save. Please upload and process a PDF first."
-      );
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveError(null);
-    setSaveSuccess(null);
-
-    try {
-      const result = await saveToGoogleDrive(
-        extractedData.rows,
-        extractedData.headers,
-        accessToken,
-        extractedData.bank
-      );
-      setSaveSuccess(
-        `File '${result.name}' saved successfully to Google Drive!`
-      );
-      console.log("Save successful:", result);
-    } catch (err) {
-      console.error("Error saving to Google Drive:", err);
-      setSaveError(`Failed to save: ${err.message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   return (
     <div className="app-container">
       <h1>{APP_TITLE}</h1>
-
-      <GoogleAuth onAuthChange={handleAuthChange} />
 
       <FileUpload
         onFileSelect={handleFileSelect}
         uploadPrompt={UPLOAD_PROMPT}
       />
+
+      <select value={bank} onChange={(e) => setBank(e.target.value)}>
+        <option value="HDFC">HDFC</option>
+        <option value="ICICI">ICICI</option>
+        {/* Add more banks as needed */}
+      </select>
 
       {isLoading && <div className="loading">{LOADING_MESSAGE}</div>}
       {error && !isLoading && <div className="error-message">{error}</div>}
@@ -142,36 +88,6 @@ function App() {
             headers={extractedData.headers}
             rows={extractedData.rows}
           />
-
-          <div style={{ marginTop: "20px", textAlign: "center" }}>
-            <button
-              onClick={handleSaveToDrive}
-              disabled={!isSignedIn || isSaving || !extractedData.bank}
-            >
-              {isSaving ? "Saving..." : "Save to Google Drive"}
-            </button>
-            {!isSignedIn && (
-              <p style={{ fontSize: "0.8em", color: "#888", marginTop: "5px" }}>
-                (Sign in required to save)
-              </p>
-            )}
-            {isSaving && (
-              <div className="loading">Saving data to Google Drive...</div>
-            )}
-            {saveSuccess && !isSaving && (
-              <div
-                className="success-message"
-                style={{ color: "green", marginTop: "10px" }}
-              >
-                {saveSuccess}
-              </div>
-            )}
-            {saveError && !isSaving && (
-              <div className="error-message" style={{ marginTop: "10px" }}>
-                {saveError}
-              </div>
-            )}
-          </div>
         </>
       )}
 

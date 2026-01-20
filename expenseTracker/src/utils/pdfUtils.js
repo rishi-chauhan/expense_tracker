@@ -13,7 +13,7 @@ export const initializePdfWorker = () => {
   if (typeof window !== "undefined" && window.document) {
     // Ensure this runs only in the browser
     pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER_SRC;
-    console.log(`PDF.js worker source set to: ${PDF_WORKER_SRC}`);
+    // console.log(`PDF.js worker source set to: ${PDF_WORKER_SRC}`);
   } else {
     console.warn(
       "Skipping PDF worker initialization outside of browser environment."
@@ -115,32 +115,6 @@ function groupItemsByLine(items, tolerance = 5) {
  * @param {object} pdfDoc - The loaded PDF document object from pdf.js.
  * @returns {Promise<string|null>} The name of the identified bank (e.g., "HDFC", "ICICI") or null.
  */
-async function identifyBank(pdfDoc) {
-  try {
-    const firstPage = await pdfDoc.getPage(1);
-    const textContent = await firstPage.getTextContent();
-    const pageText = textContent.items
-      .map((item) => item.str)
-      .join(" ")
-      .toLowerCase();
-
-    for (const bankKey in BANK_CONFIG) {
-      const config = BANK_CONFIG[bankKey];
-      if (
-        config.identifiers.some((id) => pageText.includes(id.toLowerCase()))
-      ) {
-        console.log(`Identified bank: ${config.name}`);
-        return config.name;
-      }
-    }
-    console.warn("Could not identify bank from first page content.");
-    return null;
-  } catch (error) {
-    console.error("Error identifying bank:", error);
-    return null;
-  }
-}
-
 /**
  * Parses the amount string, handling 'CR'/'cr' and removing commas.
  * @param {string} amountStr - The amount string from the PDF.
@@ -165,18 +139,22 @@ function parseAmount(amountStr) {
 
 /**
  * Finds the line index containing the transaction table headers.
- * @param {Array<Array>} lines - Array of lines (each line is an array of text items).
+ * @param {Array<Array<object>>} lines - Array of lines (each line is an array of text items).
+ * @param {number} tableStartIndex - The line index to start searching from.
  * @param {Array<string>} expectedHeaders - The headers to look for.
  * @returns {number} The index of the header line, or -1 if not found.
  */
-function findHeaderLineIndex(items, tableStartIndex, expectedHeaders) {
-  for (let item = tableStartIndex; item < items.length; item++) {
-    const itemText = items[item].str.trim().join(" ").toLowerCase();
+function findHeaderLineIndex(lines, tableStartIndex, expectedHeaders) {
+  for (let i = tableStartIndex; i < lines.length; i++) {
+    const lineText = lines[i]
+      .map((item) => item.str.trim())
+      .join(" ")
+      .toLowerCase();
     // Check if all expected headers are present in the line text
     if (
-      expectedHeaders.every((header) => itemText.includes(header.toLowerCase()))
+      expectedHeaders.every((header) => lineText.includes(header.toLowerCase()))
     )
-      return item;
+      return i;
   }
   return -1;
 }
@@ -234,19 +212,21 @@ function getColumnIndices(headerLineItems, columnMapping) {
   return indices;
 }
 
-const getTableStartIndex = (items, tableTitle) => {
-  for (let item = 0; item < items.length; item++) {
-    if (items[item].str.includes(tableTitle)) return item;
+const getTableStartIndex = (lines, tableTitle) => {
+  for (let i = 0; i < lines.length; i++) {
+    const lineText = lines[i].map((item) => item.str).join(" ");
+    if (lineText.includes(tableTitle)) return i;
   }
+  return -1;
 };
 // --- Main Extraction Logic ---
 
-export const extractTableData = async (file) => {
+export const extractTableData = async (file, bankName) => {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer });
   const pdfDoc = await pdf.promise;
 
-  const bankName = await identifyBank(pdfDoc);
+  // const bankName = await identifyBank(pdfDoc);
   if (!bankName) {
     throw new Error(ERROR_MESSAGES.UNSUPPORTED_BANK);
   }
@@ -262,11 +242,19 @@ export const extractTableData = async (file) => {
     const page = await pdfDoc.getPage(pageNum);
     const textContent = await page.getTextContent();
     const items = textContent.items;
-    const tableStartIndex = getTableStartIndex(items, bankConfig.tableTitle);
+    const lines = groupItemsByLine(items);
+    const tableStartIndex = getTableStartIndex(lines, bankConfig.tableTitle);
+
+    if (tableStartIndex === -1) {
+      console.log(
+        `Transaction table title not found on page ${pageNum}. Skipping page.`
+      );
+      continue; // Skip page if title isn't found
+    }
 
     // Find the header row for the transaction table
     const headerLineIndex = findHeaderLineIndex(
-      items,
+      lines,
       tableStartIndex,
       bankConfig.tableHeaders
     );
@@ -283,7 +271,10 @@ export const extractTableData = async (file) => {
 
     let columnIndices;
     try {
-      columnIndices = getColumnIndices(lines[headerLineIndex], config.columns);
+      columnIndices = getColumnIndices(
+        lines[headerLineIndex],
+        bankConfig.columns
+      );
     } catch (error) {
       console.error(
         `Error getting column indices on page ${pageNum}:`,
@@ -292,8 +283,8 @@ export const extractTableData = async (file) => {
       continue; // Skip page if columns can't be mapped
     }
 
-    // Process lines *after* the header line + skip the first data row (as per PRD)
-    const startRowIndex = headerLineIndex + 2;
+    // Process lines *after* the header line
+    const startRowIndex = headerLineIndex + 1;
     for (let i = startRowIndex; i < lines.length; i++) {
       const lineItems = lines[i];
       const rowTexts = lineItems.map((item) => item.str.trim());
