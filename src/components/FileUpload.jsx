@@ -3,9 +3,17 @@ import './FileUpload.css';
 
 function FileUpload({ onFileUpload }) {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
+  // Format file size helper
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  // Handle file selection (from input or drop)
+  const handleFileSelection = (file) => {
     if (file && file.type === 'text/csv') {
       setSelectedFile(file);
       onFileUpload(file);
@@ -15,22 +23,104 @@ function FileUpload({ onFileUpload }) {
     }
   };
 
+  // Handle file input change
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    handleFileSelection(file);
+  };
+
+  // Drag event handlers
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelection(files[0]);
+    }
+  };
+
+  // Handle file removal
+  const handleRemoveFile = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedFile(null);
+  };
+
   return (
-    <div className="file-upload-container">
-      <h2>Upload Credit Card Statement (CSV)</h2>
-      <input
-        type="file"
-        accept=".csv"
-        onChange={handleFileChange}
-        className="file-input"
-        id="csv-file-upload"
-      />
-      <label htmlFor="csv-file-upload" className="file-upload-button">
-        {selectedFile ? selectedFile.name : 'Choose CSV File'}
+    <div className="file-upload-card">
+      <div className="upload-card-header">
+        <h2 className="upload-title">Upload Credit Card Statement</h2>
+        <p className="upload-description">
+          Upload your CSV file to analyze spending patterns
+        </p>
+      </div>
+
+      <label
+        htmlFor="csv-file-upload"
+        className={`upload-zone ${isDragging ? 'dragging' : ''} ${selectedFile ? 'has-file' : ''}`}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleFileChange}
+          className="file-input"
+          id="csv-file-upload"
+        />
+
+        {!selectedFile ? (
+          <div className="upload-prompt">
+            <div className="upload-icon">↑</div>
+            <p className="upload-prompt-text">
+              Drop CSV file here or <strong>browse</strong>
+            </p>
+            <p className="upload-hint">
+              Supports .csv files up to 10MB
+            </p>
+          </div>
+        ) : (
+          <div className="file-preview">
+            <div className="file-preview-icon">✓</div>
+            <div className="file-info">
+              <div className="file-name">{selectedFile.name}</div>
+              <div className="file-meta">
+                {formatFileSize(selectedFile.size)}
+                <span className="file-meta-divider">•</span>
+                CSV File
+              </div>
+            </div>
+            <button
+              className="remove-file-button"
+              onClick={handleRemoveFile}
+              aria-label="Remove file"
+            >
+              ×
+            </button>
+          </div>
+        )}
       </label>
-      {selectedFile && (
-        <p className="selected-file-name">Selected file: {selectedFile.name}</p>
-      )}
     </div>
   );
 }

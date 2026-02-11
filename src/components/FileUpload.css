@@ -1,34 +1,268 @@
-.file-upload-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  border: 2px dashed #cccccc;
-  border-radius: 8px;
-  margin: 20px;
-  background-color: #f9f9f9;
+/* ========================================
+   FILE UPLOAD CARD
+   ======================================== */
+
+.file-upload-card {
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-md);
+  margin-bottom: var(--space-6);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.file-upload-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.upload-card-header {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.upload-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-gray-900);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.upload-description {
+  font-size: var(--text-sm);
+  color: var(--color-gray-600);
+  margin: 0;
+}
+
+/* ========================================
+   UPLOAD ZONE
+   ======================================== */
+
+.upload-zone {
+  position: relative;
+  display: block;
+  border: 2px dashed var(--color-gray-300);
+  border-radius: var(--radius-xl);
+  padding: var(--space-12);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  background: var(--color-bg-secondary);
+  outline: none;
+}
+
+.upload-zone:focus {
+  outline: none;
+}
+
+.upload-zone:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+.upload-zone:hover {
+  border-color: var(--color-primary-400);
+  background: var(--color-primary-50);
+}
+
+.upload-zone.dragging {
+  transform: scale(1.02);
+  border-color: var(--color-primary-500);
+  border-style: solid;
+  background: var(--color-primary-100);
+  box-shadow: var(--shadow-lg);
+}
+
+.upload-zone.has-file {
+  border-style: solid;
+  border-color: var(--color-success);
+  background: var(--color-success-light);
 }
 
 .file-input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
-.file-upload-button {
-  background-color: #007bff;
+/* ========================================
+   UPLOAD PROMPT (No File State)
+   ======================================== */
+
+.upload-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.upload-icon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-accent-500));
   color: white;
-  padding: 10px 20px;
-  border-radius: 5px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-4xl);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--duration-normal) var(--ease-bounce);
+}
+
+.upload-zone:hover .upload-icon {
+  transform: translateY(-4px);
+}
+
+.upload-prompt-text {
+  font-size: var(--text-lg);
+  color: var(--color-gray-700);
+  margin: 0;
+}
+
+.upload-prompt-text strong {
+  color: var(--color-primary-600);
+  font-weight: var(--font-semibold);
+}
+
+.upload-hint {
+  font-size: var(--text-sm);
+  color: var(--color-gray-500);
+  margin: 0;
+}
+
+/* ========================================
+   FILE PREVIEW (With File State)
+   ======================================== */
+
+.file-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  animation: slide-in 0.3s var(--ease-out);
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.file-preview-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-success), var(--color-success-dark));
+  color: white;
+  border-radius: var(--radius-full);
+  font-size: var(--text-3xl);
+  box-shadow: var(--shadow-md);
+  flex-shrink: 0;
+}
+
+.file-info {
+  flex: 1;
+  text-align: left;
+}
+
+.file-name {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--color-gray-900);
+  margin: 0 0 var(--space-1) 0;
+  word-break: break-word;
+}
+
+.file-meta {
+  font-size: var(--text-sm);
+  color: var(--color-gray-600);
+  margin: 0;
+}
+
+.file-meta-divider {
+  margin: 0 var(--space-2);
+  color: var(--color-gray-400);
+}
+
+.remove-file-button {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-error-light);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
   cursor: pointer;
-  margin-top: 10px;
-  transition: background-color 0.3s ease;
+  transition: all var(--duration-normal) var(--ease-out);
+  flex-shrink: 0;
 }
 
-.file-upload-button:hover {
-  background-color: #0056b3;
+.remove-file-button:hover {
+  background: var(--color-error);
+  color: white;
+  transform: scale(1.1);
 }
 
-.selected-file-name {
-  margin-top: 15px;
-  font-style: italic;
-  color: #555555;
+.remove-file-button:active {
+  transform: scale(0.95);
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 640px) {
+  .file-upload-card {
+    padding: var(--space-6);
+  }
+
+  .upload-zone {
+    padding: var(--space-8);
+  }
+
+  .upload-icon {
+    width: 64px;
+    height: 64px;
+    font-size: var(--text-3xl);
+  }
+
+  .upload-prompt-text {
+    font-size: var(--text-base);
+  }
+
+  .file-preview {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .file-info {
+    text-align: center;
+  }
+
+  .file-preview-icon {
+    width: 56px;
+    height: 56px;
+    font-size: var(--text-2xl);
+  }
+
+  .file-name {
+    font-size: var(--text-base);
+  }
 }
