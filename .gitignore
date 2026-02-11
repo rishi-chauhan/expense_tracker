@@ -20,6 +20,15 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
+# Database files
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Environment
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
