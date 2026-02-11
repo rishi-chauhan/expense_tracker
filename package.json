@@ -8,6 +8,11 @@
     "dev:vite": "vite",
     "build": "vite build",
     "start": "NODE_ENV=production bun run src/server/index.js",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:backend": "vitest src/server",
+    "test:frontend": "vitest src/client",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -20,6 +25,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
@@ -27,6 +36,8 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
-    "vite": "^6.2.0"
+    "happy-dom": "^20.6.1",
+    "vite": "^6.2.0",
+    "vitest": "^4.0.18"
   }
 }

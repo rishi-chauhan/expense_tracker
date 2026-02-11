@@ -1,0 +1,26 @@
+Name~|~MALFORMED FILE
+Card~|~xxxx-xxxx-xxxx-1234
+Statement date~|~25-Jan-2025
+Payment due date~|~10-Feb-2025
+Minimum amount due~|~Rs. 500.00
+Previous balance~|~Rs. 1,000.00
+Payments/Credits~|~Rs. 0.00
+Purchases~|~Rs. 500.00
+Cash advance~|~Rs. 0.00
+Balance transfers~|~Rs. 0.00
+Fees~|~Rs. 0.00
+Interest~|~Rs. 0.00
+New balance~|~Rs. 1,500.00
+Credit limit~|~Rs. 50,000.00
+Available credit~|~Rs. 48,500.00
+Total annual cost including fees~|~Rs. 0.00
+Account number~|~123456789
+Account status~|~Active
+Branch~|~Main Branch
+Customer ID~|~CUST001
+Address~|~Test Address
+Email~|~test@example.com
+Phone~|~1234567890
+Transaction type~|~Customer~|~DATE~|~Description~|~AMT~|~Debit /Credit~|~REWARDS
+Domestic~|~Test~|~invalid-date~|~Store~|~100.50~|~~|~10
+Domestic~|~Test~|~26/12/2025~|~Store~|~not-a-number~|~~|~10
