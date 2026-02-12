@@ -2,6 +2,80 @@ import Papa from 'papaparse';
 import { parseDate, parseAmount } from './utils.js';
 
 /**
+ * Auto-detect delimiter used in CSV file
+ * @param {string} content - Full CSV content
+ * @returns {string} - Detected delimiter ('~|~' or '~')
+ */
+function detectDelimiter(content) {
+  const lines = content.split(/\r?\n/);
+
+  // Look for the header row that contains DATE and AMT
+  for (const line of lines) {
+    if (line.includes('DATE') && line.includes('AMT')) {
+      // Check which delimiter is used
+      if (line.includes('~|~')) {
+        return '~|~';
+      } else if (line.includes('~')) {
+        return '~';
+      }
+    }
+  }
+
+  // Default to the most common format
+  return '~|~';
+}
+
+/**
+ * Find the line number containing the header row
+ * @param {string} content - Full CSV content
+ * @returns {number} - Line index of header row (0-based)
+ */
+function findHeaderRowIndex(content) {
+  const lines = content.split(/\r?\n/);
+
+  // Look for row with both DATE and AMT columns (case-insensitive check)
+  const headerIndex = lines.findIndex(line => {
+    const upperLine = line.toUpperCase();
+    return upperLine.includes('DATE') && upperLine.includes('AMT');
+  });
+
+  if (headerIndex === -1) {
+    throw new Error('Could not find header row with DATE and AMT columns');
+  }
+
+  return headerIndex;
+}
+
+/**
+ * Extract statement metadata from header section
+ * @param {string} fileContent - Full CSV content
+ * @param {number} headerIndex - Index of header row
+ * @returns {object} - { statementDate, periodStart, periodEnd }
+ */
+export function extractStatementMetadata(fileContent, headerIndex) {
+  const lines = fileContent.split(/\r?\n/).slice(0, headerIndex);
+
+  let statementDate = null;
+
+  // Look for "Statement Date" line
+  for (const line of lines) {
+    if (line.includes('Statement Date')) {
+      // Extract date from formats like "Statement Date~23/04/2025" or "Statement Date~|~23/04/2025"
+      const match = line.match(/Statement Date.*?(\d{2}\/\d{2}\/\d{4})/);
+      if (match) {
+        statementDate = match[1];
+      }
+      break;
+    }
+  }
+
+  return {
+    statementDate: statementDate || 'Unknown',
+    // Period will be calculated from first/last transaction dates
+  };
+}
+
+/**
  * Parse credit card CSV file content
  * @param {string} fileContent - Raw CSV file content
  * @returns {Promise<Array>} - Array of parsed transactions
@@ -9,15 +83,19 @@ import { parseDate, parseAmount } from './utils.js';
 export async function parseCSV(fileContent) {
   return new Promise((resolve, reject) => {
     try {
-      // Handle both Windows (\r\n) and Unix (\n) line endings
+      // Auto-detect delimiter
+      const delimiter = detectDelimiter(fileContent);
+
+      // Find header row
+      const headerIndex = findHeaderRowIndex(fileContent);
+
+      // Split lines and keep from header row onwards
       const lines = fileContent.split(/\r?\n/);
+      const processedContent = lines.slice(headerIndex).join('\n');
 
-      // Skip first 25 metadata rows
-      const processedContent = lines.slice(25).join('\n');
-
-      // Parse the processed content with ~|~ delimiter
+      // Parse with auto-detected delimiter
       Papa.parse(processedContent, {
-        delimiter: '~|~',
+        delimiter: delimiter,
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
@@ -25,7 +103,10 @@ export async function parseCSV(fileContent) {
             // Validate expected columns exist
             const firstRow = results.data[0];
             if (!firstRow || !('AMT' in firstRow) || !('DATE' in firstRow)) {
-              reject(new Error('Invalid CSV format. Expected credit card statement with DATE and AMT columns.'));
+              reject(new Error(
+                `Invalid CSV format. Expected credit card statement with DATE and AMT columns.\n` +
+                `Found columns: ${firstRow ? Object.keys(firstRow).join(', ') : 'none'}`
+              ));
               return;
             }
 
@@ -72,7 +153,10 @@ function transformCreditCardData(data) {
 
         // Get description and transaction type
         const description = String(row['Description'] || '').trim();
-        const isCredit = String(row['Debit /Credit'] || '').trim() === 'Cr';
+
+        // Handle both "Debit /Credit" and "Debit / Credit" (with/without space)
+        const debitCreditCol = row['Debit /Credit'] || row['Debit / Credit'] || '';
+        const isCredit = String(debitCreditCol).trim() === 'Cr';
 
         // Validate required fields
         if (!amount || isNaN(amount) || !date) {

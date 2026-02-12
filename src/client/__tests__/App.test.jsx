@@ -2,7 +2,8 @@
  * @vitest-environment happy-dom
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import App from '../App';
 
 describe('App Component', () => {
@@ -116,5 +117,391 @@ describe('App Component', () => {
     render(<App />);
 
     expect(screen.getByText(/Upload Credit Card Statement/i)).toBeInTheDocument();
+  });
+
+  describe('Error Handling', () => {
+    it('should display error when upload fails', async () => {
+      // Initial load succeeds
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({ success: true, transactions: [] })
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith('/api/transactions');
+      });
+
+      // Upload fails
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({
+          success: false,
+          error: 'Could not find header row with DATE and AMT columns'
+        })
+      });
+
+      // Trigger file upload
+      const file = new File(['invalid content'], 'test.csv', { type: 'text/csv' });
+      const input = container.querySelector('input[type="file"]');
+      await userEvent.upload(input, file);
+
+      // Wait for error to appear
+      await waitFor(() => {
+        expect(screen.getByText('Upload Failed')).toBeInTheDocument();
+        expect(screen.getByText(/Could not find header row with DATE and AMT columns/i)).toBeInTheDocument();
+      });
+
+      // Check error container structure
+      const errorContainer = screen.getByText('Upload Failed').closest('.error-container');
+      expect(errorContainer).toBeInTheDocument();
+      expect(errorContainer.querySelector('.error-icon')).toHaveTextContent('!');
+    });
+
+    it('should show error close button', async () => {
+      // Initial load succeeds
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({ success: true, transactions: [] })
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+
+      // Upload fails
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({
+          success: false,
+          error: 'Upload failed: Invalid format'
+        })
+      });
+
+      const file = new File(['test'], 'test.csv', { type: 'text/csv' });
+      const input = container.querySelector('input[type="file"]');
+      await userEvent.upload(input, file);
+
+      // Wait for error to appear
+      await waitFor(() => {
+        expect(screen.getByText('Upload Failed')).toBeInTheDocument();
+      });
+
+      // Check close button exists with correct attributes
+      const closeButton = screen.getByLabelText('Close error');
+      expect(closeButton).toBeInTheDocument();
+      expect(closeButton).toHaveClass('error-close');
+      expect(closeButton).toHaveTextContent('×');
+    });
+
+    it('should dismiss error when close button is clicked', async () => {
+      // Initial load succeeds
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({ success: true, transactions: [] })
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+
+      // Upload fails
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({
+          success: false,
+          error: 'Upload failed: Test error message'
+        })
+      });
+
+      const file = new File(['test'], 'test.csv', { type: 'text/csv' });
+      const input = container.querySelector('input[type="file"]');
+      await userEvent.upload(input, file);
+
+      // Wait for error to appear
+      await waitFor(() => {
+        expect(screen.getByText('Upload Failed')).toBeInTheDocument();
+      });
+
+      // Click close button
+      const closeButton = screen.getByLabelText('Close error');
+      await userEvent.click(closeButton);
+
+      // Error should be dismissed
+      await waitFor(() => {
+        expect(screen.queryByText('Upload Failed')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Test error message/i)).not.toBeInTheDocument();
+      });
+    });
+
+    it('should handle network errors during upload', async () => {
+      // Initial load succeeds
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({ success: true, transactions: [] })
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+
+      // Upload throws network error
+      fetchMock.mockRejectedValueOnce(new Error('Network connection failed'));
+
+      const file = new File(['test'], 'test.csv', { type: 'text/csv' });
+      const input = container.querySelector('input[type="file"]');
+      await userEvent.upload(input, file);
+
+      // Wait for error to appear
+      await waitFor(() => {
+        expect(screen.getByText('Upload Failed')).toBeInTheDocument();
+        expect(screen.getByText(/Upload failed: Network connection failed/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Notification Handling', () => {
+    it('should display success notification after successful upload', async () => {
+      // Initial load succeeds
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({ success: true, transactions: [] })
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+
+      // Upload succeeds
+      fetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            success: true,
+            isDuplicate: false,
+            newCount: 10,
+            duplicateCount: 0,
+            statementInfo: {
+              fileName: 'statement.csv',
+              periodStart: '2025-01-01',
+              periodEnd: '2025-01-31'
+            }
+          })
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ success: true, transactions: [] })
+        });
+
+      const file = new File(['test'], 'statement.csv', { type: 'text/csv' });
+      const input = container.querySelector('input[type="file"]');
+      await userEvent.upload(input, file);
+
+      // Wait for success notification
+      await waitFor(() => {
+        expect(screen.getByText('Upload Complete!')).toBeInTheDocument();
+        expect(screen.getByText(/Successfully processed statement.csv/i)).toBeInTheDocument();
+      });
+
+      // Check notification structure
+      const notification = screen.getByText('Upload Complete!').closest('.notification-container');
+      expect(notification).toHaveClass('success');
+      expect(notification.querySelector('.notification-icon')).toHaveTextContent('✓');
+    });
+
+    it('should display info notification for duplicate statement', async () => {
+      // Initial load succeeds
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({ success: true, transactions: [] })
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+
+      // Upload returns duplicate
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({
+          success: true,
+          isDuplicate: true,
+          existingStatement: {
+            file_name: 'old_statement.csv',
+            uploaded_at: '2025-01-15T10:30:00Z',
+            period_start: '2025-01-01',
+            period_end: '2025-01-31'
+          }
+        })
+      });
+
+      const file = new File(['test'], 'statement.csv', { type: 'text/csv' });
+      const input = container.querySelector('input[type="file"]');
+      await userEvent.upload(input, file);
+
+      // Wait for info notification
+      await waitFor(() => {
+        expect(screen.getByText('Duplicate Statement')).toBeInTheDocument();
+      });
+
+      // Check notification structure
+      const notification = screen.getByText('Duplicate Statement').closest('.notification-container');
+      expect(notification).toHaveClass('info');
+      expect(notification.querySelector('.notification-icon')).toHaveTextContent('ⓘ');
+    });
+
+    it('should show notification close button', async () => {
+      // Initial load succeeds
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({ success: true, transactions: [] })
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+
+      // Upload succeeds
+      fetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            success: true,
+            isDuplicate: false,
+            newCount: 5,
+            duplicateCount: 0,
+            statementInfo: {
+              fileName: 'test.csv',
+              periodStart: '2025-01-01',
+              periodEnd: '2025-01-31'
+            }
+          })
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ success: true, transactions: [] })
+        });
+
+      const file = new File(['test'], 'test.csv', { type: 'text/csv' });
+      const input = container.querySelector('input[type="file"]');
+      await userEvent.upload(input, file);
+
+      // Wait for notification
+      await waitFor(() => {
+        expect(screen.getByText('Upload Complete!')).toBeInTheDocument();
+      });
+
+      // Check close button
+      const closeButton = screen.getByLabelText('Close notification');
+      expect(closeButton).toBeInTheDocument();
+      expect(closeButton).toHaveClass('notification-close');
+      expect(closeButton).toHaveTextContent('×');
+    });
+
+    it('should dismiss notification when close button is clicked', async () => {
+      // Initial load succeeds
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({ success: true, transactions: [] })
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+
+      // Upload succeeds
+      fetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            success: true,
+            isDuplicate: false,
+            newCount: 5,
+            duplicateCount: 0,
+            statementInfo: {
+              fileName: 'test.csv',
+              periodStart: '2025-01-01',
+              periodEnd: '2025-01-31'
+            }
+          })
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ success: true, transactions: [] })
+        });
+
+      const file = new File(['test'], 'test.csv', { type: 'text/csv' });
+      const input = container.querySelector('input[type="file"]');
+      await userEvent.upload(input, file);
+
+      // Wait for notification
+      await waitFor(() => {
+        expect(screen.getByText('Upload Complete!')).toBeInTheDocument();
+      });
+
+      // Click close button
+      const closeButton = screen.getByLabelText('Close notification');
+      await userEvent.click(closeButton);
+
+      // Notification should be dismissed
+      await waitFor(() => {
+        expect(screen.queryByText('Upload Complete!')).not.toBeInTheDocument();
+      });
+    });
+
+    it('should clear previous error when new upload starts', async () => {
+      // Initial load succeeds
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({ success: true, transactions: [] })
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+
+      // First upload fails
+      fetchMock.mockResolvedValueOnce({
+        json: async () => ({
+          success: false,
+          error: 'First error message'
+        })
+      });
+
+      const file1 = new File(['test1'], 'test1.csv', { type: 'text/csv' });
+      const input = container.querySelector('input[type="file"]');
+      await userEvent.upload(input, file1);
+
+      // Wait for error
+      await waitFor(() => {
+        expect(screen.getByText(/First error message/i)).toBeInTheDocument();
+      });
+
+      // Second upload succeeds
+      fetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            success: true,
+            isDuplicate: false,
+            newCount: 5,
+            duplicateCount: 0,
+            statementInfo: {
+              fileName: 'test2.csv',
+              periodStart: '2025-01-01',
+              periodEnd: '2025-01-31'
+            }
+          })
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ success: true, transactions: [] })
+        });
+
+      const file2 = new File(['test2'], 'test2.csv', { type: 'text/csv' });
+      await userEvent.upload(input, file2);
+
+      // Previous error should be cleared, success notification shown
+      await waitFor(() => {
+        expect(screen.queryByText(/First error message/i)).not.toBeInTheDocument();
+        expect(screen.getByText('Upload Complete!')).toBeInTheDocument();
+      });
+    });
   });
 });

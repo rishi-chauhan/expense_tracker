@@ -10,6 +10,7 @@ function App() {
   const [csvData, setCsvData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [notification, setNotification] = useState(null); // { type: 'success' | 'info', message: string }
 
   // Load existing transactions on mount
   useEffect(() => {
@@ -40,6 +41,7 @@ function App() {
   const handleFileUpload = async (file) => {
     setLoading(true);
     setError(null);
+    setNotification(null);
 
     try {
       const formData = new FormData();
@@ -55,8 +57,15 @@ function App() {
       // Check for duplicate statement
       if (result.isDuplicate) {
         const uploadDate = new Date(result.existingStatement.uploaded_at).toLocaleDateString();
-        const message = `This statement was already uploaded on ${uploadDate}.\n\nFile: ${result.existingStatement.file_name}\nPeriod: ${result.existingStatement.period_start} to ${result.existingStatement.period_end}\n\nSkipping duplicate upload.`;
-        alert(message);
+        setNotification({
+          type: 'info',
+          title: 'Duplicate Statement',
+          message: `This statement was already uploaded on ${uploadDate}.`,
+          details: [
+            `File: ${result.existingStatement.file_name}`,
+            `Period: ${result.existingStatement.period_start} to ${result.existingStatement.period_end}`
+          ]
+        });
         setLoading(false);
         return;
       }
@@ -83,8 +92,16 @@ function App() {
       }
 
       // Show success message
-      const message = `✅ Upload complete!\n\nAdded: ${result.newCount} new transactions\nSkipped: ${result.duplicateCount} duplicates\n\nStatement period: ${result.statementInfo.periodStart} to ${result.statementInfo.periodEnd}`;
-      alert(message);
+      setNotification({
+        type: 'success',
+        title: 'Upload Complete!',
+        message: `Successfully processed ${result.statementInfo.fileName}`,
+        details: [
+          `Added: ${result.newCount} new transaction${result.newCount !== 1 ? 's' : ''}`,
+          `Skipped: ${result.duplicateCount} duplicate${result.duplicateCount !== 1 ? 's' : ''}`,
+          `Period: ${result.statementInfo.periodStart} to ${result.statementInfo.periodEnd}`
+        ]
+      });
 
     } catch (err) {
       setError('Upload failed: ' + err.message);
@@ -106,7 +123,7 @@ function App() {
       </header>
 
       <main className="app-main">
-        <FileUpload onFileUpload={handleFileUpload} />
+        <FileUpload onFileUpload={handleFileUpload} onError={setError} />
 
         {loading && (
           <div className="loading-container">
@@ -123,6 +140,39 @@ function App() {
               <div className="error-title">Upload Failed</div>
               <div className="error-message">{error}</div>
             </div>
+            <button
+              className="error-close"
+              onClick={() => setError(null)}
+              aria-label="Close error"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {notification && (
+          <div className={`notification-container ${notification.type}`}>
+            <div className="notification-icon">
+              {notification.type === 'success' ? '✓' : 'ⓘ'}
+            </div>
+            <div className="notification-content">
+              <div className="notification-title">{notification.title}</div>
+              <div className="notification-message">{notification.message}</div>
+              {notification.details && (
+                <ul className="notification-details">
+                  {notification.details.map((detail, idx) => (
+                    <li key={idx}>{detail}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <button
+              className="notification-close"
+              onClick={() => setNotification(null)}
+              aria-label="Close notification"
+            >
+              ×
+            </button>
           </div>
         )}
 

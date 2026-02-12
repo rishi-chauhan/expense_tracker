@@ -33,16 +33,17 @@ const server = Bun.serve({
     if (url.pathname.startsWith('/api')) {
       const response = await handleApiRequest(req, url);
 
-      // Add CORS headers to API responses
+      // Add CORS headers to API responses in development
       if (isDev) {
-        const headers = new Headers(response.headers);
+        const newHeaders = new Headers(response.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => {
-          headers.set(key, value);
+          newHeaders.set(key, value);
         });
+
         return new Response(response.body, {
           status: response.status,
           statusText: response.statusText,
-          headers
+          headers: newHeaders
         });
       }
 

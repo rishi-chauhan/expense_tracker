@@ -14,11 +14,22 @@ This is a React 19 single-page application for analyzing credit card expenses fr
 # Install dependencies
 bun install
 
-# Start development server (http://localhost:5173)
+# Start both backend and frontend dev servers
+# Backend: http://localhost:3000 (API)
+# Frontend: http://localhost:5173 (React app)
 bun run dev
+
+# Start backend only (if needed separately)
+bun run dev:backend
+
+# Start frontend only (if needed separately)
+bun run dev:vite
 
 # Build for production
 bun run build
+
+# Start production server
+bun run start
 
 # Preview production build
 bun run preview

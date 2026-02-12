@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './FileUpload.css';
 
-function FileUpload({ onFileUpload }) {
+function FileUpload({ onFileUpload, onError }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -19,7 +19,9 @@ function FileUpload({ onFileUpload }) {
       onFileUpload(file);
     } else {
       setSelectedFile(null);
-      alert('Please upload a valid CSV file.');
+      if (onError) {
+        onError('Please upload a valid CSV file.');
+      }
     }
   };
 

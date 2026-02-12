@@ -45,7 +45,7 @@ describe('FileUpload Component', () => {
     expect(mockHandler).toHaveBeenCalledWith(file);
   });
 
-  it('should show alert for invalid file type', async () => {
+  it('should show alert for invalid file type when no onError callback', async () => {
     const mockHandler = vi.fn();
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
@@ -58,6 +58,39 @@ describe('FileUpload Component', () => {
 
     expect(alertSpy).toHaveBeenCalledWith('Please upload a valid CSV file.');
     expect(mockHandler).not.toHaveBeenCalled();
+
+    alertSpy.mockRestore();
+  });
+
+  it('should call onError callback for invalid file type', async () => {
+    const mockUploadHandler = vi.fn();
+    const mockErrorHandler = vi.fn();
+
+    render(<FileUpload onFileUpload={mockUploadHandler} onError={mockErrorHandler} />);
+
+    const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
+    const input = screen.getByLabelText(/Upload Credit Card Statement/i);
+
+    await userEvent.upload(input, file);
+
+    expect(mockErrorHandler).toHaveBeenCalledWith('Please upload a valid CSV file.');
+    expect(mockUploadHandler).not.toHaveBeenCalled();
+  });
+
+  it('should not show alert when onError callback is provided', async () => {
+    const mockUploadHandler = vi.fn();
+    const mockErrorHandler = vi.fn();
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<FileUpload onFileUpload={mockUploadHandler} onError={mockErrorHandler} />);
+
+    const file = new File(['test'], 'test.txt', { type: 'text/plain' });
+    const input = screen.getByLabelText(/Upload Credit Card Statement/i);
+
+    await userEvent.upload(input, file);
+
+    expect(mockErrorHandler).toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
 
     alertSpy.mockRestore();
   });
