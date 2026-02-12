@@ -19,7 +19,7 @@ export function generateFileHash(content) {
  */
 export function generateTxHash(date, amount, description) {
   // Normalize date to YYYY-MM-DD format
-  const dateStr = new Date(date).toISOString().split('T')[0];
+  const dateStr = date.split('T')[0];
 
   // Normalize amount to 2 decimal places
   const amountStr = amount.toFixed(2);
@@ -42,15 +42,15 @@ export function generateTxHash(date, amount, description) {
 export function parseDate(dateStr) {
   const [datePart] = dateStr.split(' '); // Handle "DD/MM/YYYY HH:MM:SS" format
   const [day, month, year] = datePart.split('/');
+  const d = parseInt(day, 10);
+  const m = parseInt(month, 10);
+  const y = parseInt(year, 10);
 
-  // Create date and format as ISO string (YYYY-MM-DD)
-  const date = new Date(year, month - 1, day);
-
-  if (isNaN(date.getTime())) {
+  if (isNaN(d) || isNaN(m) || isNaN(y) || d < 1 || d > 31 || m < 1 || m > 12) {
     throw new Error(`Invalid date: ${dateStr}`);
   }
 
-  return date.toISOString().split('T')[0];
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
 /**

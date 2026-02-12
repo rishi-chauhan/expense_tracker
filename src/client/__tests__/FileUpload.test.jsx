@@ -51,7 +51,8 @@ describe('FileUpload Component', () => {
 
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    const file = new File(['test'], 'test.txt', { type: 'text/plain' });
+    // Use .csv extension so userEvent.upload respects accept=".csv", but wrong MIME type
+    const file = new File(['test'], 'test.csv', { type: 'text/plain' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
     await userEvent.upload(input, file);
@@ -68,7 +69,8 @@ describe('FileUpload Component', () => {
 
     render(<FileUpload onFileUpload={mockUploadHandler} onError={mockErrorHandler} />);
 
-    const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
+    // Use .csv extension so userEvent.upload respects accept=".csv", but wrong MIME type
+    const file = new File(['test'], 'test.csv', { type: 'application/pdf' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
     await userEvent.upload(input, file);
@@ -84,7 +86,8 @@ describe('FileUpload Component', () => {
 
     render(<FileUpload onFileUpload={mockUploadHandler} onError={mockErrorHandler} />);
 
-    const file = new File(['test'], 'test.txt', { type: 'text/plain' });
+    // Use .csv extension so userEvent.upload respects accept=".csv", but wrong MIME type
+    const file = new File(['test'], 'test.csv', { type: 'text/plain' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
     await userEvent.upload(input, file);
@@ -131,7 +134,7 @@ describe('FileUpload Component', () => {
 
     await userEvent.upload(input, file);
 
-    expect(screen.getByText('CSV File')).toBeInTheDocument();
+    expect(screen.getByText(/CSV File/)).toBeInTheDocument();
   });
 
   it('should allow file removal', async () => {
@@ -159,7 +162,7 @@ describe('FileUpload Component', () => {
     const mockHandler = vi.fn();
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    const uploadZone = screen.getByLabelText(/Upload Credit Card Statement/i);
+    const uploadZone = screen.getByLabelText(/Upload Credit Card Statement/i).closest('.upload-zone');
     const file = new File(['test'], 'test.csv', { type: 'text/csv' });
 
     // Simulate drag enter
@@ -182,7 +185,7 @@ describe('FileUpload Component', () => {
     const mockHandler = vi.fn();
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    const uploadZone = screen.getByLabelText(/Upload Credit Card Statement/i);
+    const uploadZone = screen.getByLabelText(/Upload Credit Card Statement/i).closest('.upload-zone');
 
     // Simulate drag enter
     fireEvent.dragEnter(uploadZone);
@@ -215,7 +218,7 @@ describe('FileUpload Component', () => {
     const mockHandler = vi.fn();
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    const uploadZone = screen.getByLabelText(/Upload Credit Card Statement/i);
+    const uploadZone = screen.getByLabelText(/Upload Credit Card Statement/i).closest('.upload-zone');
     const file = new File(['test'], 'test.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
@@ -280,7 +283,8 @@ describe('FileUpload Component', () => {
 
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
+    // Use .csv extension so userEvent.upload respects accept=".csv", but wrong MIME type
+    const file = new File(['test'], 'test.csv', { type: 'application/pdf' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
     await userEvent.upload(input, file);

@@ -32,9 +32,12 @@ function Dashboard({ csvData }) {
     return <p className="dashboard-message">Upload a CSV file to see your dashboard.</p>;
   }
 
-  // Filter out CC payments from analytics
+  // Filter out CC payments and invalid entries from analytics
   const analyticsData = csvData.filter(t => {
-    return !t.IsCredit || !isCCPayment(t.Description);
+    if (t.IsCredit && isCCPayment(t.Description)) return false;
+    if (typeof t.Amount !== 'number' || isNaN(t.Amount)) return false;
+    if (!t.Date || isNaN(new Date(t.Date).getTime())) return false;
+    return true;
   });
 
   // Calculate summary statistics
@@ -85,19 +88,17 @@ function Dashboard({ csvData }) {
       {
         label: 'Debits (Expenses)',
         data: sortedMonths.map(month => monthlyData[month].debits),
-        backgroundColor: 'rgba(239, 68, 68, 0.8)',
-        borderColor: 'rgb(220, 38, 38)',
-        borderWidth: 2,
-        borderRadius: 8,
+        backgroundColor: 'rgba(240, 99, 122, 0.75)',
+        borderWidth: 0,
+        borderRadius: 6,
         borderSkipped: false,
       },
       {
         label: 'Credits (Payments/Refunds)',
         data: sortedMonths.map(month => monthlyData[month].credits),
-        backgroundColor: 'rgba(16, 185, 129, 0.8)',
-        borderColor: 'rgb(5, 150, 105)',
-        borderWidth: 2,
-        borderRadius: 8,
+        backgroundColor: 'rgba(61, 217, 160, 0.75)',
+        borderWidth: 0,
+        borderRadius: 6,
         borderSkipped: false,
       }
     ]
@@ -115,16 +116,22 @@ function Dashboard({ csvData }) {
         display: false,
       },
       tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        backgroundColor: '#1c1e2e',
+        borderColor: '#e2a23b',
+        borderWidth: 1,
         padding: 16,
         cornerRadius: 8,
         titleFont: {
-          size: 14,
-          weight: 'bold',
+          family: "'Sora', sans-serif",
+          size: 13,
+          weight: '600',
         },
         bodyFont: {
+          family: "'DM Sans', sans-serif",
           size: 13,
         },
+        titleColor: '#e8e9ed',
+        bodyColor: '#8b8da0',
         callbacks: {
           label: function(context) {
             return context.dataset.label + ': ₹' + context.parsed.y.toLocaleString('en-IN');
@@ -137,23 +144,31 @@ function Dashboard({ csvData }) {
         grid: {
           display: false,
         },
+        border: {
+          color: 'rgba(255, 255, 255, 0.06)',
+        },
         ticks: {
           font: {
+            family: "'DM Sans', sans-serif",
             size: 12,
           },
-          color: '#525252',
+          color: '#8b8da0',
         }
       },
       y: {
         beginAtZero: true,
         grid: {
-          color: '#f3f4f6',
+          color: 'rgba(255, 255, 255, 0.04)',
+        },
+        border: {
+          color: 'rgba(255, 255, 255, 0.06)',
         },
         ticks: {
           font: {
-            size: 12,
+            family: "'JetBrains Mono', monospace",
+            size: 11,
           },
-          color: '#525252',
+          color: '#5c5e72',
           callback: function(value) {
             return '₹' + value.toLocaleString('en-IN');
           }

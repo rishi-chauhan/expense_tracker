@@ -16,7 +16,7 @@ vi.mock('react-chartjs-2', () => ({
 }));
 
 vi.mock('chart.js', () => ({
-  Chart: class Chart {},
+  Chart: { register: () => {} },
   CategoryScale: class CategoryScale {},
   LinearScale: class LinearScale {},
   BarElement: class BarElement {},
@@ -139,8 +139,8 @@ describe('Dashboard Component', () => {
 
     render(<Dashboard csvData={mockData} />);
 
-    // Should only process valid date (100)
-    expect(screen.getByText(/₹100\.00/)).toBeInTheDocument();
+    // Should only process valid date (100) — appears in both Total Debits and Net Spending
+    expect(screen.getAllByText(/₹100\.00/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('should handle missing amount fields gracefully', () => {
@@ -152,8 +152,8 @@ describe('Dashboard Component', () => {
 
     render(<Dashboard csvData={mockData} />);
 
-    // Should only process valid amount (100)
-    expect(screen.getByText(/₹100\.00/)).toBeInTheDocument();
+    // Should only process valid amount (100) — appears in both Total Debits and Net Spending
+    expect(screen.getAllByText(/₹100\.00/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('should sort months chronologically', () => {
@@ -180,8 +180,8 @@ describe('Dashboard Component', () => {
 
     render(<Dashboard csvData={mockData} />);
 
-    // Should show debits but credits should be 0.00
-    expect(screen.getByText(/₹100\.00/)).toBeInTheDocument();
+    // Debits = 100, Net = 100 (same value appears twice), credits = 0
+    expect(screen.getAllByText(/₹100\.00/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/₹0\.00/)).toBeInTheDocument();
   });
 
@@ -192,8 +192,8 @@ describe('Dashboard Component', () => {
 
     render(<Dashboard csvData={mockData} />);
 
-    // Should format with commas according to Indian locale
-    expect(screen.getByText(/₹1,23,456\.78/)).toBeInTheDocument();
+    // Should format with commas — amount appears in both Total Debits and Net Spending
+    expect(screen.getAllByText(/₹1,23,456\.78/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('should render dashboard sections correctly', () => {
@@ -238,5 +238,74 @@ describe('Dashboard Component', () => {
 
     // Second dataset (credits) should have 100 for Jan
     expect(datasets[1].data[0]).toBe(100);
+  });
+});
+
+describe('CC Payment Filtering', () => {
+  it('should exclude CC PAYMENT credits from totals', () => {
+    const mockData = [
+      { Date: new Date('2025-01-01'), Amount: 500, IsCredit: false, Type: 'Debit', Description: 'Store Purchase' },
+      { Date: new Date('2025-01-05'), Amount: 50000, IsCredit: true, Type: 'Credit', Description: 'CC PAYMENT 00000 0 TestApp (Ref# 000000)' }
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    // CC payment credit should be excluded, so total credits = 0
+    expect(screen.getByText(/₹0\.00/)).toBeInTheDocument();
+    // Debits = 500, Net = 500 (same value appears twice)
+    expect(screen.getAllByText(/₹500\.00/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should exclude BPPY credits from totals', () => {
+    const mockData = [
+      { Date: new Date('2025-01-01'), Amount: 300, IsCredit: false, Type: 'Debit', Description: 'Store Purchase' },
+      { Date: new Date('2025-01-05'), Amount: 10000, IsCredit: true, Type: 'Credit', Description: 'BPPY Payment Ref 12345' }
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    // BPPY credit should be excluded, so total credits = 0
+    expect(screen.getByText(/₹0\.00/)).toBeInTheDocument();
+    // Debits = 300, Net = 300 (same value appears twice)
+    expect(screen.getAllByText(/₹300\.00/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should include non-CC credits in totals', () => {
+    const mockData = [
+      { Date: new Date('2025-01-01'), Amount: 500, IsCredit: false, Type: 'Debit', Description: 'Store Purchase' },
+      { Date: new Date('2025-01-05'), Amount: 200, IsCredit: true, Type: 'Credit', Description: 'Refund from Store' }
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    // Normal credit should be included
+    expect(screen.getByText(/₹200\.00/)).toBeInTheDocument();
+  });
+
+  it('should still include CC payment debits in totals', () => {
+    const mockData = [
+      { Date: new Date('2025-01-01'), Amount: 500, IsCredit: false, Type: 'Debit', Description: 'CC PAYMENT REVERSAL' },
+      { Date: new Date('2025-01-05'), Amount: 200, IsCredit: false, Type: 'Debit', Description: 'Store Purchase' }
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    // Both debits should be included (filter only excludes CC credits)
+    // Debits = 700, Net = 700 (same value appears twice)
+    expect(screen.getAllByText(/₹700\.00/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should handle null description without crashing', () => {
+    const mockData = [
+      { Date: new Date('2025-01-01'), Amount: 100, IsCredit: true, Type: 'Credit', Description: null },
+      { Date: new Date('2025-01-02'), Amount: 200, IsCredit: false, Type: 'Debit', Description: 'Store' }
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    // Should not crash, null description credit should be included (not a CC payment)
+    // ₹100.00 appears twice (credits and net spending)
+    expect(screen.getAllByText(/₹100\.00/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/₹200\.00/)).toBeInTheDocument();
   });
 });

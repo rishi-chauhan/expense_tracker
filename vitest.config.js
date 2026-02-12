@@ -14,6 +14,13 @@ export default defineConfig({
       ['src/server/**', 'node']
     ],
     setupFiles: ['./src/client/__tests__/setup.js'],
+    exclude: [
+      'node_modules/**',
+      // Server tests that import bun:sqlite must be run with `bun test` instead
+      'src/server/__tests__/db.test.js',
+      'src/server/__tests__/integration.test.js',
+      'src/server/__tests__/routes.test.js'
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

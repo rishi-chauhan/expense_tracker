@@ -34,6 +34,15 @@ bun run start
 # Preview production build
 bun run preview
 
+# Run client + shared server tests (vitest — do NOT use bare `bun test`)
+bun run test
+
+# Run tests once (no watch)
+bun run test -- --run
+
+# Run server tests that use bun:sqlite (must use bun test, not vitest)
+bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.js src/server/__tests__/routes.test.js
+
 # Run linter
 bun run lint
 ```

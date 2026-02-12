@@ -21,6 +21,8 @@ function FileUpload({ onFileUpload, onError }) {
       setSelectedFile(null);
       if (onError) {
         onError('Please upload a valid CSV file.');
+      } else {
+        alert('Please upload a valid CSV file.');
       }
     }
   };
@@ -90,6 +92,7 @@ function FileUpload({ onFileUpload, onError }) {
           onChange={handleFileChange}
           className="file-input"
           id="csv-file-upload"
+          aria-label="Upload Credit Card Statement"
         />
 
         {!selectedFile ? (

@@ -1,0 +1,4 @@
+[test]
+# Only run server tests with bun test (they use bun:sqlite)
+# Client tests must use `bun run test` (vitest with happy-dom)
+root = "src/server/__tests__"

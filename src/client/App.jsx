@@ -176,11 +176,7 @@ function App() {
           </div>
         )}
 
-        {csvData && csvData.length > 0 ? (
-          <Dashboard csvData={csvData} />
-        ) : (
-          csvData && <p>No valid data found in the CSV after parsing.</p>
-        )}
+        <Dashboard csvData={csvData} />
       </main>
     </div>
   );

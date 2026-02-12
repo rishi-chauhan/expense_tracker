@@ -139,9 +139,9 @@ describe('Full Upload Workflow', () => {
     expect(newCount).toBeGreaterThan(0);
     expect(newCount + duplicateCount).toBe(transactions.length);
 
-    // Step 6: Verify data in database
+    // Step 6: Verify data in database (some transactions have identical date+amount+description, so INSERT OR IGNORE skips them)
     const storedTransactions = testDb.query('SELECT * FROM transactions').all();
-    expect(storedTransactions.length).toBe(transactions.length);
+    expect(storedTransactions.length).toBe(newCount);
 
     const storedStatement = testDb.query('SELECT * FROM statements WHERE id = ?').get(stmtId);
     expect(storedStatement.file_hash).toBe(fileHash);
