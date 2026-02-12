@@ -1,63 +1,55 @@
 /* ========================================
    DESIGN SYSTEM - CSS CUSTOM PROPERTIES
+   "Warm Dark Finance" Theme
    ======================================== */
 
 :root {
+  /* ===== Font Families ===== */
+  --font-heading: 'Sora', sans-serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
   /* ===== Color System ===== */
 
-  /* Primary - Indigo */
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
-
-  /* Accent - Teal */
-  --color-accent-50: #f0fdfa;
-  --color-accent-100: #ccfbf1;
-  --color-accent-200: #99f6e4;
-  --color-accent-300: #5eead4;
-  --color-accent-400: #2dd4bf;
-  --color-accent-500: #14b8a6;
-  --color-accent-600: #0d9488;
-  --color-accent-700: #0f766e;
-  --color-accent-800: #115e59;
-  --color-accent-900: #134e4a;
-
-  /* Grays */
-  --color-gray-50: #fafafa;
-  --color-gray-100: #f5f5f5;
-  --color-gray-200: #e5e5e5;
-  --color-gray-300: #d4d4d4;
-  --color-gray-400: #a3a3a3;
-  --color-gray-500: #737373;
-  --color-gray-600: #525252;
-  --color-gray-700: #404040;
-  --color-gray-800: #262626;
-  --color-gray-900: #171717;
-
-  /* Semantic Colors */
-  --color-success-light: #f0fdf4;
-  --color-success: #22c55e;
-  --color-success-dark: #16a34a;
-
-  --color-error-light: #fef2f2;
-  --color-error: #ef4444;
-  --color-error-dark: #dc2626;
-
-  --color-warning-light: #fffbeb;
-  --color-warning: #f59e0b;
-  --color-warning-dark: #d97706;
-
   /* Backgrounds */
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #fafafa;
-  --color-bg-tertiary: #f5f5f5;
+  --color-bg-base: #08090d;
+  --color-bg-card: #161822;
+  --color-bg-elevated: #1c1e2e;
+  --color-bg-surface: #12131c;
+
+  /* Borders */
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-subtle: rgba(255, 255, 255, 0.04);
+
+  /* Text */
+  --color-text-primary: #e8e9ed;
+  --color-text-secondary: #8b8da0;
+  --color-text-tertiary: #5c5e72;
+
+  /* Accent - Warm Amber */
+  --color-accent: #e2a23b;
+  --color-accent-dim: rgba(226, 162, 59, 0.15);
+  --color-accent-hover: #eab050;
+
+  /* Semantic - Debit (Rose) */
+  --color-debit: #f0637a;
+  --color-debit-dim: rgba(240, 99, 122, 0.12);
+
+  /* Semantic - Credit (Mint) */
+  --color-credit: #3dd9a0;
+  --color-credit-dim: rgba(61, 217, 160, 0.12);
+
+  /* Semantic - Error */
+  --color-error: #f0637a;
+  --color-error-dim: rgba(240, 99, 122, 0.10);
+
+  /* Semantic - Info */
+  --color-info: #5b9cf5;
+  --color-info-dim: rgba(91, 156, 245, 0.10);
+
+  /* Semantic - Success */
+  --color-success: #3dd9a0;
+  --color-success-dim: rgba(61, 217, 160, 0.10);
 
   /* ===== Typography System ===== */
 
@@ -98,13 +90,17 @@
   --space-24: 6rem;     /* 96px */
 
   /* ===== Shadow System ===== */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+
+  /* Glow Shadows */
+  --shadow-glow-accent: 0 0 20px rgba(226, 162, 59, 0.15), 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-glow-debit: 0 0 20px rgba(240, 99, 122, 0.15), 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-glow-credit: 0 0 20px rgba(61, 217, 160, 0.15), 0 4px 12px rgba(0, 0, 0, 0.3);
 
   /* ===== Border Radius ===== */
   --radius-sm: 0.375rem;   /* 6px */
@@ -146,18 +142,19 @@ html {
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-body);
   font-size: var(--text-base);
   line-height: var(--leading-normal);
-  color: var(--color-gray-900);
-  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-base);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 20% 80%, rgba(88, 60, 180, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(100, 60, 200, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(226, 162, 59, 0.03) 0%, transparent 50%);
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: var(--font-mono);
 }
 
 /* ===== Accessibility: Reduced Motion ===== */
@@ -177,9 +174,10 @@ code {
    ======================================== */
 
 h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
   font-weight: var(--font-bold);
   line-height: var(--leading-tight);
-  color: var(--color-gray-900);
+  color: var(--color-text-primary);
 }
 
 button {
