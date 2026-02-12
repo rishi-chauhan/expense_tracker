@@ -25,6 +25,13 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 
+# CSV files (personal financial data)
+*.csv
+!tests/fixtures/*.csv
+
+# Assets directory (user uploads)
+assets/*.csv
+
 # Environment
 .env
 .env.local
