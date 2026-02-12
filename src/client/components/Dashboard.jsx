@@ -20,24 +20,36 @@ ChartJS.register(
   Title,
 );
 
+// Helper function to identify CC payments
+function isCCPayment(description) {
+  if (!description) return false;
+  const desc = description.toUpperCase();
+  return desc.includes('CC PAYMENT') || desc.includes('BPPY');
+}
+
 function Dashboard({ csvData }) {
   if (!csvData || csvData.length === 0) {
     return <p className="dashboard-message">Upload a CSV file to see your dashboard.</p>;
   }
 
+  // Filter out CC payments from analytics
+  const analyticsData = csvData.filter(t => {
+    return !t.IsCredit || !isCCPayment(t.Description);
+  });
+
   // Calculate summary statistics
-  const totalDebits = csvData
+  const totalDebits = analyticsData
     .filter(t => !t.IsCredit)
     .reduce((sum, t) => sum + t.Amount, 0);
 
-  const totalCredits = csvData
+  const totalCredits = analyticsData
     .filter(t => t.IsCredit)
     .reduce((sum, t) => sum + t.Amount, 0);
 
   const netSpending = totalDebits - totalCredits;
 
   // Group by month and separate debits/credits
-  const monthlyData = csvData.reduce((acc, item) => {
+  const monthlyData = analyticsData.reduce((acc, item) => {
     if (!item.Date || !item.Amount) return acc;
 
     const date = new Date(item.Date);
@@ -219,7 +231,7 @@ function Dashboard({ csvData }) {
               <Bar data={barChartData} options={barChartOptions} />
             </div>
             <div className="chart-footer">
-              <span>{csvData.length} transactions</span>
+              <span>{analyticsData.length} transactions</span>
               <span className="chart-footer-divider">•</span>
               <span>{sortedMonths.length} months</span>
             </div>
