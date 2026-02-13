@@ -1,0 +1,31 @@
+.spending-trends .chart-wrapper {
+  min-height: 350px;
+}
+
+.spending-trends .chart-legend .legend-item {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.spending-trends .chart-legend .legend-item:hover {
+  opacity: 0.8;
+}
+
+.spending-trends .chart-legend .legend-item.inactive {
+  opacity: 0.35;
+}
+
+.spending-trends .chart-legend .legend-item.inactive:hover {
+  opacity: 0.55;
+}
+
+.chart-empty {
+  text-align: center;
+  padding: var(--space-8);
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+}

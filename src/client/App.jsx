@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import FileUpload from './components/FileUpload';
-import Dashboard from './components/Dashboard';
+import { Routes, Route, NavLink } from 'react-router-dom';
+import HomePage from './pages/HomePage';
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import './App.css';
 
 // API base URL - uses relative path so it works in both dev and production
@@ -119,64 +120,35 @@ function App() {
             <h1 className="app-title">Expense Tracker</h1>
             <p className="app-subtitle">Analyze your credit card spending patterns</p>
           </div>
+          <nav className="header-nav">
+            <NavLink to="/" end className="nav-link">Home</NavLink>
+            <NavLink to="/analytics" className="nav-link">Analytics</NavLink>
+          </nav>
         </div>
       </header>
 
       <main className="app-main">
-        <FileUpload onFileUpload={handleFileUpload} onError={setError} />
-
-        {loading && (
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-            <div className="loading-text">Uploading statement...</div>
-            <div className="loading-subtext">Processing and storing transactions</div>
-          </div>
-        )}
-
-        {error && (
-          <div className="error-container">
-            <div className="error-icon">!</div>
-            <div className="error-content">
-              <div className="error-title">Upload Failed</div>
-              <div className="error-message">{error}</div>
-            </div>
-            <button
-              className="error-close"
-              onClick={() => setError(null)}
-              aria-label="Close error"
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        {notification && (
-          <div className={`notification-container ${notification.type}`}>
-            <div className="notification-icon">
-              {notification.type === 'success' ? '✓' : 'ⓘ'}
-            </div>
-            <div className="notification-content">
-              <div className="notification-title">{notification.title}</div>
-              <div className="notification-message">{notification.message}</div>
-              {notification.details && (
-                <ul className="notification-details">
-                  {notification.details.map((detail, idx) => (
-                    <li key={idx}>{detail}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <button
-              className="notification-close"
-              onClick={() => setNotification(null)}
-              aria-label="Close notification"
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        <Dashboard csvData={csvData} />
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <HomePage
+                csvData={csvData}
+                loading={loading}
+                error={error}
+                notification={notification}
+                onFileUpload={handleFileUpload}
+                onErrorDismiss={() => setError(null)}
+                onNotificationDismiss={() => setNotification(null)}
+                onError={setError}
+              />
+            }
+          />
+          <Route
+            path="/analytics"
+            element={<AnalyticsDashboard csvData={csvData} />}
+          />
+        </Routes>
       </main>
     </div>
   );

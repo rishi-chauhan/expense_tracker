@@ -2,9 +2,18 @@
  * @vitest-environment happy-dom
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
+
+function renderApp(initialRoute = '/') {
+  return render(
+    <MemoryRouter initialEntries={[initialRoute]}>
+      <App />
+    </MemoryRouter>
+  );
+}
 
 describe('App Component', () => {
   let fetchMock;
@@ -24,10 +33,21 @@ describe('App Component', () => {
       json: async () => ({ success: true, transactions: [] })
     });
 
-    render(<App />);
+    renderApp();
 
     expect(screen.getByText('Expense Tracker')).toBeInTheDocument();
     expect(screen.getByText(/Analyze your credit card spending patterns/i)).toBeInTheDocument();
+  });
+
+  it('should render navigation links', () => {
+    fetchMock.mockResolvedValue({
+      json: async () => ({ success: true, transactions: [] })
+    });
+
+    renderApp();
+
+    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('Analytics')).toBeInTheDocument();
   });
 
   it('should load transactions on mount', async () => {
@@ -46,7 +66,7 @@ describe('App Component', () => {
       })
     });
 
-    render(<App />);
+    renderApp();
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/transactions');
@@ -56,7 +76,7 @@ describe('App Component', () => {
   it('should not show error when initial load fails', async () => {
     fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
-    render(<App />);
+    renderApp();
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalled();
@@ -71,7 +91,7 @@ describe('App Component', () => {
       json: async () => ({ success: true, transactions: [] })
     });
 
-    render(<App />);
+    renderApp();
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalled();
@@ -97,7 +117,7 @@ describe('App Component', () => {
       })
     });
 
-    render(<App />);
+    renderApp();
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalled();
@@ -114,9 +134,45 @@ describe('App Component', () => {
       json: async () => ({ success: true, transactions: [] })
     });
 
-    render(<App />);
+    renderApp();
 
     expect(screen.getByText(/Upload Credit Card Statement/i)).toBeInTheDocument();
+  });
+
+  it('should navigate to analytics page', async () => {
+    fetchMock.mockResolvedValue({
+      json: async () => ({ success: true, transactions: [] })
+    });
+
+    renderApp();
+
+    const analyticsLink = screen.getByText('Analytics');
+    await userEvent.click(analyticsLink);
+
+    expect(screen.getByText('No Data Yet')).toBeInTheDocument();
+  });
+
+  it('should show analytics with data', async () => {
+    fetchMock.mockResolvedValueOnce({
+      json: async () => ({
+        success: true,
+        transactions: [
+          {
+            date: '2025-01-15',
+            amount: 100,
+            description: 'Test Store',
+            is_credit: 0,
+            type: 'Debit'
+          }
+        ]
+      })
+    });
+
+    renderApp('/analytics');
+
+    await waitFor(() => {
+      expect(screen.getByText('Analytics Dashboard')).toBeInTheDocument();
+    });
   });
 
   describe('Error Handling', () => {
@@ -126,7 +182,7 @@ describe('App Component', () => {
         json: async () => ({ success: true, transactions: [] })
       });
 
-      const { container } = render(<App />);
+      const { container } = renderApp();
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith('/api/transactions');
@@ -163,7 +219,7 @@ describe('App Component', () => {
         json: async () => ({ success: true, transactions: [] })
       });
 
-      const { container } = render(<App />);
+      const { container } = renderApp();
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalled();
@@ -199,7 +255,7 @@ describe('App Component', () => {
         json: async () => ({ success: true, transactions: [] })
       });
 
-      const { container } = render(<App />);
+      const { container } = renderApp();
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalled();
@@ -239,7 +295,7 @@ describe('App Component', () => {
         json: async () => ({ success: true, transactions: [] })
       });
 
-      const { container } = render(<App />);
+      const { container } = renderApp();
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalled();
@@ -267,7 +323,7 @@ describe('App Component', () => {
         json: async () => ({ success: true, transactions: [] })
       });
 
-      const { container } = render(<App />);
+      const { container } = renderApp();
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalled();
@@ -314,7 +370,7 @@ describe('App Component', () => {
         json: async () => ({ success: true, transactions: [] })
       });
 
-      const { container } = render(<App />);
+      const { container } = renderApp();
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalled();
@@ -355,7 +411,7 @@ describe('App Component', () => {
         json: async () => ({ success: true, transactions: [] })
       });
 
-      const { container } = render(<App />);
+      const { container } = renderApp();
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalled();
@@ -402,7 +458,7 @@ describe('App Component', () => {
         json: async () => ({ success: true, transactions: [] })
       });
 
-      const { container } = render(<App />);
+      const { container } = renderApp();
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalled();
@@ -452,7 +508,7 @@ describe('App Component', () => {
         json: async () => ({ success: true, transactions: [] })
       });
 
-      const { container } = render(<App />);
+      const { container } = renderApp();
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalled();

@@ -10,7 +10,7 @@ Full-stack application to track and analyze expenses from credit card statement 
 - 📈 **Debits vs Credits**: Separate tracking of expenses and payments
 - 📁 **CSV Upload**: Drag-and-drop or browse to upload statements
 - ⚡ **Fast Performance**: Bun runtime with optimized processing
-- 🧪 **Comprehensive Testing**: 110+ tests with 98% backend coverage
+- 🧪 **Comprehensive Testing**: 230+ tests across frontend and backend
 - 🔐 **Data Integrity**: Foreign key constraints and cascade deletes
 
 ## Tech Stack
@@ -81,29 +81,39 @@ The full-stack app will be available at `http://localhost:3000`
 
 ## Testing
 
-Run all tests:
+Run all vitest tests (client + shared server):
 ```bash
-bun test
+bun run test
 ```
 
-Run tests with coverage:
+Run tests once (no watch):
 ```bash
-bun test:coverage
+bun run test -- --run
 ```
 
-Run backend tests only:
+Run with coverage:
 ```bash
-bun test:backend
+bun run test:coverage
+```
+
+Run backend vitest tests only:
+```bash
+bun run test:backend
 ```
 
 Run frontend tests only:
 ```bash
-bun test:frontend
+bun run test:frontend
+```
+
+Run server tests that use bun:sqlite (must use `bun test`, not vitest):
+```bash
+bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.js src/server/__tests__/routes.test.js
 ```
 
 Interactive test UI:
 ```bash
-bun test:ui
+bun run test:ui
 ```
 
 See [TESTING.md](TESTING.md) for detailed testing documentation.
@@ -122,11 +132,16 @@ bun run lint
 3. Upload a credit card statement CSV file:
    - Drag and drop onto the upload area, or
    - Click to browse and select a file
-4. View your analytics dashboard with:
+4. View your **Home** dashboard with:
    - Total debits (expenses) and credits (payments)
    - Net spending calculation
-   - Monthly spending trends chart
-5. Upload additional statements - duplicates are automatically detected and skipped
+   - Monthly spending trends chart with range selector (1M, 3M, 6M, 12M, All)
+5. Navigate to the **Analytics** page for advanced insights:
+   - Spending trends with weekly/monthly granularity toggle
+   - Debit/credit ratio breakdown
+   - Top 10 merchants by spending
+   - Full transaction explorer with search, date filters, sorting, and pagination
+6. Upload additional statements - duplicates are automatically detected and skipped
 
 ### Features in Action
 
@@ -138,24 +153,26 @@ bun run lint
 
 ## CSV Format
 
-This app is designed for credit card statement CSV files with the following format:
+This app is designed for credit card statement CSV files. The parser **auto-detects** the format:
 
-### Expected Format
-- **Delimiter**: `~|~` (custom delimiter)
-- **Metadata**: First 25 rows contain account metadata (automatically skipped)
-- **Header Row**: Row 26 contains column headers
-- **Required Columns**:
-  - `DATE`: Transaction date in DD/MM/YYYY format (e.g., 25/12/2025)
-  - `AMT`: Transaction amount with optional commas (e.g., 1,234.56)
-  - `Description`: Transaction description
-  - `Debit /Credit`: "Cr" for credits, empty for debits
+### Format Auto-Detection
+- **Delimiter**: Supports both `~|~` and `~` delimiters (auto-detected from header row)
+- **Header location**: Searches for the row containing `DATE` and `AMT` columns (not hardcoded to a specific row number)
+- **Column variations**: Handles both `Debit /Credit` and `Debit / Credit` (with/without space)
+- **Metadata**: Variable number of metadata rows before the header (automatically skipped)
+
+### Required Columns
+- `DATE`: Transaction date in DD/MM/YYYY format (e.g., 25/12/2025)
+- `AMT`: Transaction amount with optional commas (e.g., 1,234.56)
+- `Description`: Transaction description
+- `Debit /Credit` (or `Debit / Credit`): "Cr" for credits, empty for debits
 
 ### Example CSV Structure
 ```csv
 Name~|~JOHN DOE
 Card~|~xxxx-xxxx-xxxx-1234
 ...
-(23 more metadata rows)
+(metadata rows - variable count)
 ...
 Transaction type~|~Customer~|~DATE~|~Description~|~AMT~|~Debit /Credit~|~REWARDS
 Domestic~|~Customer~|~25/12/2025~|~GROCERY STORE~|~1,234.56~|~~|~25
@@ -170,12 +187,12 @@ See `assets/sample_statement.csv` for a complete example.
 expense_tracker/
 ├── src/
 │   ├── server/                      # Backend (Bun server)
-│   │   ├── index.js                 # HTTP server and routing
+│   │   ├── index.js                 # HTTP server and Vite dev integration
 │   │   ├── db.js                    # SQLite database operations
-│   │   ├── parser.js                # CSV parsing logic
+│   │   ├── parser.js                # CSV parsing with format auto-detection
 │   │   ├── routes.js                # API endpoint handlers
 │   │   ├── utils.js                 # Hash generation, date/amount parsing
-│   │   └── __tests__/               # Backend tests (83/84 passing)
+│   │   └── __tests__/               # Backend tests (43 bun:sqlite tests)
 │   │       ├── utils.test.js
 │   │       ├── parser.test.js
 │   │       ├── db.test.js
@@ -183,19 +200,43 @@ expense_tracker/
 │   │       └── integration.test.js
 │   │
 │   └── client/                      # Frontend (React)
-│       ├── main.jsx                 # React entry point
-│       ├── App.jsx                  # Main app component
+│       ├── main.jsx                 # React entry point, BrowserRouter wrapper
+│       ├── App.jsx                  # Root component, routing, API calls, state
+│       ├── App.css                  # Root component styles
 │       ├── index.css                # Global styles
-│       ├── components/
-│       │   ├── FileUpload.jsx       # CSV file upload
+│       ├── pages/                   # Route-level page components
+│       │   ├── HomePage.jsx         # Upload + basic dashboard page
+│       │   ├── HomePage.css
+│       │   ├── AnalyticsDashboard.jsx  # Advanced analytics with filters
+│       │   └── AnalyticsDashboard.css
+│       ├── components/              # Reusable UI components
+│       │   ├── FileUpload.jsx       # CSV file upload with drag-and-drop
 │       │   ├── FileUpload.css
-│       │   ├── Dashboard.jsx        # Analytics dashboard
-│       │   └── Dashboard.css
-│       └── __tests__/               # Frontend tests
+│       │   ├── Dashboard.jsx        # Summary stats + monthly line chart
+│       │   ├── Dashboard.css
+│       │   ├── SpendingTrends.jsx   # Weekly/monthly spending line chart
+│       │   ├── SpendingTrends.css
+│       │   ├── TopMerchants.jsx     # Top 10 merchants bar chart
+│       │   ├── TopMerchants.css
+│       │   ├── DebitCreditRatio.jsx # Debit/credit doughnut chart
+│       │   ├── DebitCreditRatio.css
+│       │   ├── TransactionExplorer.jsx  # Paginated transaction table
+│       │   └── TransactionExplorer.css
+│       ├── utils/                   # Shared utilities
+│       │   ├── chartConfig.js       # Chart.js registration and config
+│       │   └── dataProcessing.js    # Data filtering, aggregation, formatting
+│       └── __tests__/               # Frontend tests (190 vitest tests)
 │           ├── setup.js
 │           ├── App.test.jsx
 │           ├── Dashboard.test.jsx
-│           └── FileUpload.test.jsx
+│           ├── FileUpload.test.jsx
+│           ├── HomePage.test.jsx
+│           ├── AnalyticsDashboard.test.jsx
+│           ├── SpendingTrends.test.jsx
+│           ├── TopMerchants.test.jsx
+│           ├── DebitCreditRatio.test.jsx
+│           ├── TransactionExplorer.test.jsx
+│           └── dataProcessing.test.js
 │
 ├── tests/
 │   └── fixtures/                    # Test CSV files
@@ -266,9 +307,10 @@ expense_tracker/
 ## Contributing
 
 1. Make changes to the code
-2. Run tests: `bun test`
-3. Run linter: `bun run lint`
-4. Ensure all tests pass before committing
+2. Run vitest tests: `bun run test -- --run`
+3. Run server tests: `bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.js src/server/__tests__/routes.test.js`
+4. Run linter: `bun run lint`
+5. Ensure all tests pass before committing
 
 ## License
 

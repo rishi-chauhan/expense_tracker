@@ -2,13 +2,13 @@
  * @vitest-environment happy-dom
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import Dashboard from '../components/Dashboard';
 
 // Mock Chart.js components
 vi.mock('react-chartjs-2', () => ({
-  Bar: ({ data, options }) => (
-    <div data-testid="bar-chart">
+  Line: ({ data }) => (
+    <div data-testid="line-chart">
       <div data-testid="chart-labels">{JSON.stringify(data.labels)}</div>
       <div data-testid="chart-datasets">{JSON.stringify(data.datasets)}</div>
     </div>
@@ -20,6 +20,10 @@ vi.mock('chart.js', () => ({
   CategoryScale: class CategoryScale {},
   LinearScale: class LinearScale {},
   BarElement: class BarElement {},
+  LineElement: class LineElement {},
+  PointElement: class PointElement {},
+  ArcElement: class ArcElement {},
+  Filler: class Filler {},
   Title: class Title {},
   Tooltip: class Tooltip {},
   Legend: class Legend {}
@@ -95,17 +99,23 @@ describe('Dashboard Component', () => {
 
     render(<Dashboard csvData={mockData} />);
 
+    // Default is 1M — select All to see all months
+    fireEvent.click(screen.getByText('All'));
+
     // Should show 3 months
     expect(screen.getByText(/3 months/i)).toBeInTheDocument();
   });
 
-  it('should render bar chart with correct labels', () => {
+  it('should render line chart with correct labels', () => {
     const mockData = [
       { Date: new Date('2025-01-15'), Amount: 100, IsCredit: false, Type: 'Debit', Description: 'Test' },
       { Date: new Date('2025-02-10'), Amount: 200, IsCredit: false, Type: 'Debit', Description: 'Test' }
     ];
 
     render(<Dashboard csvData={mockData} />);
+
+    // Default is 1M — select All to see all months
+    fireEvent.click(screen.getByText('All'));
 
     const chartLabels = screen.getByTestId('chart-labels');
     const labelsData = JSON.parse(chartLabels.textContent);
@@ -114,7 +124,7 @@ describe('Dashboard Component', () => {
     expect(labelsData).toContain('Feb 2025');
   });
 
-  it('should separate debits and credits in monthly data', () => {
+  it('should have a single spending dataset', () => {
     const mockData = [
       { Date: new Date('2025-01-15'), Amount: 300, IsCredit: false, Type: 'Debit', Description: 'Debit1' },
       { Date: new Date('2025-01-20'), Amount: 100, IsCredit: true, Type: 'Credit', Description: 'Credit1' }
@@ -125,9 +135,8 @@ describe('Dashboard Component', () => {
     const chartDatasets = screen.getByTestId('chart-datasets');
     const datasets = JSON.parse(chartDatasets.textContent);
 
-    expect(datasets).toHaveLength(2);
-    expect(datasets[0].label).toContain('Debits');
-    expect(datasets[1].label).toContain('Credits');
+    expect(datasets).toHaveLength(1);
+    expect(datasets[0].label).toBe('Total Spending');
   });
 
   it('should handle invalid dates gracefully', () => {
@@ -164,6 +173,9 @@ describe('Dashboard Component', () => {
     ];
 
     render(<Dashboard csvData={mockData} />);
+
+    // Default is 1M — select All to see all months
+    fireEvent.click(screen.getByText('All'));
 
     const chartLabels = screen.getByTestId('chart-labels');
     const labelsData = JSON.parse(chartLabels.textContent);
@@ -222,7 +234,7 @@ describe('Dashboard Component', () => {
     expect(screen.getByText(/₹300\.00/)).toBeInTheDocument(); // Credits should be 300
   });
 
-  it('should calculate monthly debits and credits separately', () => {
+  it('should show only debit amounts in chart dataset', () => {
     const mockData = [
       { Date: new Date('2025-01-15'), Amount: 500, IsCredit: false, Type: 'Debit', Description: 'Debit' },
       { Date: new Date('2025-01-20'), Amount: 100, IsCredit: true, Type: 'Credit', Description: 'Credit' }
@@ -233,11 +245,8 @@ describe('Dashboard Component', () => {
     const chartDatasets = screen.getByTestId('chart-datasets');
     const datasets = JSON.parse(chartDatasets.textContent);
 
-    // First dataset (debits) should have 500 for Jan
+    // Single dataset should show only debits (500 for Jan)
     expect(datasets[0].data[0]).toBe(500);
-
-    // Second dataset (credits) should have 100 for Jan
-    expect(datasets[1].data[0]).toBe(100);
   });
 });
 
@@ -307,5 +316,64 @@ describe('CC Payment Filtering', () => {
     // ₹100.00 appears twice (credits and net spending)
     expect(screen.getAllByText(/₹100\.00/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/₹200\.00/)).toBeInTheDocument();
+  });
+});
+
+describe('Range Selector', () => {
+  it('should render all range buttons', () => {
+    const mockData = [
+      { Date: new Date('2025-01-15'), Amount: 100, IsCredit: false, Type: 'Debit', Description: 'Test' }
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    expect(screen.getByText('1M')).toBeInTheDocument();
+    expect(screen.getByText('3M')).toBeInTheDocument();
+    expect(screen.getByText('6M')).toBeInTheDocument();
+    expect(screen.getByText('12M')).toBeInTheDocument();
+    expect(screen.getByText('All')).toBeInTheDocument();
+  });
+
+  it('should have "1M" as default active range', () => {
+    const mockData = [
+      { Date: new Date('2025-01-15'), Amount: 100, IsCredit: false, Type: 'Debit', Description: 'Test' }
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    const btn1M = screen.getByText('1M');
+    expect(btn1M.className).toContain('active');
+  });
+
+  it('should filter data when clicking a range button', () => {
+    const mockData = [
+      { Date: new Date('2025-01-15'), Amount: 100, IsCredit: false, Type: 'Debit', Description: 'Old' },
+      { Date: new Date('2025-06-15'), Amount: 200, IsCredit: false, Type: 'Debit', Description: 'Mid' },
+      { Date: new Date('2025-12-15'), Amount: 400, IsCredit: false, Type: 'Debit', Description: 'Recent' }
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    // Default is "1M" — only "Recent" (Dec) should show — debits = 400
+    expect(screen.getAllByText(/₹400\.00/).length).toBeGreaterThanOrEqual(1);
+
+    // Click "All" — should show all transactions — total debits = 700
+    fireEvent.click(screen.getByText('All'));
+
+    expect(screen.getAllByText(/₹700\.00/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should update active button class on click', () => {
+    const mockData = [
+      { Date: new Date('2025-01-15'), Amount: 100, IsCredit: false, Type: 'Debit', Description: 'Test' }
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    const btn6M = screen.getByText('6M');
+    fireEvent.click(btn6M);
+
+    expect(btn6M.className).toContain('active');
+    expect(screen.getByText('All').className).not.toContain('active');
   });
 });
