@@ -9,6 +9,7 @@ import {
   sharedAnimation,
 } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
+import { useSettings } from '../contexts/SettingsContext';
 import {
   filterAnalyticsData,
   calculateSummaryStats,
@@ -28,6 +29,7 @@ const RANGES = [
 function Dashboard({ csvData }) {
   const [range, setRange] = useState('1M');
   const chartColors = useChartTheme();
+  const { showCredits } = useSettings();
 
   const analyticsData = filterAnalyticsData(csvData);
 
@@ -107,23 +109,27 @@ function Dashboard({ csvData }) {
           <div className="stat-trend">Expenses</div>
         </div>
 
-        <div className="stat-card credits">
-          <div className="stat-card-header">
-            <div className="stat-icon">↑</div>
-            <div className="stat-label">Total Credits</div>
+        {showCredits && (
+          <div className="stat-card credits">
+            <div className="stat-card-header">
+              <div className="stat-icon">↑</div>
+              <div className="stat-label">Total Credits</div>
+            </div>
+            <div className="stat-value">{formatINR(totalCredits)}</div>
+            <div className="stat-trend">Payments</div>
           </div>
-          <div className="stat-value">{formatINR(totalCredits)}</div>
-          <div className="stat-trend">Payments</div>
-        </div>
+        )}
 
-        <div className="stat-card net">
-          <div className="stat-card-header">
-            <div className="stat-icon">Σ</div>
-            <div className="stat-label">Net Spending</div>
+        {showCredits && (
+          <div className="stat-card net">
+            <div className="stat-card-header">
+              <div className="stat-icon">Σ</div>
+              <div className="stat-label">Net Spending</div>
+            </div>
+            <div className="stat-value">{formatINR(netSpending)}</div>
+            <div className="stat-trend">Balance</div>
           </div>
-          <div className="stat-value">{formatINR(netSpending)}</div>
-          <div className="stat-trend">Balance</div>
-        </div>
+        )}
       </div>
 
       <div className="chart-section">

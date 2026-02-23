@@ -1,10 +1,15 @@
 /**
  * @vitest-environment happy-dom
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AnalyticsDashboard from '../pages/AnalyticsDashboard';
+
+let mockShowCredits = true;
+vi.mock('../contexts/SettingsContext', () => ({
+  useSettings: () => ({ showCredits: mockShowCredits, toggleShowCredits: () => {} }),
+}));
 
 vi.mock('react-chartjs-2', () => ({
   Line: ({ data }) => (
@@ -53,6 +58,10 @@ function renderWithRouter(ui) {
 }
 
 describe('AnalyticsDashboard', () => {
+  beforeEach(() => {
+    mockShowCredits = true;
+  });
+
   it('shows empty state for null csvData', () => {
     renderWithRouter(<AnalyticsDashboard csvData={null} />);
 
@@ -178,5 +187,32 @@ describe('AnalyticsDashboard', () => {
     fireEvent.change(searchInput, { target: { value: 'xyznonexistent' } });
 
     expect(screen.getByText('No transactions match your filters.')).toBeInTheDocument();
+  });
+});
+
+describe('AnalyticsDashboard with showCredits=false', () => {
+  beforeEach(() => {
+    mockShowCredits = false;
+  });
+
+  it('hides DebitCreditRatio component', () => {
+    const data = makeData([
+      { Amount: 300, Description: 'Grocery Store' },
+      { Amount: 100, IsCredit: true, Type: 'Credit', Description: 'Refund' },
+    ]);
+
+    renderWithRouter(<AnalyticsDashboard csvData={data} />);
+
+    expect(screen.getByText('Spending Trends')).toBeInTheDocument();
+    expect(screen.queryByText('Debit / Credit Ratio')).not.toBeInTheDocument();
+  });
+
+  it('uses full-width layout for SpendingTrends', () => {
+    const data = makeData([{ Amount: 100, Description: 'Store' }]);
+
+    renderWithRouter(<AnalyticsDashboard csvData={data} />);
+
+    const grid = document.querySelector('.analytics-charts-grid');
+    expect(grid.className).toContain('full-width');
   });
 });

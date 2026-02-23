@@ -148,8 +148,13 @@ input[type="date"].filter-input {
 }
 
 .chart-col-wide,
-.chart-col-narrow {
+.chart-col-narrow,
+.chart-col-full {
   min-width: 0;
+}
+
+.analytics-charts-grid.full-width {
+  grid-template-columns: 1fr;
 }
 
 /* ========================================

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useSettings } from '../contexts/SettingsContext';
 import { formatINR } from '../utils/dataProcessing.js';
 import './TransactionExplorer.css';
 
@@ -8,10 +9,17 @@ function TransactionExplorer({ data }) {
   const [sortField, setSortField] = useState('Date');
   const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(0);
+  const { showCredits } = useSettings();
+
+  const displayData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    if (showCredits) return data;
+    return data.filter(tx => !tx.IsCredit);
+  }, [data, showCredits]);
 
   const sorted = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    return [...data].sort((a, b) => {
+    if (displayData.length === 0) return [];
+    return [...displayData].sort((a, b) => {
       let cmp;
       if (sortField === 'Date') {
         cmp = new Date(a.Date) - new Date(b.Date);
@@ -20,7 +28,7 @@ function TransactionExplorer({ data }) {
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [data, sortField, sortDir]);
+  }, [displayData, sortField, sortDir]);
 
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
   const pageData = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -72,7 +80,7 @@ function TransactionExplorer({ data }) {
               >
                 Amount{sortIndicator('Amount')}
               </th>
-              <th className="tx-th tx-type">Type</th>
+              {showCredits && <th className="tx-th tx-type">Type</th>}
             </tr>
           </thead>
           <tbody>
@@ -89,11 +97,13 @@ function TransactionExplorer({ data }) {
                 <td className="tx-td tx-amount">
                   {formatINR(tx.Amount)}
                 </td>
-                <td className="tx-td tx-type">
-                  <span className={`tx-badge ${tx.IsCredit ? 'credit' : 'debit'}`}>
-                    {tx.IsCredit ? 'Credit' : 'Debit'}
-                  </span>
-                </td>
+                {showCredits && (
+                  <td className="tx-td tx-type">
+                    <span className={`tx-badge ${tx.IsCredit ? 'credit' : 'debit'}`}>
+                      {tx.IsCredit ? 'Credit' : 'Debit'}
+                    </span>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

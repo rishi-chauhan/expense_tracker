@@ -8,12 +8,14 @@ import {
   sharedAnimation,
 } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
+import { useSettings } from '../contexts/SettingsContext';
 import { groupByMonth, groupByWeek } from '../utils/dataProcessing.js';
 import './SpendingTrends.css';
 
 function SpendingTrends({ data, granularity }) {
   const [activeDatasets, setActiveDatasets] = useState({ debits: true, credits: false });
   const chartColors = useChartTheme();
+  const { showCredits } = useSettings();
 
   if (!data || data.length === 0) {
     return <p className="chart-empty">No data available for spending trends.</p>;
@@ -53,7 +55,7 @@ function SpendingTrends({ data, granularity }) {
       pointBorderColor: chartColors.pointBorderColor,
       pointBorderWidth: 2,
     },
-    {
+    ...(showCredits ? [{
       key: 'credits',
       label: 'Credits',
       data: labels.map(key => groupedData[key].credits),
@@ -66,7 +68,7 @@ function SpendingTrends({ data, granularity }) {
       pointBackgroundColor: chartColors.creditSolid,
       pointBorderColor: chartColors.pointBorderColor,
       pointBorderWidth: 2,
-    }
+    }] : []),
   ];
 
   const xScale = getXScale(chartColors);
@@ -124,13 +126,15 @@ function SpendingTrends({ data, granularity }) {
             <div className="legend-dot debits"></div>
             <span className="legend-label">Debits</span>
           </button>
-          <button
-            className={`legend-item${activeDatasets.credits ? '' : ' inactive'}`}
-            onClick={() => toggleDataset('credits')}
-          >
-            <div className="legend-dot credits"></div>
-            <span className="legend-label">Credits</span>
-          </button>
+          {showCredits && (
+            <button
+              className={`legend-item${activeDatasets.credits ? '' : ' inactive'}`}
+              onClick={() => toggleDataset('credits')}
+            >
+              <div className="legend-dot credits"></div>
+              <span className="legend-label">Credits</span>
+            </button>
+          )}
         </div>
       </div>
       <div className="chart-wrapper">

@@ -71,13 +71,6 @@ function FileUpload({ onFileUpload, onError }) {
 
   return (
     <div className="file-upload-card">
-      <div className="upload-card-header">
-        <h2 className="upload-title">Upload Credit Card Statement</h2>
-        <p className="upload-description">
-          Upload your CSV file to analyze spending patterns
-        </p>
-      </div>
-
       <label
         htmlFor="csv-file-upload"
         className={`upload-zone ${isDragging ? 'dragging' : ''} ${selectedFile ? 'has-file' : ''}`}
@@ -99,10 +92,7 @@ function FileUpload({ onFileUpload, onError }) {
           <div className="upload-prompt">
             <div className="upload-icon">↑</div>
             <p className="upload-prompt-text">
-              Drop CSV file here or <strong>browse</strong>
-            </p>
-            <p className="upload-hint">
-              Supports .csv files up to 10MB
+              Drop CSV here or <strong>browse</strong>
             </p>
           </div>
         ) : (

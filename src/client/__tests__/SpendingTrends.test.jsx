@@ -1,9 +1,14 @@
 /**
  * @vitest-environment happy-dom
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import SpendingTrends from '../components/SpendingTrends';
+
+let mockShowCredits = true;
+vi.mock('../contexts/SettingsContext', () => ({
+  useSettings: () => ({ showCredits: mockShowCredits, toggleShowCredits: () => {} }),
+}));
 
 vi.mock('react-chartjs-2', () => ({
   Line: ({ data }) => (
@@ -38,6 +43,10 @@ const makeData = (overrides = []) => overrides.map((o, i) => ({
 }));
 
 describe('SpendingTrends', () => {
+  beforeEach(() => {
+    mockShowCredits = true;
+  });
+
   it('shows empty message for null data', () => {
     render(<SpendingTrends data={null} granularity="monthly" />);
     expect(screen.getByText('No data available for spending trends.')).toBeInTheDocument();
@@ -125,5 +134,35 @@ describe('SpendingTrends', () => {
     render(<SpendingTrends data={data} granularity="weekly" />);
 
     expect(screen.getByText('Weekly spending over time')).toBeInTheDocument();
+  });
+});
+
+describe('SpendingTrends with showCredits=false', () => {
+  beforeEach(() => {
+    mockShowCredits = false;
+  });
+
+  it('hides credits toggle button', () => {
+    const data = makeData([
+      { Date: new Date('2025-01-15'), Amount: 100 },
+      { Date: new Date('2025-01-20'), Amount: 50, IsCredit: true, Type: 'Credit' },
+    ]);
+
+    render(<SpendingTrends data={data} granularity="monthly" />);
+
+    expect(screen.getByText('Debits')).toBeInTheDocument();
+    expect(screen.queryByText('Credits')).not.toBeInTheDocument();
+  });
+
+  it('only shows debits dataset', () => {
+    const data = makeData([
+      { Date: new Date('2025-01-15'), Amount: 100 },
+      { Date: new Date('2025-01-20'), Amount: 50, IsCredit: true, Type: 'Credit' },
+    ]);
+
+    render(<SpendingTrends data={data} granularity="monthly" />);
+
+    const datasets = JSON.parse(screen.getByTestId('chart-datasets').textContent);
+    expect(datasets).toEqual(['Debits']);
   });
 });

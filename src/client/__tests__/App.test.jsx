@@ -7,6 +7,10 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
 
+vi.mock('../contexts/SettingsContext', () => ({
+  useSettings: () => ({ showCredits: true, toggleShowCredits: () => {} }),
+}));
+
 function renderApp(initialRoute = '/') {
   return render(
     <MemoryRouter initialEntries={[initialRoute]}>
@@ -136,7 +140,7 @@ describe('App Component', () => {
 
     renderApp();
 
-    expect(screen.getByText(/Upload Credit Card Statement/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Upload Credit Card Statement/i)).toBeInTheDocument();
   });
 
   it('should navigate to analytics page', async () => {

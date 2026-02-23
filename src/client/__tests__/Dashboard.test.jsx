@@ -1,9 +1,15 @@
 /**
  * @vitest-environment happy-dom
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Dashboard from '../components/Dashboard';
+
+// Mock settings context - default to showing credits for existing tests
+let mockShowCredits = true;
+vi.mock('../contexts/SettingsContext', () => ({
+  useSettings: () => ({ showCredits: mockShowCredits, toggleShowCredits: () => {} }),
+}));
 
 // Mock Chart.js components
 vi.mock('react-chartjs-2', () => ({
@@ -30,6 +36,10 @@ vi.mock('chart.js', () => ({
 }));
 
 describe('Dashboard Component', () => {
+  beforeEach(() => {
+    mockShowCredits = true;
+  });
+
   it('should show message when no data', () => {
     render(<Dashboard csvData={null} />);
     expect(screen.getByText(/Upload a CSV file to see your dashboard/i)).toBeInTheDocument();
@@ -375,5 +385,35 @@ describe('Range Selector', () => {
 
     expect(btn6M.className).toContain('active');
     expect(screen.getByText('All').className).not.toContain('active');
+  });
+});
+
+describe('Dashboard with showCredits=false', () => {
+  beforeEach(() => {
+    mockShowCredits = false;
+  });
+
+  it('should hide Total Credits and Net Spending cards', () => {
+    const mockData = [
+      { Date: new Date('2025-01-01'), Amount: 500, IsCredit: false, Type: 'Debit', Description: 'Store' },
+      { Date: new Date('2025-01-05'), Amount: 200, IsCredit: true, Type: 'Credit', Description: 'Refund' },
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    expect(screen.getByText(/Total Debits/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Total Credits/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Net Spending/i)).not.toBeInTheDocument();
+  });
+
+  it('should still show Total Debits card', () => {
+    const mockData = [
+      { Date: new Date('2025-01-01'), Amount: 300, IsCredit: false, Type: 'Debit', Description: 'Store' },
+    ];
+
+    render(<Dashboard csvData={mockData} />);
+
+    expect(screen.getByText(/Total Debits/i)).toBeInTheDocument();
+    expect(screen.getByText(/₹300\.00/)).toBeInTheDocument();
   });
 });

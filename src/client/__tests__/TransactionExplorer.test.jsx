@@ -1,9 +1,14 @@
 /**
  * @vitest-environment happy-dom
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import TransactionExplorer from '../components/TransactionExplorer';
+
+let mockShowCredits = true;
+vi.mock('../contexts/SettingsContext', () => ({
+  useSettings: () => ({ showCredits: mockShowCredits, toggleShowCredits: () => {} }),
+}));
 
 const makeData = (overrides = []) => overrides.map((o, i) => ({
   Date: new Date(`2025-01-${String(15 + i).padStart(2, '0')}`),
@@ -15,6 +20,10 @@ const makeData = (overrides = []) => overrides.map((o, i) => ({
 }));
 
 describe('TransactionExplorer', () => {
+  beforeEach(() => {
+    mockShowCredits = true;
+  });
+
   it('shows empty message for null data', () => {
     render(<TransactionExplorer data={null} />);
     expect(screen.getByText('No transactions to display.')).toBeInTheDocument();
@@ -187,5 +196,36 @@ describe('TransactionExplorer', () => {
     // Go back to page 1
     fireEvent.click(screen.getByText('Previous'));
     expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+  });
+});
+
+describe('TransactionExplorer with showCredits=false', () => {
+  beforeEach(() => {
+    mockShowCredits = false;
+  });
+
+  it('filters out credit transactions', () => {
+    const data = makeData([
+      { Date: new Date('2025-01-15'), Amount: 100, IsCredit: false, Type: 'Debit', Description: 'Purchase' },
+      { Date: new Date('2025-01-16'), Amount: 50, IsCredit: true, Type: 'Credit', Description: 'Refund' },
+      { Date: new Date('2025-01-17'), Amount: 200, IsCredit: false, Type: 'Debit', Description: 'Store' },
+    ]);
+
+    render(<TransactionExplorer data={data} />);
+
+    expect(screen.getByText('2 transactions')).toBeInTheDocument();
+    const rows = document.querySelectorAll('tbody tr');
+    expect(rows).toHaveLength(2);
+  });
+
+  it('hides the Type column', () => {
+    const data = makeData([
+      { Date: new Date('2025-01-15'), Amount: 100, IsCredit: false, Type: 'Debit', Description: 'Purchase' },
+    ]);
+
+    render(<TransactionExplorer data={data} />);
+
+    expect(screen.queryByText('Type')).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.tx-badge')).toHaveLength(0);
   });
 });

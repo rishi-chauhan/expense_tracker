@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import { useTheme } from './contexts/ThemeContext';
+import { useSettings } from './contexts/SettingsContext';
 import HomePage from './pages/HomePage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import './App.css';
@@ -113,6 +114,7 @@ function App() {
   };
 
   const { theme, toggleTheme } = useTheme();
+  const { showCredits, toggleShowCredits } = useSettings();
 
   return (
     <div className="App">
@@ -123,6 +125,23 @@ function App() {
             <h1 className="app-title">Expense Tracker</h1>
             <p className="app-subtitle">Analyze your credit card spending patterns</p>
           </div>
+          <button
+            className={`credits-toggle-btn${showCredits ? ' active' : ''}`}
+            onClick={toggleShowCredits}
+            aria-label={showCredits ? 'Hide credits' : 'Show credits'}
+            title={showCredits ? 'Hide credits' : 'Show credits'}
+          >
+            {showCredits ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <text x="4" y="17" fontSize="16" fill="currentColor" stroke="none" fontWeight="bold">₹</text>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <text x="4" y="17" fontSize="16" fill="currentColor" stroke="none" fontWeight="bold">₹</text>
+                <line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            )}
+          </button>
           <button
             className="theme-toggle-btn"
             onClick={toggleTheme}

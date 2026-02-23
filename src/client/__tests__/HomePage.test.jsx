@@ -5,6 +5,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import HomePage from '../pages/HomePage';
 
+vi.mock('../contexts/SettingsContext', () => ({
+  useSettings: () => ({ showCredits: true, toggleShowCredits: () => {} }),
+}));
+
 vi.mock('react-chartjs-2', () => ({
   Line: ({ data }) => (
     <div data-testid="line-chart">
@@ -42,7 +46,7 @@ describe('HomePage', () => {
   it('renders FileUpload and Dashboard', () => {
     render(<HomePage {...defaultProps} />);
 
-    expect(screen.getByText('Upload Credit Card Statement')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Upload Credit Card Statement/i)).toBeInTheDocument();
     // Dashboard should show empty state
     expect(screen.getByText(/Upload a CSV file/i)).toBeInTheDocument();
   });

@@ -11,8 +11,8 @@ describe('FileUpload Component', () => {
     const mockHandler = vi.fn();
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    expect(screen.getByText(/Upload Credit Card Statement/i)).toBeInTheDocument();
-    expect(screen.getByText(/Drop CSV file here or/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Upload Credit Card Statement/i)).toBeInTheDocument();
+    expect(screen.getByText(/Drop CSV here or/i)).toBeInTheDocument();
   });
 
   it('should render file input with correct attributes', () => {
@@ -155,7 +155,7 @@ describe('FileUpload Component', () => {
 
     // File should be removed, prompt should be shown again
     expect(screen.queryByText('test.csv')).not.toBeInTheDocument();
-    expect(screen.getByText(/Drop CSV file here or/i)).toBeInTheDocument();
+    expect(screen.getByText(/Drop CSV here or/i)).toBeInTheDocument();
   });
 
   it('should handle drag and drop events', async () => {
@@ -227,18 +227,18 @@ describe('FileUpload Component', () => {
     expect(uploadZone).toHaveClass('has-file');
   });
 
-  it('should display upload description', () => {
+  it('should display upload icon', () => {
     const mockHandler = vi.fn();
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    expect(screen.getByText(/Upload your CSV file to analyze spending patterns/i)).toBeInTheDocument();
+    expect(screen.getByText('↑')).toBeInTheDocument();
   });
 
-  it('should display file size limit hint', () => {
+  it('should display upload prompt text', () => {
     const mockHandler = vi.fn();
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    expect(screen.getByText(/Supports \.csv files up to 10MB/i)).toBeInTheDocument();
+    expect(screen.getByText(/Drop CSV here or/i)).toBeInTheDocument();
   });
 
   it('should show checkmark icon when file is selected', async () => {

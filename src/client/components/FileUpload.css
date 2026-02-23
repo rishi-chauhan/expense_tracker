@@ -6,9 +6,9 @@
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-2xl);
-  padding: var(--space-8);
+  padding: var(--space-4);
   box-shadow: var(--shadow-md);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
   transition: all var(--duration-normal) var(--ease-out);
   animation: fadeInUp 0.5s var(--ease-out);
 }
@@ -28,25 +28,6 @@
   box-shadow: var(--shadow-lg);
 }
 
-.upload-card-header {
-  text-align: center;
-  margin-bottom: var(--space-6);
-}
-
-.upload-title {
-  font-family: var(--font-heading);
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-2) 0;
-}
-
-.upload-description {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  margin: 0;
-}
-
 /* ========================================
    UPLOAD ZONE
    ======================================== */
@@ -56,7 +37,7 @@
   display: block;
   border: 2px dashed var(--color-text-tertiary);
   border-radius: var(--radius-xl);
-  padding: var(--space-12);
+  padding: var(--space-6);
   text-align: center;
   cursor: pointer;
   transition: all var(--duration-normal) var(--ease-out);
@@ -110,31 +91,33 @@
 
 .upload-prompt {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: var(--space-4);
+  justify-content: center;
+  gap: var(--space-3);
 }
 
 .upload-icon {
-  width: 72px;
-  height: 72px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--color-accent-dim);
   color: var(--color-accent);
-  border-radius: var(--radius-xl);
-  font-size: var(--text-3xl);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-xl);
   border: 1px solid var(--color-accent-dim);
   transition: transform var(--duration-normal) var(--ease-bounce);
+  flex-shrink: 0;
 }
 
 .upload-zone:hover .upload-icon {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
 }
 
 .upload-prompt-text {
-  font-size: var(--text-lg);
+  font-size: var(--text-base);
   color: var(--color-text-secondary);
   margin: 0;
 }
@@ -142,12 +125,6 @@
 .upload-prompt-text strong {
   color: var(--color-accent);
   font-weight: var(--font-semibold);
-}
-
-.upload-hint {
-  font-size: var(--text-sm);
-  color: var(--color-text-tertiary);
-  margin: 0;
 }
 
 /* ========================================
@@ -244,21 +221,21 @@
 
 @media (max-width: 640px) {
   .file-upload-card {
-    padding: var(--space-6);
+    padding: var(--space-3);
   }
 
   .upload-zone {
-    padding: var(--space-8);
+    padding: var(--space-4);
   }
 
   .upload-icon {
-    width: 56px;
-    height: 56px;
-    font-size: var(--text-2xl);
+    width: 36px;
+    height: 36px;
+    font-size: var(--text-lg);
   }
 
   .upload-prompt-text {
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
   }
 
   .file-preview {
@@ -271,9 +248,9 @@
   }
 
   .file-preview-icon {
-    width: 48px;
-    height: 48px;
-    font-size: var(--text-xl);
+    width: 40px;
+    height: 40px;
+    font-size: var(--text-lg);
   }
 
   .file-name {

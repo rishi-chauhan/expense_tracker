@@ -4,6 +4,7 @@ import SpendingTrends from '../components/SpendingTrends';
 import TopMerchants from '../components/TopMerchants';
 import DebitCreditRatio from '../components/DebitCreditRatio';
 import TransactionExplorer from '../components/TransactionExplorer';
+import { useSettings } from '../contexts/SettingsContext';
 import {
   filterAnalyticsData,
   filterByDateRange,
@@ -16,6 +17,7 @@ function AnalyticsDashboard({ csvData }) {
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   const [granularity, setGranularity] = useState('monthly');
+  const { showCredits } = useSettings();
 
   const analyticsData = useMemo(() => filterAnalyticsData(csvData), [csvData]);
 
@@ -138,13 +140,15 @@ function AnalyticsDashboard({ csvData }) {
         </div>
       ) : (
         <>
-          <div className="analytics-charts-grid">
-            <div className="chart-col-wide">
+          <div className={`analytics-charts-grid${showCredits ? '' : ' full-width'}`}>
+            <div className={showCredits ? 'chart-col-wide' : 'chart-col-full'}>
               <SpendingTrends data={filteredData} granularity={granularity} />
             </div>
-            <div className="chart-col-narrow">
-              <DebitCreditRatio data={filteredData} />
-            </div>
+            {showCredits && (
+              <div className="chart-col-narrow">
+                <DebitCreditRatio data={filteredData} />
+              </div>
+            )}
           </div>
 
           <TopMerchants data={filteredData} />

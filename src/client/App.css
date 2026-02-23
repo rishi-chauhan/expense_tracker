@@ -84,6 +84,43 @@
 }
 
 /* ========================================
+   CREDITS TOGGLE
+   ======================================== */
+
+.credits-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+  flex-shrink: 0;
+}
+
+.credits-toggle-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: var(--color-accent-dim);
+}
+
+.credits-toggle-btn.active {
+  color: var(--color-credit);
+  border-color: var(--color-credit);
+  background: var(--color-credit-dim);
+}
+
+.credits-toggle-btn.active:hover {
+  color: var(--color-credit);
+  border-color: var(--color-credit);
+  background: var(--color-credit-dim);
+}
+
+/* ========================================
    HEADER NAVIGATION
    ======================================== */
 
