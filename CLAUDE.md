@@ -69,6 +69,23 @@ On mount, App fetches existing transactions from the API. After upload, it re-fe
 
 Data flows **one-way**: App → Pages → Components via props. Each page may have local filter state (e.g., AnalyticsDashboard manages date range and search filters).
 
+### Context Providers
+
+Two React contexts are wrapped around the app in `main.jsx`:
+
+**`ThemeContext`** (`contexts/ThemeContext.jsx`):
+- Provides `theme` (`'dark'` | `'light'`) and `toggleTheme()`
+- Persists to `localStorage` key `expense-tracker-theme`
+- Defaults to system preference via `prefers-color-scheme`
+
+**`SettingsContext`** (`contexts/SettingsContext.jsx`):
+- Provides `showCredits` (boolean) and `toggleShowCredits()`
+- Persists to `localStorage` key `expense-tracker-settings`
+- Defaults to `false` (credits hidden)
+- When `showCredits` is false: Dashboard hides "Total Credits" and "Net Spending" stat cards; SpendingTrends hides credits dataset and toggle; AnalyticsDashboard hides DebitCreditRatio (SpendingTrends goes full-width); TransactionExplorer filters out credit rows and hides Type column
+
+Both follow the same pattern: `createContext` → `Provider` with `useState` + `useEffect` for localStorage sync → exported `useX()` hook.
+
 ### Routing
 
 Uses `react-router-dom` v7 with `BrowserRouter` (wrapped in `main.jsx`).
@@ -91,16 +108,16 @@ See `src/server/parser.js` for details. The client sends the raw file; all parsi
 ### Data Visualization
 
 **Dashboard** (`components/Dashboard.jsx`) — Shown on HomePage:
-- Summary stat cards: total debits, total credits, net spending
+- Summary stat cards: total debits (always shown), total credits and net spending (shown when `showCredits` is true)
 - Line chart: monthly spending trends
 - Range selector buttons (1M, 3M, 6M, 12M, All)
 
 **AnalyticsDashboard** (`pages/AnalyticsDashboard.jsx`) — `/analytics` route:
 - Filter controls: text search, date range picker, granularity toggle (weekly/monthly)
-- **SpendingTrends**: Line chart with toggleable debit/credit datasets, weekly or monthly granularity
-- **DebitCreditRatio**: Doughnut chart showing debit vs credit percentage split
+- **SpendingTrends**: Line chart with toggleable debit/credit datasets (credits toggle hidden when `showCredits` is false), weekly or monthly granularity
+- **DebitCreditRatio**: Doughnut chart showing debit vs credit percentage split (hidden when `showCredits` is false)
 - **TopMerchants**: Horizontal bar chart of top 10 merchants by spending
-- **TransactionExplorer**: Paginated, sortable transaction table (25 rows/page)
+- **TransactionExplorer**: Paginated, sortable transaction table (25 rows/page); credit rows and Type column hidden when `showCredits` is false
 
 CC payments (descriptions containing "CC PAYMENT" or "BPPY") are excluded from analytics calculations.
 
@@ -153,10 +170,15 @@ CC payments (descriptions containing "CC PAYMENT" or "BPPY") are excluded from a
 ```
 src/
 ├── client/
-│   ├── main.jsx                        # React entry point, BrowserRouter wrapper
+│   ├── main.jsx                        # React entry point, BrowserRouter + providers
 │   ├── App.jsx                         # Root component, routing, API calls, state
 │   ├── App.css                         # Root component styles
 │   ├── index.css                       # Global styles
+│   ├── contexts/
+│   │   ├── ThemeContext.jsx             # Light/dark theme context + useTheme() hook
+│   │   └── SettingsContext.jsx          # App settings context + useSettings() hook
+│   ├── hooks/
+│   │   └── useChartTheme.js            # Chart.js color values derived from CSS vars
 │   ├── pages/
 │   │   ├── HomePage.jsx                # Upload + basic dashboard page
 │   │   ├── HomePage.css
