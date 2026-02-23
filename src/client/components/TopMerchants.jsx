@@ -2,14 +2,16 @@ import React from 'react';
 import { Bar } from 'react-chartjs-2';
 import '../utils/chartConfig.js';
 import {
-  sharedTooltipConfig,
+  getTooltipConfig,
   sharedAnimation,
-  COLORS,
 } from '../utils/chartConfig.js';
+import { useChartTheme } from '../hooks/useChartTheme';
 import { groupByDescription } from '../utils/dataProcessing.js';
 import './TopMerchants.css';
 
 function TopMerchants({ data }) {
+  const chartColors = useChartTheme();
+
   if (!data || data.length === 0) {
     return <p className="chart-empty">No data available for top merchants.</p>;
   }
@@ -30,7 +32,7 @@ function TopMerchants({ data }) {
     datasets: [{
       label: 'Total Spent',
       data: merchants.map(m => m.total),
-      backgroundColor: COLORS.debit,
+      backgroundColor: chartColors.debit,
       borderWidth: 0,
       borderRadius: 4,
       borderSkipped: false,
@@ -46,7 +48,7 @@ function TopMerchants({ data }) {
       legend: { display: false },
       title: { display: false },
       tooltip: {
-        ...sharedTooltipConfig,
+        ...getTooltipConfig(chartColors),
         callbacks: {
           label: function(context) {
             const merchant = merchants[context.dataIndex];
@@ -60,14 +62,14 @@ function TopMerchants({ data }) {
     },
     scales: {
       x: {
-        grid: { color: 'rgba(255, 255, 255, 0.04)' },
-        border: { color: 'rgba(255, 255, 255, 0.06)' },
+        grid: { color: chartColors.gridColor },
+        border: { color: chartColors.borderColor },
         ticks: {
           font: {
-            family: "'JetBrains Mono', monospace",
+            family: chartColors.fontMono,
             size: 11,
           },
-          color: '#5c5e72',
+          color: chartColors.tickColorSecondary,
           callback: function(value) {
             return '₹' + value.toLocaleString('en-IN');
           }
@@ -75,13 +77,13 @@ function TopMerchants({ data }) {
       },
       y: {
         grid: { display: false },
-        border: { color: 'rgba(255, 255, 255, 0.06)' },
+        border: { color: chartColors.borderColor },
         ticks: {
           font: {
-            family: "'DM Sans', sans-serif",
+            family: chartColors.fontBody,
             size: 11,
           },
-          color: '#8b8da0',
+          color: chartColors.tickColorPrimary,
         }
       }
     },

@@ -267,7 +267,6 @@ describe('FileUpload Component', () => {
     render(<FileUpload onFileUpload={mockHandler} />);
 
     const file1 = new File(['test1'], 'test1.csv', { type: 'text/csv' });
-    const file2 = new File(['test2'], 'test2.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
     // Upload first file

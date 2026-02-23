@@ -45,15 +45,15 @@
 }
 
 .tx-row.debit {
-  background: rgba(240, 99, 122, 0.02);
+  background: var(--color-debit-dim);
 }
 
 .tx-row.credit {
-  background: rgba(61, 217, 160, 0.02);
+  background: var(--color-credit-dim);
 }
 
 .tx-row:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-row-hover);
 }
 
 .tx-date {
@@ -125,7 +125,7 @@
 }
 
 .tx-page-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-hover-overlay);
   color: var(--color-text-primary);
   border-color: var(--color-accent);
 }

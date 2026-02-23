@@ -1,11 +1,14 @@
 import React from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import '../utils/chartConfig.js';
-import { sharedTooltipConfig, COLORS } from '../utils/chartConfig.js';
+import { getTooltipConfig } from '../utils/chartConfig.js';
+import { useChartTheme } from '../hooks/useChartTheme';
 import { calculateSummaryStats, formatINR } from '../utils/dataProcessing.js';
 import './DebitCreditRatio.css';
 
 function DebitCreditRatio({ data }) {
+  const chartColors = useChartTheme();
+
   if (!data || data.length === 0) {
     return <p className="chart-empty">No data available.</p>;
   }
@@ -20,8 +23,8 @@ function DebitCreditRatio({ data }) {
     labels: ['Debits (Expenses)', 'Credits (Payments)'],
     datasets: [{
       data: [totalDebits, totalCredits],
-      backgroundColor: [COLORS.debit, COLORS.credit],
-      borderColor: ['#161822', '#161822'],
+      backgroundColor: [chartColors.debit, chartColors.credit],
+      borderColor: [chartColors.doughnutBorder, chartColors.doughnutBorder],
       borderWidth: 3,
       hoverOffset: 8,
     }]
@@ -35,7 +38,7 @@ function DebitCreditRatio({ data }) {
     plugins: {
       legend: { display: false },
       tooltip: {
-        ...sharedTooltipConfig,
+        ...getTooltipConfig(chartColors),
         callbacks: {
           label: function(context) {
             const total = totalDebits + totalCredits;
@@ -65,14 +68,14 @@ function DebitCreditRatio({ data }) {
         </div>
         <div className="ratio-legend">
           <div className="ratio-legend-item">
-            <div className="ratio-dot" style={{ background: COLORS.debitSolid }}></div>
+            <div className="ratio-dot" style={{ background: chartColors.debitSolid }}></div>
             <div className="ratio-detail">
               <span className="ratio-label">Debits</span>
               <span className="ratio-value debit">{formatINR(totalDebits)}</span>
             </div>
           </div>
           <div className="ratio-legend-item">
-            <div className="ratio-dot" style={{ background: COLORS.creditSolid }}></div>
+            <div className="ratio-dot" style={{ background: chartColors.creditSolid }}></div>
             <div className="ratio-detail">
               <span className="ratio-label">Credits</span>
               <span className="ratio-value credit">{formatINR(totalCredits)}</span>

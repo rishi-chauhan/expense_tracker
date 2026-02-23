@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 console.log('🔧 Initializing database...');
 initializeDatabase();
 
-const server = Bun.serve({
+Bun.serve({
   port: PORT,
 
   async fetch(req) {

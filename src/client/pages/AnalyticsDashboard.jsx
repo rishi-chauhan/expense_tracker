@@ -38,6 +38,7 @@ function AnalyticsDashboard({ csvData }) {
       setDateStart(defaultStart);
       setDateEnd(defaultEnd);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultStart, defaultEnd]);
 
   const filteredData = useMemo(() => {

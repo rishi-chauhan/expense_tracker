@@ -85,7 +85,7 @@
 
 /* Date inputs need color scheme for the calendar icon */
 input[type="date"].filter-input {
-  color-scheme: dark;
+  color-scheme: var(--color-scheme);
 }
 
 /* Granularity toggle */

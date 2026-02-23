@@ -30,4 +30,30 @@ export default [
       ],
     },
   },
+  {
+    files: ['src/server/**/*.js', 'check-credits.js', 'start-dev.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        Bun: 'readonly',
+      },
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: ['src/client/__tests__/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        global: 'readonly',
+      },
+    },
+  },
 ]

@@ -2,17 +2,18 @@ import React, { useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import '../utils/chartConfig.js';
 import {
-  sharedTooltipConfig,
-  sharedXScale,
-  sharedYScale,
+  getTooltipConfig,
+  getXScale,
+  getYScale,
   sharedAnimation,
-  COLORS,
 } from '../utils/chartConfig.js';
+import { useChartTheme } from '../hooks/useChartTheme';
 import { groupByMonth, groupByWeek } from '../utils/dataProcessing.js';
 import './SpendingTrends.css';
 
 function SpendingTrends({ data, granularity }) {
   const [activeDatasets, setActiveDatasets] = useState({ debits: true, credits: false });
+  const chartColors = useChartTheme();
 
   if (!data || data.length === 0) {
     return <p className="chart-empty">No data available for spending trends.</p>;
@@ -42,31 +43,33 @@ function SpendingTrends({ data, granularity }) {
       key: 'debits',
       label: 'Debits',
       data: labels.map(key => groupedData[key].debits),
-      borderColor: COLORS.debitSolid,
-      backgroundColor: 'rgba(240, 99, 122, 0.08)',
+      borderColor: chartColors.debitSolid,
+      backgroundColor: chartColors.debitFill,
       fill: true,
       tension: 0.3,
       pointRadius: 4,
       pointHoverRadius: 6,
-      pointBackgroundColor: COLORS.debitSolid,
-      pointBorderColor: '#161822',
+      pointBackgroundColor: chartColors.debitSolid,
+      pointBorderColor: chartColors.pointBorderColor,
       pointBorderWidth: 2,
     },
     {
       key: 'credits',
       label: 'Credits',
       data: labels.map(key => groupedData[key].credits),
-      borderColor: COLORS.creditSolid,
-      backgroundColor: 'rgba(61, 217, 160, 0.08)',
+      borderColor: chartColors.creditSolid,
+      backgroundColor: chartColors.creditFill,
       fill: true,
       tension: 0.3,
       pointRadius: 4,
       pointHoverRadius: 6,
-      pointBackgroundColor: COLORS.creditSolid,
-      pointBorderColor: '#161822',
+      pointBackgroundColor: chartColors.creditSolid,
+      pointBorderColor: chartColors.pointBorderColor,
       pointBorderWidth: 2,
     }
   ];
+
+  const xScale = getXScale(chartColors);
 
   const chartData = {
     labels,
@@ -81,7 +84,7 @@ function SpendingTrends({ data, granularity }) {
       legend: { display: false },
       title: { display: false },
       tooltip: {
-        ...sharedTooltipConfig,
+        ...getTooltipConfig(chartColors),
         callbacks: {
           label: function(context) {
             return context.dataset.label + ': ₹' + context.parsed.y.toLocaleString('en-IN');
@@ -91,15 +94,15 @@ function SpendingTrends({ data, granularity }) {
     },
     scales: {
       x: {
-        ...sharedXScale,
+        ...xScale,
         ticks: {
-          ...sharedXScale.ticks,
+          ...xScale.ticks,
           maxRotation: 45,
           autoSkip: true,
           maxTicksLimit: 12,
         }
       },
-      y: sharedYScale,
+      y: getYScale(chartColors),
     },
     animation: sharedAnimation,
   };

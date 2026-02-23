@@ -2,13 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import '../utils/chartConfig.js';
 import {
-  sharedTooltipConfig,
+  getTooltipConfig,
   inrTooltipCallback,
-  sharedXScale,
-  sharedYScale,
+  getXScale,
+  getYScale,
   sharedAnimation,
-  COLORS,
 } from '../utils/chartConfig.js';
+import { useChartTheme } from '../hooks/useChartTheme';
 import {
   filterAnalyticsData,
   calculateSummaryStats,
@@ -27,6 +27,7 @@ const RANGES = [
 
 function Dashboard({ csvData }) {
   const [range, setRange] = useState('1M');
+  const chartColors = useChartTheme();
 
   const analyticsData = filterAnalyticsData(csvData);
 
@@ -60,13 +61,13 @@ function Dashboard({ csvData }) {
       {
         label: 'Total Spending',
         data: sortedMonths.map(month => monthlyData[month].debits),
-        borderColor: COLORS.debitSolid,
-        backgroundColor: 'rgba(240, 99, 122, 0.08)',
+        borderColor: chartColors.debitSolid,
+        backgroundColor: chartColors.debitFill,
         borderWidth: 2,
         fill: true,
         tension: 0.3,
-        pointBackgroundColor: COLORS.debitSolid,
-        pointBorderColor: COLORS.debitSolid,
+        pointBackgroundColor: chartColors.debitSolid,
+        pointBorderColor: chartColors.debitSolid,
         pointRadius: 4,
         pointHoverRadius: 6,
       },
@@ -81,13 +82,13 @@ function Dashboard({ csvData }) {
       legend: { display: false },
       title: { display: false },
       tooltip: {
-        ...sharedTooltipConfig,
+        ...getTooltipConfig(chartColors),
         callbacks: inrTooltipCallback,
       }
     },
     scales: {
-      x: sharedXScale,
-      y: sharedYScale,
+      x: getXScale(chartColors),
+      y: getYScale(chartColors),
     },
     animation: sharedAnimation,
   };
