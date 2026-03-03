@@ -87,7 +87,7 @@ describe('Full Upload Workflow', () => {
     expect(existingStmt).toBeFalsy();
 
     // Step 2: Parse CSV
-    const transactions = await parseCSV(content);
+    const { transactions } = await parseCSV(content);
     expect(transactions.length).toBeGreaterThan(0);
 
     // Validate parsed transaction structure
@@ -154,7 +154,7 @@ describe('Full Upload Workflow', () => {
 
     // First upload
     const fileHash = generateFileHash(content);
-    const transactions = await parseCSV(content);
+    const { transactions } = await parseCSV(content);
     const dates = transactions.map(t => new Date(t.date).getTime());
     const periodStart = new Date(Math.min(...dates)).toISOString().split('T')[0];
     const periodEnd = new Date(Math.max(...dates)).toISOString().split('T')[0];
@@ -173,7 +173,7 @@ describe('Full Upload Workflow', () => {
     const csvPath = path.join(process.cwd(), 'tests/fixtures/sample_valid.csv');
     const content = readFileSync(csvPath, 'utf-8');
 
-    const transactions = await parseCSV(content);
+    const { transactions } = await parseCSV(content);
 
     // First statement
     const fileHash1 = generateFileHash(content + '1'); // Different file hash
@@ -244,7 +244,7 @@ describe('Full Upload Workflow', () => {
     const csvPath = path.join(process.cwd(), 'tests/fixtures/sample_valid.csv');
     const content = readFileSync(csvPath, 'utf-8');
 
-    const transactions = await parseCSV(content);
+    const { transactions } = await parseCSV(content);
     const dates = transactions.map(t => new Date(t.date).getTime());
 
     const periodStart = new Date(Math.min(...dates)).toISOString().split('T')[0];
@@ -264,7 +264,7 @@ describe('Full Upload Workflow', () => {
     const content = readFileSync(csvPath, 'utf-8');
 
     const fileHash = generateFileHash(content);
-    const transactions = await parseCSV(content);
+    const { transactions } = await parseCSV(content);
     const dates = transactions.map(t => new Date(t.date).getTime());
     const periodStart = new Date(Math.min(...dates)).toISOString().split('T')[0];
     const periodEnd = new Date(Math.max(...dates)).toISOString().split('T')[0];
@@ -306,7 +306,7 @@ describe('End-to-End Data Integrity', () => {
     const content = readFileSync(csvPath, 'utf-8');
 
     const fileHash = generateFileHash(content);
-    const transactions = await parseCSV(content);
+    const { transactions } = await parseCSV(content);
     const dates = transactions.map(t => new Date(t.date).getTime());
     const periodStart = new Date(Math.min(...dates)).toISOString().split('T')[0];
     const periodEnd = new Date(Math.max(...dates)).toISOString().split('T')[0];

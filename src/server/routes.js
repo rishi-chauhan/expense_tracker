@@ -5,7 +5,9 @@ import {
   insertStatement,
   insertTransaction,
   deleteStatement,
-  getStatistics
+  getStatistics,
+  findOrCreateCard,
+  getAllCards
 } from './db.js';
 import { generateFileHash, generateTxHash } from './utils.js';
 import { parseCSV } from './parser.js';
@@ -19,10 +21,25 @@ import { parseCSV } from './parser.js';
 export async function handleApiRequest(req, url) {
   const { pathname } = url;
 
+  // GET /api/cards - Get all cards with statement counts
+  if (pathname === '/api/cards' && req.method === 'GET') {
+    try {
+      const cards = getAllCards();
+      return Response.json({ success: true, cards });
+    } catch (error) {
+      console.error('Error fetching cards:', error);
+      return Response.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
+  }
+
   // GET /api/transactions - Get all transactions
   if (pathname === '/api/transactions' && req.method === 'GET') {
     try {
-      const transactions = getAllTransactions();
+      const cardId = url.searchParams.get('cardId');
+      const transactions = getAllTransactions(cardId ? Number(cardId) : undefined);
       const stats = getStatistics();
 
       return Response.json({
@@ -67,7 +84,7 @@ export async function handleApiRequest(req, url) {
       }
 
       // Parse CSV
-      const transactions = await parseCSV(content);
+      const { transactions, cardInfo } = await parseCSV(content, file.name);
 
       if (transactions.length === 0) {
         return Response.json(
@@ -75,6 +92,24 @@ export async function handleApiRequest(req, url) {
           { status: 400 }
         );
       }
+
+      // Determine card info: form overrides > auto-detected
+      const bankName = formData.get('bankName') || cardInfo.bankName;
+      const cardLast4 = formData.get('cardLast4') || cardInfo.cardLast4;
+      const cardLabel = formData.get('cardLabel') || null;
+
+      // If we still don't have bank name or last 4, ask the user
+      if (!bankName || !cardLast4) {
+        return Response.json({
+          success: false,
+          needsCardInfo: true,
+          detected: cardInfo,
+          transactionCount: transactions.length
+        }, { status: 422 });
+      }
+
+      // Find or create card
+      const cardId = findOrCreateCard(bankName, cardLast4, cardLabel);
 
       // Calculate statement period
       const dates = transactions.map(t => new Date(t.date).getTime());
@@ -87,7 +122,8 @@ export async function handleApiRequest(req, url) {
         fileHash,
         periodStart,
         periodEnd,
-        transactions.length
+        transactions.length,
+        cardId
       );
 
       // Insert transactions with deduplication
@@ -123,7 +159,8 @@ export async function handleApiRequest(req, url) {
           periodStart,
           periodEnd,
           totalRows: transactions.length
-        }
+        },
+        cardInfo: { bankName, cardLast4, cardId }
       });
     } catch (error) {
       console.error('Error uploading file:', error);

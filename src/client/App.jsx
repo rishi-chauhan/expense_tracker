@@ -1,47 +1,62 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import { useTheme } from './contexts/ThemeContext';
 import { useSettings } from './contexts/SettingsContext';
 import HomePage from './pages/HomePage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import CardInfoModal from './components/CardInfoModal';
 import './App.css';
 
 // API base URL - uses relative path so it works in both dev and production
 const API_BASE = '/api';
 
+function transformTransactions(transactions) {
+  return transactions.map(tx => ({
+    Date: new Date(tx.date),
+    Amount: tx.amount,
+    Description: tx.description,
+    IsCredit: Boolean(tx.is_credit),
+    Type: tx.type,
+    CardId: tx.card_id,
+    CardLabel: tx.card_label,
+    BankName: tx.bank_name,
+  }));
+}
+
 function App() {
   const [csvData, setCsvData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [notification, setNotification] = useState(null); // { type: 'success' | 'info', message: string }
+  const [notification, setNotification] = useState(null);
+  const [cards, setCards] = useState([]);
+  const [pendingUpload, setPendingUpload] = useState(null); // { file, detected, transactionCount }
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [txRes, cardsRes] = await Promise.all([
+        fetch(`${API_BASE}/transactions`),
+        fetch(`${API_BASE}/cards`),
+      ]);
+      const txData = await txRes.json();
+      const cardsData = await cardsRes.json();
+
+      if (txData.success && txData.transactions.length > 0) {
+        setCsvData(transformTransactions(txData.transactions));
+      }
+      if (cardsData.success) {
+        setCards(cardsData.cards);
+      }
+    } catch (err) {
+      console.error('Failed to load data:', err);
+    }
+  }, []);
 
   // Load existing transactions on mount
   useEffect(() => {
-    async function loadTransactions() {
-      try {
-        const res = await fetch(`${API_BASE}/transactions`);
-        const data = await res.json();
+    fetchData();
+  }, [fetchData]);
 
-        if (data.success && data.transactions.length > 0) {
-          // Transform API data to component format
-          const transformed = data.transactions.map(tx => ({
-            Date: new Date(tx.date),
-            Amount: tx.amount,
-            Description: tx.description,
-            IsCredit: Boolean(tx.is_credit),
-            Type: tx.type
-          }));
-          setCsvData(transformed);
-        }
-      } catch (err) {
-        console.error('Failed to load transactions:', err);
-        // Don't show error on initial load - user may have no data yet
-      }
-    }
-    loadTransactions();
-  }, []);
-
-  const handleFileUpload = async (file) => {
+  const handleFileUpload = async (file, cardOverrides) => {
     setLoading(true);
     setError(null);
     setNotification(null);
@@ -49,6 +64,13 @@ function App() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+
+      // Attach card overrides if provided (from CardInfoModal)
+      if (cardOverrides) {
+        if (cardOverrides.bankName) formData.append('bankName', cardOverrides.bankName);
+        if (cardOverrides.cardLast4) formData.append('cardLast4', cardOverrides.cardLast4);
+        if (cardOverrides.cardLabel) formData.append('cardLabel', cardOverrides.cardLabel);
+      }
 
       const res = await fetch(`${API_BASE}/upload`, {
         method: 'POST',
@@ -73,28 +95,30 @@ function App() {
         return;
       }
 
+      // Card info needed — prompt user
+      if (result.needsCardInfo) {
+        setPendingUpload({
+          file,
+          detected: result.detected,
+          transactionCount: result.transactionCount
+        });
+        setLoading(false);
+        return;
+      }
+
       if (!result.success) {
         setError(result.error || 'Upload failed');
         setLoading(false);
         return;
       }
 
-      // Success - reload transactions
-      const txRes = await fetch(`${API_BASE}/transactions`);
-      const txData = await txRes.json();
-
-      if (txData.success) {
-        const transformed = txData.transactions.map(tx => ({
-          Date: new Date(tx.date),
-          Amount: tx.amount,
-          Description: tx.description,
-          IsCredit: Boolean(tx.is_credit),
-          Type: tx.type
-        }));
-        setCsvData(transformed);
-      }
+      // Success - reload all data
+      await fetchData();
 
       // Show success message
+      const cardLabel = result.cardInfo
+        ? `${result.cardInfo.bankName} ...${result.cardInfo.cardLast4}`
+        : '';
       setNotification({
         type: 'success',
         title: 'Upload Complete!',
@@ -102,7 +126,8 @@ function App() {
         details: [
           `Added: ${result.newCount} new transaction${result.newCount !== 1 ? 's' : ''}`,
           `Skipped: ${result.duplicateCount} duplicate${result.duplicateCount !== 1 ? 's' : ''}`,
-          `Period: ${result.statementInfo.periodStart} to ${result.statementInfo.periodEnd}`
+          `Period: ${result.statementInfo.periodStart} to ${result.statementInfo.periodEnd}`,
+          ...(cardLabel ? [`Card: ${cardLabel}`] : [])
         ]
       });
 
@@ -111,6 +136,17 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmUpload = (cardDetails) => {
+    if (!pendingUpload) return;
+    const { file } = pendingUpload;
+    setPendingUpload(null);
+    handleFileUpload(file, cardDetails);
+  };
+
+  const handleCancelUpload = () => {
+    setPendingUpload(null);
   };
 
   const { theme, toggleTheme } = useTheme();
@@ -122,8 +158,7 @@ function App() {
         <div className="header-content">
           <div className="logo-icon">₹</div>
           <div className="header-text">
-            <h1 className="app-title">Expense Tracker</h1>
-            <p className="app-subtitle">Analyze your credit card spending patterns</p>
+            <h1 className="app-title">Paisa Kidhar Gaya?!</h1>
           </div>
           <button
             className={`credits-toggle-btn${showCredits ? ' active' : ''}`}
@@ -187,15 +222,25 @@ function App() {
                 onErrorDismiss={() => setError(null)}
                 onNotificationDismiss={() => setNotification(null)}
                 onError={setError}
+                cards={cards}
               />
             }
           />
           <Route
             path="/analytics"
-            element={<AnalyticsDashboard csvData={csvData} />}
+            element={<AnalyticsDashboard csvData={csvData} cards={cards} />}
           />
         </Routes>
       </main>
+
+      {pendingUpload && (
+        <CardInfoModal
+          detected={pendingUpload.detected}
+          transactionCount={pendingUpload.transactionCount}
+          onConfirm={handleConfirmUpload}
+          onCancel={handleCancelUpload}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-# Expense Tracker
+# Paisa Kidhar Gaya?!
 
 Full-stack application to track and analyze expenses from credit card statement CSV files with persistent storage and intelligent deduplication.
 

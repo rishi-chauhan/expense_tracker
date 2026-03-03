@@ -12,6 +12,18 @@ db.run('PRAGMA foreign_keys = ON');
  * Initialize database schema
  */
 export function initializeDatabase() {
+  // Create cards table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS cards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bank_name TEXT NOT NULL,
+      card_last4 TEXT NOT NULL,
+      card_label TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(bank_name, card_last4)
+    )
+  `);
+
   // Create statements table
   db.run(`
     CREATE TABLE IF NOT EXISTS statements (
@@ -21,6 +33,7 @@ export function initializeDatabase() {
       period_start TEXT NOT NULL,
       period_end TEXT NOT NULL,
       row_count INTEGER NOT NULL,
+      card_id INTEGER REFERENCES cards(id),
       uploaded_at TEXT NOT NULL
     )
   `);
@@ -46,15 +59,85 @@ export function initializeDatabase() {
   db.run('CREATE INDEX IF NOT EXISTS idx_transactions_hash ON transactions(tx_hash)');
   db.run('CREATE INDEX IF NOT EXISTS idx_statements_hash ON statements(file_hash)');
 
+  // Migration: add card_id column to statements if it doesn't exist
+  const stmtCols = db.prepare("PRAGMA table_info(statements)").all();
+  const hasCardId = stmtCols.some(col => col.name === 'card_id');
+  if (!hasCardId) {
+    db.run('ALTER TABLE statements ADD COLUMN card_id INTEGER REFERENCES cards(id)');
+  }
+
+  // Migration: link existing statements to "Unknown Card"
+  const orphanCount = db.prepare('SELECT COUNT(*) as count FROM statements WHERE card_id IS NULL').get().count;
+  if (orphanCount > 0) {
+    const unknownCard = findOrCreateCard('Unknown', '0000');
+    db.run('UPDATE statements SET card_id = ? WHERE card_id IS NULL', [unknownCard]);
+  }
+
   console.log('✅ Database initialized at:', dbPath);
 }
 
 /**
- * Get all transactions sorted by date descending
+ * Find a card by bank name and last 4 digits
  */
-export function getAllTransactions() {
-  const query = db.query('SELECT * FROM transactions ORDER BY date DESC');
-  return query.all();
+export function findCard(bankName, cardLast4) {
+  return db.query('SELECT * FROM cards WHERE bank_name = ? AND card_last4 = ?').get(bankName, cardLast4);
+}
+
+/**
+ * Insert a new card
+ */
+export function insertCard(bankName, cardLast4, cardLabel) {
+  const createdAt = new Date().toISOString();
+  const result = db.query(
+    'INSERT INTO cards (bank_name, card_last4, card_label, created_at) VALUES (?, ?, ?, ?)'
+  ).run(bankName, cardLast4, cardLabel, createdAt);
+  return result.lastInsertRowid;
+}
+
+/**
+ * Find existing card or create a new one. Returns card ID.
+ */
+export function findOrCreateCard(bankName, cardLast4, cardLabel) {
+  const existing = findCard(bankName, cardLast4);
+  if (existing) return existing.id;
+  const label = cardLabel || `${bankName} ...${cardLast4}`;
+  return insertCard(bankName, cardLast4, label);
+}
+
+/**
+ * Get all cards with statement counts
+ */
+export function getAllCards() {
+  return db.query(`
+    SELECT c.*, COUNT(s.id) as statement_count
+    FROM cards c
+    LEFT JOIN statements s ON c.id = s.card_id
+    GROUP BY c.id
+    ORDER BY c.created_at DESC
+  `).all();
+}
+
+/**
+ * Get all transactions sorted by date descending, with card info
+ */
+export function getAllTransactions(cardId) {
+  if (cardId) {
+    return db.query(`
+      SELECT t.*, c.id as card_id, c.bank_name, c.card_last4, c.card_label
+      FROM transactions t
+      LEFT JOIN statements s ON t.statement_id = s.id
+      LEFT JOIN cards c ON s.card_id = c.id
+      WHERE c.id = ?
+      ORDER BY t.date DESC
+    `).all(cardId);
+  }
+  return db.query(`
+    SELECT t.*, c.id as card_id, c.bank_name, c.card_last4, c.card_label
+    FROM transactions t
+    LEFT JOIN statements s ON t.statement_id = s.id
+    LEFT JOIN cards c ON s.card_id = c.id
+    ORDER BY t.date DESC
+  `).all();
 }
 
 /**
@@ -85,14 +168,14 @@ export function checkDuplicateStatement(fileHash) {
  * Insert a new statement
  * Returns the new statement ID
  */
-export function insertStatement(fileName, fileHash, periodStart, periodEnd, rowCount) {
+export function insertStatement(fileName, fileHash, periodStart, periodEnd, rowCount, cardId) {
   const uploadedAt = new Date().toISOString();
   const query = db.query(`
-    INSERT INTO statements (file_name, file_hash, period_start, period_end, row_count, uploaded_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO statements (file_name, file_hash, period_start, period_end, row_count, card_id, uploaded_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const result = query.run(fileName, fileHash, periodStart, periodEnd, rowCount, uploadedAt);
+  const result = query.run(fileName, fileHash, periodStart, periodEnd, rowCount, cardId, uploadedAt);
   return result.lastInsertRowid;
 }
 

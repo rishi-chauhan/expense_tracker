@@ -9,17 +9,20 @@ import {
   filterAnalyticsData,
   filterByDateRange,
   searchByDescription,
+  filterByCard,
 } from '../utils/dataProcessing.js';
 import './AnalyticsDashboard.css';
 
-function AnalyticsDashboard({ csvData }) {
+function AnalyticsDashboard({ csvData, cards }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   const [granularity, setGranularity] = useState('monthly');
+  const [selectedCardId, setSelectedCardId] = useState('all');
   const { showCredits } = useSettings();
 
-  const analyticsData = useMemo(() => filterAnalyticsData(csvData), [csvData]);
+  const cardFilteredData = useMemo(() => filterByCard(csvData, selectedCardId), [csvData, selectedCardId]);
+  const analyticsData = useMemo(() => filterAnalyticsData(cardFilteredData), [cardFilteredData]);
 
   // Compute 1-month default window from latest transaction
   const { defaultStart, defaultEnd } = useMemo(() => {
@@ -64,9 +67,10 @@ function AnalyticsDashboard({ csvData }) {
     setSearchQuery('');
     setDateStart(defaultStart);
     setDateEnd(defaultEnd);
+    setSelectedCardId('all');
   };
 
-  const hasFilters = searchQuery || dateStart !== defaultStart || dateEnd !== defaultEnd;
+  const hasFilters = searchQuery || dateStart !== defaultStart || dateEnd !== defaultEnd || selectedCardId !== 'all';
 
   return (
     <div className="analytics-dashboard">
@@ -76,6 +80,22 @@ function AnalyticsDashboard({ csvData }) {
       </div>
 
       <div className="analytics-filters">
+        {cards && cards.length > 1 && (
+          <div className="filter-group">
+            <label className="filter-label" htmlFor="card-filter">Card</label>
+            <select
+              id="card-filter"
+              className="filter-input"
+              value={selectedCardId}
+              onChange={e => setSelectedCardId(e.target.value)}
+            >
+              <option value="all">All Cards</option>
+              {cards.map(card => (
+                <option key={card.id} value={card.id}>{card.card_label}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="filter-group">
           <label className="filter-label" htmlFor="search-input">Search</label>
           <input

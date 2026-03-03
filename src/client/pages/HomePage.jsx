@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import FileUpload from '../components/FileUpload';
 import Dashboard from '../components/Dashboard';
+import { filterByCard } from '../utils/dataProcessing.js';
 import './HomePage.css';
 
-function HomePage({ csvData, loading, error, notification, onFileUpload, onErrorDismiss, onNotificationDismiss, onError }) {
+function HomePage({ csvData, loading, error, notification, onFileUpload, onErrorDismiss, onNotificationDismiss, onError, cards }) {
+  const [selectedCardId, setSelectedCardId] = useState('all');
+
+  const filteredData = filterByCard(csvData, selectedCardId);
+
   return (
     <div className="home-page">
       <FileUpload onFileUpload={onFileUpload} onError={onError} />
@@ -59,7 +64,23 @@ function HomePage({ csvData, loading, error, notification, onFileUpload, onError
         </div>
       )}
 
-      <Dashboard csvData={csvData} />
+      {cards && cards.length > 1 && (
+        <div className="card-filter-bar">
+          <label className="card-filter-label">Card:</label>
+          <select
+            className="card-filter-select"
+            value={selectedCardId}
+            onChange={e => setSelectedCardId(e.target.value)}
+          >
+            <option value="all">All Cards</option>
+            {cards.map(card => (
+              <option key={card.id} value={card.id}>{card.card_label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <Dashboard csvData={filteredData} />
     </div>
   );
 }

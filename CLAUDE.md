@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a full-stack React 19 application for analyzing credit card expenses from CSV files. Users upload CSV statements through a web interface, the backend parses and stores transactions in SQLite, and the frontend provides a multi-page dashboard with interactive Chart.js visualizations.
+**Paisa Kidhar Gaya?!** (पैसा किधर गया?! — "Where did the money go?!") is a full-stack React 19 application for analyzing credit card expenses from CSV files. Users upload CSV statements through a web interface, the backend parses and stores transactions in SQLite, and the frontend provides a multi-page dashboard with interactive Chart.js visualizations.
 
 **Runtime:** Bun (v1.1+) - NOT npm. All commands use `bun` instead of `npm`.
 
@@ -53,21 +53,24 @@ bun run lint
 
 1. **FileUpload** → User selects CSV file, component validates MIME type
 2. **App.jsx** → Sends file to backend via `POST /api/upload` (FormData)
-3. **Backend** → Parses CSV (auto-detects format), validates, deduplicates, stores in SQLite
-4. **App.jsx** → Fetches transactions from `GET /api/transactions`, transforms to component format
-5. **Pages** → HomePage shows summary dashboard; AnalyticsDashboard shows advanced charts with filters
+3. **Backend** → Parses CSV (auto-detects format + card info), validates, deduplicates, stores in SQLite
+4. **Card detection** → Parser extracts bank name + last 4 digits from CSV metadata; if detection fails, backend returns `needsCardInfo: true` and frontend shows `CardInfoModal` for manual input
+5. **App.jsx** → Fetches transactions from `GET /api/transactions` and cards from `GET /api/cards`, transforms to component format
+6. **Pages** → HomePage shows summary dashboard; AnalyticsDashboard shows advanced charts with filters; both support card filtering when multiple cards exist
 
 ### State Management
 
 Global state is managed in `App.jsx` using React hooks:
-- `csvData`: Transformed transaction array (fetched from API)
+- `csvData`: Transformed transaction array (fetched from API, includes `CardId`, `CardLabel`, `BankName` per transaction)
+- `cards`: Array of card objects fetched from `/api/cards`
 - `loading`: Boolean for upload state
 - `error`: String for error messages
 - `notification`: Object for success/info messages (e.g., duplicate detection)
+- `pendingUpload`: Object when card info is needed (`{ file, detected, transactionCount }`)
 
-On mount, App fetches existing transactions from the API. After upload, it re-fetches to refresh.
+On mount, App fetches existing transactions and cards from the API via `fetchData()`. After upload, it re-fetches to refresh.
 
-Data flows **one-way**: App → Pages → Components via props. Each page may have local filter state (e.g., AnalyticsDashboard manages date range and search filters).
+Data flows **one-way**: App → Pages → Components via props. Each page may have local filter state (e.g., AnalyticsDashboard manages date range, search, and card filters).
 
 ### Context Providers
 
@@ -96,12 +99,28 @@ Two routes defined in `App.jsx`:
 
 Navigation is via `NavLink` components in the app header.
 
+### Multi-Card Support
+
+The app supports multiple credit cards from different banks:
+
+**Database**: Three tables — `cards` (bank_name, card_last4, card_label, unique on bank+last4), `statements` (has `card_id` FK to cards), `transactions` (linked via statement). Migration in `initializeDatabase()` creates the cards table and links existing statements to an "Unknown Card".
+
+**Card detection**: `extractCardInfo()` in `parser.js` scans CSV metadata for:
+- Card number lines (`/card\s*no/i`) → extracts last 4 digits
+- Bank name via pattern matching against 15 known Indian banks
+- Filename fallback for bank detection
+
+**Upload flow**: If auto-detection fails to find bank name or last 4, the API returns `{ needsCardInfo: true, detected, transactionCount }` (HTTP 422). The frontend shows `CardInfoModal` for manual input, then re-sends the file with overrides.
+
+**Filtering**: Both HomePage and AnalyticsDashboard show a card filter dropdown when multiple cards exist. `filterByCard()` utility in `dataProcessing.js`. TransactionExplorer shows a "Card" column when data includes multiple cards.
+
 ### CSV Parsing (Server-Side)
 
 CSV parsing is handled entirely by the backend in `src/server/parser.js`. The parser is format-agnostic and auto-detects:
 - **Delimiter**: `~|~` or `~` (searches header row)
 - **Header location**: Finds row containing `DATE` and `AMT` columns (not hardcoded)
 - **Column variations**: Handles `Debit /Credit` and `Debit / Credit`
+- **Card info**: Extracts bank name and card last 4 from metadata (returns `{ transactions, cardInfo }`)
 
 See `src/server/parser.js` for details. The client sends the raw file; all parsing logic is server-side.
 
@@ -185,6 +204,8 @@ src/
 │   │   ├── AnalyticsDashboard.jsx      # Advanced analytics page with filters
 │   │   └── AnalyticsDashboard.css
 │   ├── components/
+│   │   ├── CardInfoModal.jsx           # Modal for manual card info entry
+│   │   ├── CardInfoModal.css
 │   │   ├── FileUpload.jsx              # CSV file upload with drag-and-drop
 │   │   ├── FileUpload.css
 │   │   ├── Dashboard.jsx               # Summary stats + monthly line chart

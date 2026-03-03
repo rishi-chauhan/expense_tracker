@@ -147,6 +147,12 @@ export function searchByDescription(data, query) {
   );
 }
 
+/** Filter transactions by card */
+export function filterByCard(data, cardId) {
+  if (!cardId || cardId === 'all') return data;
+  return data.filter(t => String(t.CardId) === String(cardId));
+}
+
 /** Format amount in Indian Rupee format */
 export function formatINR(amount) {
   return '₹' + amount.toLocaleString('en-IN', {

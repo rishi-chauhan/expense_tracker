@@ -76,11 +76,85 @@ export function extractStatementMetadata(fileContent, headerIndex) {
 }
 
 /**
+ * Known Indian bank patterns for auto-detection
+ */
+const BANK_PATTERNS = [
+  { pattern: /(?:^|[\s_~|,])HDFC(?:[\s_~|,]|$)/i, name: 'HDFC' },
+  { pattern: /(?:^|[\s_~|,])ICICI(?:[\s_~|,]|$)/i, name: 'ICICI' },
+  { pattern: /(?:^|[\s_~|,])SBI(?:[\s_~|,]|$)/i, name: 'SBI' },
+  { pattern: /(?:^|[\s_~|,])AXIS(?:[\s_~|,]|$)/i, name: 'Axis' },
+  { pattern: /(?:^|[\s_~|,])KOTAK(?:[\s_~|,]|$)/i, name: 'Kotak' },
+  { pattern: /(?:^|[\s_~|,])CITI(?:[\s_~|,]|$)/i, name: 'Citi' },
+  { pattern: /(?:^|[\s_~|,])(?:AMEX|AMERICAN\s*EXPRESS)(?:[\s_~|,]|$)/i, name: 'Amex' },
+  { pattern: /(?:^|[\s_~|,])RBL(?:[\s_~|,]|$)/i, name: 'RBL' },
+  { pattern: /(?:^|[\s_~|,])YES\s*BANK(?:[\s_~|,]|$)/i, name: 'Yes Bank' },
+  { pattern: /(?:^|[\s_~|,])IDFC\s*FIRST(?:[\s_~|,]|$)/i, name: 'IDFC First' },
+  { pattern: /(?:^|[\s_~|,])INDUSIND(?:[\s_~|,]|$)/i, name: 'IndusInd' },
+  { pattern: /(?:^|[\s_~|,])(?:BOB|BANK\s*OF\s*BARODA)(?:[\s_~|,]|$)/i, name: 'BOB' },
+  { pattern: /(?:^|[\s_~|,])AU\s*(?:SMALL\s*FINANCE)?\s*BANK(?:[\s_~|,]|$)/i, name: 'AU' },
+  { pattern: /(?:^|[\s_~|,])FEDERAL\s*BANK(?:[\s_~|,]|$)/i, name: 'Federal' },
+  { pattern: /(?:^|[\s_~|,])HSBC(?:[\s_~|,]|$)/i, name: 'HSBC' },
+];
+
+/**
+ * Extract card info (bank name and last 4 digits) from CSV metadata
+ * @param {string} fileContent - Full CSV content
+ * @param {number} headerIndex - Index of header row
+ * @param {string} [fileName] - Original filename for fallback detection
+ * @returns {{ bankName: string|null, cardLast4: string|null }}
+ */
+export function extractCardInfo(fileContent, headerIndex, fileName) {
+  const lines = fileContent.split(/\r?\n/).slice(0, headerIndex);
+  const metadataBlock = lines.join('\n');
+
+  let cardLast4 = null;
+  let bankName = null;
+
+  // Look for card number line (e.g. "Card No: 4111 11XX XXXX 1234")
+  for (const line of lines) {
+    if (/card\s*no/i.test(line)) {
+      const digits = line.match(/(\d{4})\s*$/);
+      if (digits) {
+        cardLast4 = digits[1];
+      } else {
+        // Try to find the last group of 4 digits in the line
+        const allDigitGroups = line.match(/\d{4}/g);
+        if (allDigitGroups && allDigitGroups.length > 0) {
+          cardLast4 = allDigitGroups[allDigitGroups.length - 1];
+        }
+      }
+      break;
+    }
+  }
+
+  // Detect bank name from metadata
+  for (const { pattern, name } of BANK_PATTERNS) {
+    if (pattern.test(metadataBlock)) {
+      bankName = name;
+      break;
+    }
+  }
+
+  // Fallback: check filename for bank name
+  if (!bankName && fileName) {
+    for (const { pattern, name } of BANK_PATTERNS) {
+      if (pattern.test(fileName)) {
+        bankName = name;
+        break;
+      }
+    }
+  }
+
+  return { bankName, cardLast4 };
+}
+
+/**
  * Parse credit card CSV file content
  * @param {string} fileContent - Raw CSV file content
- * @returns {Promise<Array>} - Array of parsed transactions
+ * @param {string} [fileName] - Original filename for bank detection fallback
+ * @returns {Promise<{ transactions: Array, cardInfo: { bankName: string|null, cardLast4: string|null } }>}
  */
-export async function parseCSV(fileContent) {
+export async function parseCSV(fileContent, fileName) {
   return new Promise((resolve, reject) => {
     try {
       // Auto-detect delimiter
@@ -92,6 +166,9 @@ export async function parseCSV(fileContent) {
       // Split lines and keep from header row onwards
       const lines = fileContent.split(/\r?\n/);
       const processedContent = lines.slice(headerIndex).join('\n');
+
+      // Extract card info from metadata section
+      const cardInfo = extractCardInfo(fileContent, headerIndex, fileName);
 
       // Parse with auto-detected delimiter
       Papa.parse(processedContent, {
@@ -117,7 +194,7 @@ export async function parseCSV(fileContent) {
               return;
             }
 
-            resolve(transformed);
+            resolve({ transactions: transformed, cardInfo });
           } catch (error) {
             reject(error);
           }

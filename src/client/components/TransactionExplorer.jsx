@@ -17,12 +17,20 @@ function TransactionExplorer({ data }) {
     return data.filter(tx => !tx.IsCredit);
   }, [data, showCredits]);
 
+  const hasMultipleCards = useMemo(() => {
+    if (!data || data.length === 0) return false;
+    const cardIds = new Set(data.map(tx => tx.CardId).filter(Boolean));
+    return cardIds.size > 1;
+  }, [data]);
+
   const sorted = useMemo(() => {
     if (displayData.length === 0) return [];
     return [...displayData].sort((a, b) => {
       let cmp;
       if (sortField === 'Date') {
         cmp = new Date(a.Date) - new Date(b.Date);
+      } else if (sortField === 'Card') {
+        cmp = (a.CardLabel || '').localeCompare(b.CardLabel || '');
       } else {
         cmp = a.Amount - b.Amount;
       }
@@ -74,6 +82,14 @@ function TransactionExplorer({ data }) {
                 Date{sortIndicator('Date')}
               </th>
               <th className="tx-th">Description</th>
+              {hasMultipleCards && (
+                <th
+                  className="tx-th sortable"
+                  onClick={() => handleSort('Card')}
+                >
+                  Card{sortIndicator('Card')}
+                </th>
+              )}
               <th
                 className="tx-th tx-amount sortable"
                 onClick={() => handleSort('Amount')}
@@ -94,6 +110,9 @@ function TransactionExplorer({ data }) {
                   })}
                 </td>
                 <td className="tx-td tx-desc">{tx.Description}</td>
+                {hasMultipleCards && (
+                  <td className="tx-td tx-card">{tx.CardLabel || ''}</td>
+                )}
                 <td className="tx-td tx-amount">
                   {formatINR(tx.Amount)}
                 </td>

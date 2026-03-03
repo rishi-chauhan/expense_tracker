@@ -1,7 +1,7 @@
 /**
  * @vitest-environment happy-dom
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -10,6 +10,19 @@ import App from '../App';
 vi.mock('../contexts/SettingsContext', () => ({
   useSettings: () => ({ showCredits: true, toggleShowCredits: () => {} }),
 }));
+
+// Helper: create a URL-aware fetch mock with optional per-endpoint overrides
+function makeFetchMock(overrides = {}) {
+  const defaults = {
+    '/api/transactions': { success: true, transactions: [] },
+    '/api/cards': { success: true, cards: [] },
+  };
+  return vi.fn((url) => {
+    const endpoint = typeof url === 'string' ? url.replace(/\?.*$/, '') : url;
+    const data = overrides[endpoint] || defaults[endpoint] || { success: true };
+    return Promise.resolve({ json: async () => data });
+  });
+}
 
 function renderApp(initialRoute = '/') {
   return render(
@@ -20,56 +33,33 @@ function renderApp(initialRoute = '/') {
 }
 
 describe('App Component', () => {
-  let fetchMock;
-
-  beforeEach(() => {
-    // Setup fetch mock
-    fetchMock = vi.fn();
-    global.fetch = fetchMock;
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   it('should render app header', () => {
-    fetchMock.mockResolvedValue({
-      json: async () => ({ success: true, transactions: [] })
-    });
-
+    global.fetch = makeFetchMock();
     renderApp();
-
-    expect(screen.getByText('Expense Tracker')).toBeInTheDocument();
-    expect(screen.getByText(/Analyze your credit card spending patterns/i)).toBeInTheDocument();
+    expect(screen.getByText('Paisa Kidhar Gaya?!')).toBeInTheDocument();
   });
 
   it('should render navigation links', () => {
-    fetchMock.mockResolvedValue({
-      json: async () => ({ success: true, transactions: [] })
-    });
-
+    global.fetch = makeFetchMock();
     renderApp();
-
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Analytics')).toBeInTheDocument();
   });
 
   it('should load transactions on mount', async () => {
-    fetchMock.mockResolvedValueOnce({
-      json: async () => ({
+    const fetchMock = makeFetchMock({
+      '/api/transactions': {
         success: true,
         transactions: [
-          {
-            date: '2025-01-15',
-            amount: 100,
-            description: 'Test Store',
-            is_credit: 0,
-            type: 'Debit'
-          }
+          { date: '2025-01-15', amount: 100, description: 'Test Store', is_credit: 0, type: 'Debit' }
         ]
-      })
+      }
     });
-
+    global.fetch = fetchMock;
     renderApp();
 
     await waitFor(() => {
@@ -78,76 +68,51 @@ describe('App Component', () => {
   });
 
   it('should not show error when initial load fails', async () => {
-    fetchMock.mockRejectedValueOnce(new Error('Network error'));
-
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
     renderApp();
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
     });
 
-    // Should not show error UI
     expect(screen.queryByText(/Upload Failed/i)).not.toBeInTheDocument();
   });
 
   it('should handle empty transactions array', async () => {
-    fetchMock.mockResolvedValueOnce({
-      json: async () => ({ success: true, transactions: [] })
-    });
-
+    global.fetch = makeFetchMock();
     renderApp();
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
     });
 
-    // Dashboard should not be shown for empty data
     expect(screen.queryByText(/Upload a CSV file/i)).toBeInTheDocument();
   });
 
   it('should transform API data correctly', async () => {
-    fetchMock.mockResolvedValueOnce({
-      json: async () => ({
+    global.fetch = makeFetchMock({
+      '/api/transactions': {
         success: true,
         transactions: [
-          {
-            date: '2025-01-15',
-            amount: 100.50,
-            description: 'Test Store',
-            is_credit: 0,
-            type: 'Debit'
-          }
+          { date: '2025-01-15', amount: 100.50, description: 'Test Store', is_credit: 0, type: 'Debit' }
         ]
-      })
+      }
     });
-
     renderApp();
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
-    });
-
-    // Should render dashboard with transformed data
     await waitFor(() => {
       expect(screen.getByText(/Credit Card Statement Analysis/i)).toBeInTheDocument();
     });
   });
 
   it('should render file upload component', () => {
-    fetchMock.mockResolvedValue({
-      json: async () => ({ success: true, transactions: [] })
-    });
-
+    global.fetch = makeFetchMock();
     renderApp();
-
     expect(screen.getByLabelText(/Upload Credit Card Statement/i)).toBeInTheDocument();
   });
 
   it('should navigate to analytics page', async () => {
-    fetchMock.mockResolvedValue({
-      json: async () => ({ success: true, transactions: [] })
-    });
-
+    global.fetch = makeFetchMock();
     renderApp();
 
     const analyticsLink = screen.getByText('Analytics');
@@ -157,19 +122,13 @@ describe('App Component', () => {
   });
 
   it('should show analytics with data', async () => {
-    fetchMock.mockResolvedValueOnce({
-      json: async () => ({
+    global.fetch = makeFetchMock({
+      '/api/transactions': {
         success: true,
         transactions: [
-          {
-            date: '2025-01-15',
-            amount: 100,
-            description: 'Test Store',
-            is_credit: 0,
-            type: 'Debit'
-          }
+          { date: '2025-01-15', amount: 100, description: 'Test Store', is_credit: 0, type: 'Debit' }
         ]
-      })
+      }
     });
 
     renderApp('/analytics');
@@ -181,10 +140,9 @@ describe('App Component', () => {
 
   describe('Error Handling', () => {
     it('should display error when upload fails', async () => {
-      // Initial load succeeds
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({ success: true, transactions: [] })
-      });
+      // Initial load uses URL-aware mock; upload uses sequential override
+      const fetchMock = makeFetchMock();
+      global.fetch = fetchMock;
 
       const { container } = renderApp();
 
@@ -192,7 +150,7 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalledWith('/api/transactions');
       });
 
-      // Upload fails
+      // Override for upload call
       fetchMock.mockResolvedValueOnce({
         json: async () => ({
           success: false,
@@ -200,28 +158,23 @@ describe('App Component', () => {
         })
       });
 
-      // Trigger file upload
       const file = new File(['invalid content'], 'test.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
       await userEvent.upload(input, file);
 
-      // Wait for error to appear
       await waitFor(() => {
         expect(screen.getByText('Upload Failed')).toBeInTheDocument();
         expect(screen.getByText(/Could not find header row with DATE and AMT columns/i)).toBeInTheDocument();
       });
 
-      // Check error container structure
       const errorContainer = screen.getByText('Upload Failed').closest('.error-container');
       expect(errorContainer).toBeInTheDocument();
       expect(errorContainer.querySelector('.error-icon')).toHaveTextContent('!');
     });
 
     it('should show error close button', async () => {
-      // Initial load succeeds
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({ success: true, transactions: [] })
-      });
+      const fetchMock = makeFetchMock();
+      global.fetch = fetchMock;
 
       const { container } = renderApp();
 
@@ -229,7 +182,6 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      // Upload fails
       fetchMock.mockResolvedValueOnce({
         json: async () => ({
           success: false,
@@ -241,12 +193,10 @@ describe('App Component', () => {
       const input = container.querySelector('input[type="file"]');
       await userEvent.upload(input, file);
 
-      // Wait for error to appear
       await waitFor(() => {
         expect(screen.getByText('Upload Failed')).toBeInTheDocument();
       });
 
-      // Check close button exists with correct attributes
       const closeButton = screen.getByLabelText('Close error');
       expect(closeButton).toBeInTheDocument();
       expect(closeButton).toHaveClass('error-close');
@@ -254,10 +204,8 @@ describe('App Component', () => {
     });
 
     it('should dismiss error when close button is clicked', async () => {
-      // Initial load succeeds
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({ success: true, transactions: [] })
-      });
+      const fetchMock = makeFetchMock();
+      global.fetch = fetchMock;
 
       const { container } = renderApp();
 
@@ -265,7 +213,6 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      // Upload fails
       fetchMock.mockResolvedValueOnce({
         json: async () => ({
           success: false,
@@ -277,16 +224,13 @@ describe('App Component', () => {
       const input = container.querySelector('input[type="file"]');
       await userEvent.upload(input, file);
 
-      // Wait for error to appear
       await waitFor(() => {
         expect(screen.getByText('Upload Failed')).toBeInTheDocument();
       });
 
-      // Click close button
       const closeButton = screen.getByLabelText('Close error');
       await userEvent.click(closeButton);
 
-      // Error should be dismissed
       await waitFor(() => {
         expect(screen.queryByText('Upload Failed')).not.toBeInTheDocument();
         expect(screen.queryByText(/Test error message/i)).not.toBeInTheDocument();
@@ -294,10 +238,8 @@ describe('App Component', () => {
     });
 
     it('should handle network errors during upload', async () => {
-      // Initial load succeeds
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({ success: true, transactions: [] })
-      });
+      const fetchMock = makeFetchMock();
+      global.fetch = fetchMock;
 
       const { container } = renderApp();
 
@@ -305,14 +247,12 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      // Upload throws network error
       fetchMock.mockRejectedValueOnce(new Error('Network connection failed'));
 
       const file = new File(['test'], 'test.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
       await userEvent.upload(input, file);
 
-      // Wait for error to appear
       await waitFor(() => {
         expect(screen.getByText('Upload Failed')).toBeInTheDocument();
         expect(screen.getByText(/Upload failed: Network connection failed/i)).toBeInTheDocument();
@@ -322,10 +262,8 @@ describe('App Component', () => {
 
   describe('Notification Handling', () => {
     it('should display success notification after successful upload', async () => {
-      // Initial load succeeds
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({ success: true, transactions: [] })
-      });
+      const fetchMock = makeFetchMock();
+      global.fetch = fetchMock;
 
       const { container } = renderApp();
 
@@ -333,7 +271,7 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      // Upload succeeds
+      // Upload succeeds, then fetchData re-fetches both endpoints
       fetchMock
         .mockResolvedValueOnce({
           json: async () => ({
@@ -345,34 +283,34 @@ describe('App Component', () => {
               fileName: 'statement.csv',
               periodStart: '2025-01-01',
               periodEnd: '2025-01-31'
-            }
+            },
+            cardInfo: { bankName: 'HDFC', cardLast4: '1234', cardId: 1 }
           })
         })
         .mockResolvedValueOnce({
           json: async () => ({ success: true, transactions: [] })
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ success: true, cards: [] })
         });
 
       const file = new File(['test'], 'statement.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
       await userEvent.upload(input, file);
 
-      // Wait for success notification
       await waitFor(() => {
         expect(screen.getByText('Upload Complete!')).toBeInTheDocument();
         expect(screen.getByText(/Successfully processed statement.csv/i)).toBeInTheDocument();
       });
 
-      // Check notification structure
       const notification = screen.getByText('Upload Complete!').closest('.notification-container');
       expect(notification).toHaveClass('success');
       expect(notification.querySelector('.notification-icon')).toHaveTextContent('✓');
     });
 
     it('should display info notification for duplicate statement', async () => {
-      // Initial load succeeds
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({ success: true, transactions: [] })
-      });
+      const fetchMock = makeFetchMock();
+      global.fetch = fetchMock;
 
       const { container } = renderApp();
 
@@ -380,7 +318,6 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      // Upload returns duplicate
       fetchMock.mockResolvedValueOnce({
         json: async () => ({
           success: true,
@@ -398,22 +335,18 @@ describe('App Component', () => {
       const input = container.querySelector('input[type="file"]');
       await userEvent.upload(input, file);
 
-      // Wait for info notification
       await waitFor(() => {
         expect(screen.getByText('Duplicate Statement')).toBeInTheDocument();
       });
 
-      // Check notification structure
       const notification = screen.getByText('Duplicate Statement').closest('.notification-container');
       expect(notification).toHaveClass('info');
       expect(notification.querySelector('.notification-icon')).toHaveTextContent('ⓘ');
     });
 
     it('should show notification close button', async () => {
-      // Initial load succeeds
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({ success: true, transactions: [] })
-      });
+      const fetchMock = makeFetchMock();
+      global.fetch = fetchMock;
 
       const { container } = renderApp();
 
@@ -421,7 +354,6 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      // Upload succeeds
       fetchMock
         .mockResolvedValueOnce({
           json: async () => ({
@@ -433,23 +365,25 @@ describe('App Component', () => {
               fileName: 'test.csv',
               periodStart: '2025-01-01',
               periodEnd: '2025-01-31'
-            }
+            },
+            cardInfo: { bankName: 'HDFC', cardLast4: '1234', cardId: 1 }
           })
         })
         .mockResolvedValueOnce({
           json: async () => ({ success: true, transactions: [] })
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ success: true, cards: [] })
         });
 
       const file = new File(['test'], 'test.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
       await userEvent.upload(input, file);
 
-      // Wait for notification
       await waitFor(() => {
         expect(screen.getByText('Upload Complete!')).toBeInTheDocument();
       });
 
-      // Check close button
       const closeButton = screen.getByLabelText('Close notification');
       expect(closeButton).toBeInTheDocument();
       expect(closeButton).toHaveClass('notification-close');
@@ -457,10 +391,8 @@ describe('App Component', () => {
     });
 
     it('should dismiss notification when close button is clicked', async () => {
-      // Initial load succeeds
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({ success: true, transactions: [] })
-      });
+      const fetchMock = makeFetchMock();
+      global.fetch = fetchMock;
 
       const { container } = renderApp();
 
@@ -468,7 +400,6 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      // Upload succeeds
       fetchMock
         .mockResolvedValueOnce({
           json: async () => ({
@@ -480,37 +411,36 @@ describe('App Component', () => {
               fileName: 'test.csv',
               periodStart: '2025-01-01',
               periodEnd: '2025-01-31'
-            }
+            },
+            cardInfo: { bankName: 'HDFC', cardLast4: '1234', cardId: 1 }
           })
         })
         .mockResolvedValueOnce({
           json: async () => ({ success: true, transactions: [] })
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ success: true, cards: [] })
         });
 
       const file = new File(['test'], 'test.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
       await userEvent.upload(input, file);
 
-      // Wait for notification
       await waitFor(() => {
         expect(screen.getByText('Upload Complete!')).toBeInTheDocument();
       });
 
-      // Click close button
       const closeButton = screen.getByLabelText('Close notification');
       await userEvent.click(closeButton);
 
-      // Notification should be dismissed
       await waitFor(() => {
         expect(screen.queryByText('Upload Complete!')).not.toBeInTheDocument();
       });
     });
 
     it('should clear previous error when new upload starts', async () => {
-      // Initial load succeeds
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({ success: true, transactions: [] })
-      });
+      const fetchMock = makeFetchMock();
+      global.fetch = fetchMock;
 
       const { container } = renderApp();
 
@@ -530,7 +460,6 @@ describe('App Component', () => {
       const input = container.querySelector('input[type="file"]');
       await userEvent.upload(input, file1);
 
-      // Wait for error
       await waitFor(() => {
         expect(screen.getByText(/First error message/i)).toBeInTheDocument();
       });
@@ -547,17 +476,20 @@ describe('App Component', () => {
               fileName: 'test2.csv',
               periodStart: '2025-01-01',
               periodEnd: '2025-01-31'
-            }
+            },
+            cardInfo: { bankName: 'HDFC', cardLast4: '1234', cardId: 1 }
           })
         })
         .mockResolvedValueOnce({
           json: async () => ({ success: true, transactions: [] })
+        })
+        .mockResolvedValueOnce({
+          json: async () => ({ success: true, cards: [] })
         });
 
       const file2 = new File(['test2'], 'test2.csv', { type: 'text/csv' });
       await userEvent.upload(input, file2);
 
-      // Previous error should be cleared, success notification shown
       await waitFor(() => {
         expect(screen.queryByText(/First error message/i)).not.toBeInTheDocument();
         expect(screen.getByText('Upload Complete!')).toBeInTheDocument();
