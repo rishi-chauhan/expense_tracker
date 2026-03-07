@@ -51,7 +51,11 @@ function Dashboard({ csvData }) {
   }, [analyticsData, range]);
 
   if (!csvData || csvData.length === 0) {
-    return <p className="dashboard-message">Upload a CSV file to see your dashboard.</p>;
+    return (
+      <div className="dashboard-message glass">
+        <p>Upload a CSV file to see your dashboard.</p>
+      </div>
+    );
   }
 
   const { totalDebits, totalCredits, netSpending } = calculateSummaryStats(filteredData);
@@ -78,8 +82,7 @@ function Dashboard({ csvData }) {
 
   const lineChartOptions = {
     responsive: true,
-    maintainAspectRatio: true,
-    aspectRatio: 2,
+    maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
       title: { display: false },
@@ -97,12 +100,16 @@ function Dashboard({ csvData }) {
 
   return (
     <div className="dashboard-container">
-      <h2>Credit Card Statement Analysis</h2>
+      <h2>Statement Analysis</h2>
 
       <div className="summary-stats">
         <div className="stat-card debits">
           <div className="stat-card-header">
-            <div className="stat-icon">↓</div>
+            <div className="stat-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+              </svg>
+            </div>
             <div className="stat-label">Total Debits</div>
           </div>
           <div className="stat-value">{formatINR(totalDebits)}</div>
@@ -112,7 +119,11 @@ function Dashboard({ csvData }) {
         {showCredits && (
           <div className="stat-card credits">
             <div className="stat-card-header">
-              <div className="stat-icon">↑</div>
+              <div className="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 19V5M5 12l7-7 7 7"/>
+                </svg>
+              </div>
               <div className="stat-label">Total Credits</div>
             </div>
             <div className="stat-value">{formatINR(totalCredits)}</div>
@@ -123,7 +134,11 @@ function Dashboard({ csvData }) {
         {showCredits && (
           <div className="stat-card net">
             <div className="stat-card-header">
-              <div className="stat-icon">Σ</div>
+              <div className="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 7h10M7 12h10M7 17h10"/>
+                </svg>
+              </div>
               <div className="stat-label">Net Spending</div>
             </div>
             <div className="stat-value">{formatINR(netSpending)}</div>
@@ -173,7 +188,7 @@ function Dashboard({ csvData }) {
             </div>
           </>
         ) : (
-          <p className="dashboard-message">No valid date or amount data found for monthly spending chart.</p>
+          <p className="dashboard-message">No valid data for monthly spending chart.</p>
         )}
       </div>
     </div>

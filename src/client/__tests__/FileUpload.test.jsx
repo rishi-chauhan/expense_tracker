@@ -40,7 +40,7 @@ describe('FileUpload Component', () => {
     const file = new File(['test content'], 'test.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
     expect(mockHandler).toHaveBeenCalledWith(file);
   });
@@ -51,11 +51,10 @@ describe('FileUpload Component', () => {
 
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    // Use .csv extension so userEvent.upload respects accept=".csv", but wrong MIME type
-    const file = new File(['test'], 'test.csv', { type: 'text/plain' });
+    const file = new File(['test'], 'test.txt', { type: 'text/plain' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
     expect(alertSpy).toHaveBeenCalledWith('Please upload a valid CSV file.');
     expect(mockHandler).not.toHaveBeenCalled();
@@ -69,11 +68,10 @@ describe('FileUpload Component', () => {
 
     render(<FileUpload onFileUpload={mockUploadHandler} onError={mockErrorHandler} />);
 
-    // Use .csv extension so userEvent.upload respects accept=".csv", but wrong MIME type
-    const file = new File(['test'], 'test.csv', { type: 'application/pdf' });
+    const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
     expect(mockErrorHandler).toHaveBeenCalledWith('Please upload a valid CSV file.');
     expect(mockUploadHandler).not.toHaveBeenCalled();
@@ -86,11 +84,10 @@ describe('FileUpload Component', () => {
 
     render(<FileUpload onFileUpload={mockUploadHandler} onError={mockErrorHandler} />);
 
-    // Use .csv extension so userEvent.upload respects accept=".csv", but wrong MIME type
-    const file = new File(['test'], 'test.csv', { type: 'text/plain' });
+    const file = new File(['test'], 'test.txt', { type: 'text/plain' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
     expect(mockErrorHandler).toHaveBeenCalled();
     expect(alertSpy).not.toHaveBeenCalled();
@@ -105,7 +102,7 @@ describe('FileUpload Component', () => {
     const file = new File(['test'], 'statement.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
     expect(screen.getByText('statement.csv')).toBeInTheDocument();
   });
@@ -119,7 +116,7 @@ describe('FileUpload Component', () => {
     const file = new File([content], 'test.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
     // Should display size in KB
     expect(screen.getByText(/\d+\.\d+ KB/)).toBeInTheDocument();
@@ -132,7 +129,7 @@ describe('FileUpload Component', () => {
     const file = new File(['test'], 'test.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
     expect(screen.getByText(/CSV File/)).toBeInTheDocument();
   });
@@ -144,14 +141,14 @@ describe('FileUpload Component', () => {
     const file = new File(['test'], 'test.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
     // File should be displayed
     expect(screen.getByText('test.csv')).toBeInTheDocument();
 
     // Remove file
     const removeButton = screen.getByLabelText('Remove file');
-    await userEvent.click(removeButton);
+    fireEvent.click(removeButton);
 
     // File should be removed, prompt should be shown again
     expect(screen.queryByText('test.csv')).not.toBeInTheDocument();
@@ -203,14 +200,14 @@ describe('FileUpload Component', () => {
     // Test bytes
     const smallFile = new File(['a'.repeat(100)], 'small.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
-    await userEvent.upload(input, smallFile);
+    fireEvent.change(input, { target: { files: [smallFile] } });
     expect(screen.getByText(/\d+ B/)).toBeInTheDocument();
 
     // Test KB
     rerender(<FileUpload onFileUpload={mockHandler} />);
     const mediumFile = new File(['a'.repeat(2048)], 'medium.csv', { type: 'text/csv' });
     const input2 = screen.getByLabelText(/Upload Credit Card Statement/i);
-    await userEvent.upload(input2, mediumFile);
+    fireEvent.change(input2, { target: { files: [mediumFile] } });
     expect(screen.getByText(/\d+\.\d+ KB/)).toBeInTheDocument();
   });
 
@@ -222,16 +219,17 @@ describe('FileUpload Component', () => {
     const file = new File(['test'], 'test.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
     expect(uploadZone).toHaveClass('has-file');
   });
 
-  it('should display upload icon', () => {
+  it('should display upload icon SVG', () => {
     const mockHandler = vi.fn();
-    render(<FileUpload onFileUpload={mockHandler} />);
-
-    expect(screen.getByText('↑')).toBeInTheDocument();
+    const { container } = render(<FileUpload onFileUpload={mockHandler} />);
+    
+    const iconContainer = container.querySelector('.upload-icon');
+    expect(iconContainer.querySelector('svg')).toBeInTheDocument();
   });
 
   it('should display upload prompt text', () => {
@@ -241,25 +239,25 @@ describe('FileUpload Component', () => {
     expect(screen.getByText(/Drop CSV here or/i)).toBeInTheDocument();
   });
 
-  it('should show checkmark icon when file is selected', async () => {
+  it('should show success icon when file is selected', async () => {
     const mockHandler = vi.fn();
-    render(<FileUpload onFileUpload={mockHandler} />);
+    const { container } = render(<FileUpload onFileUpload={mockHandler} />);
 
     const file = new File(['test'], 'test.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
-    // Check for checkmark icon (✓)
-    expect(screen.getByText('✓')).toBeInTheDocument();
+    const iconContainer = container.querySelector('.file-preview-icon');
+    expect(iconContainer.querySelector('svg')).toBeInTheDocument();
   });
 
   it('should show upload icon when no file is selected', () => {
     const mockHandler = vi.fn();
-    render(<FileUpload onFileUpload={mockHandler} />);
+    const { container } = render(<FileUpload onFileUpload={mockHandler} />);
 
-    // Check for upload icon (↑)
-    expect(screen.getByText('↑')).toBeInTheDocument();
+    const iconContainer = container.querySelector('.upload-icon');
+    expect(iconContainer.querySelector('svg')).toBeInTheDocument();
   });
 
   it('should handle multiple file selection by only accepting first file', async () => {
@@ -269,8 +267,7 @@ describe('FileUpload Component', () => {
     const file1 = new File(['test1'], 'test1.csv', { type: 'text/csv' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    // Upload first file
-    await userEvent.upload(input, file1);
+    fireEvent.change(input, { target: { files: [file1] } });
 
     expect(mockHandler).toHaveBeenCalledWith(file1);
     expect(screen.getByText('test1.csv')).toBeInTheDocument();
@@ -282,11 +279,10 @@ describe('FileUpload Component', () => {
 
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    // Use .csv extension so userEvent.upload respects accept=".csv", but wrong MIME type
-    const file = new File(['test'], 'test.csv', { type: 'application/pdf' });
+    const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
     const input = screen.getByLabelText(/Upload Credit Card Statement/i);
 
-    await userEvent.upload(input, file);
+    fireEvent.change(input, { target: { files: [file] } });
 
     expect(mockHandler).not.toHaveBeenCalled();
 

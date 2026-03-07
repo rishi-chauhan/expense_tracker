@@ -142,22 +142,22 @@ describe('AnalyticsDashboard', () => {
     expect(screen.getByText('Weekly spending over time')).toBeInTheDocument();
   });
 
-  it('shows clear filters button when search has text', () => {
+  it('shows clear button when search has text', () => {
     const data = makeData([{ Amount: 100, Description: 'Store' }]);
 
     renderWithRouter(<AnalyticsDashboard csvData={data} />);
 
     // No clear button initially (no non-default filters)
-    expect(screen.queryByText('Clear filters')).not.toBeInTheDocument();
+    expect(screen.queryByText('Clear')).not.toBeInTheDocument();
 
     // Type in search — use a term that still matches data so only one Clear button appears
     const searchInput = screen.getByPlaceholderText('Search transactions...');
     fireEvent.change(searchInput, { target: { value: 'Store' } });
 
-    expect(screen.getByText('Clear filters')).toBeInTheDocument();
+    expect(screen.getByText('Clear')).toBeInTheDocument();
   });
 
-  it('clears filters when Clear filters button is clicked', () => {
+  it('clears filters when Clear button is clicked', () => {
     const data = makeData([
       { Amount: 300, Description: 'Grocery Store' },
       { Amount: 200, Description: 'Gas Station' },
@@ -171,8 +171,8 @@ describe('AnalyticsDashboard', () => {
 
     expect(screen.getByText('1 transaction')).toBeInTheDocument();
 
-    // Click Clear filters
-    fireEvent.click(screen.getByText('Clear filters'));
+    // Click Clear
+    fireEvent.click(screen.getByText('Clear'));
 
     // Search should be cleared
     expect(searchInput.value).toBe('');

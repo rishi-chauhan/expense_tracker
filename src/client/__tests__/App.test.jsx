@@ -101,7 +101,7 @@ describe('App Component', () => {
     renderApp();
 
     await waitFor(() => {
-      expect(screen.getByText(/Credit Card Statement Analysis/i)).toBeInTheDocument();
+      expect(screen.getByText(/Statement Analysis/i)).toBeInTheDocument();
     });
   });
 
@@ -169,7 +169,8 @@ describe('App Component', () => {
 
       const errorContainer = screen.getByText('Upload Failed').closest('.error-container');
       expect(errorContainer).toBeInTheDocument();
-      expect(errorContainer.querySelector('.error-icon')).toHaveTextContent('!');
+      // Icon is now an SVG
+      expect(errorContainer.querySelector('.error-icon svg')).toBeInTheDocument();
     });
 
     it('should show error close button', async () => {
@@ -200,7 +201,7 @@ describe('App Component', () => {
       const closeButton = screen.getByLabelText('Close error');
       expect(closeButton).toBeInTheDocument();
       expect(closeButton).toHaveClass('error-close');
-      expect(closeButton).toHaveTextContent('×');
+      expect(closeButton.querySelector('svg')).toBeInTheDocument();
     });
 
     it('should dismiss error when close button is clicked', async () => {
@@ -305,7 +306,7 @@ describe('App Component', () => {
 
       const notification = screen.getByText('Upload Complete!').closest('.notification-container');
       expect(notification).toHaveClass('success');
-      expect(notification.querySelector('.notification-icon')).toHaveTextContent('✓');
+      expect(notification.querySelector('.notification-icon svg')).toBeInTheDocument();
     });
 
     it('should display info notification for duplicate statement', async () => {
@@ -341,7 +342,7 @@ describe('App Component', () => {
 
       const notification = screen.getByText('Duplicate Statement').closest('.notification-container');
       expect(notification).toHaveClass('info');
-      expect(notification.querySelector('.notification-icon')).toHaveTextContent('ⓘ');
+      expect(notification.querySelector('.notification-icon svg')).toBeInTheDocument();
     });
 
     it('should show notification close button', async () => {
@@ -387,7 +388,7 @@ describe('App Component', () => {
       const closeButton = screen.getByLabelText('Close notification');
       expect(closeButton).toBeInTheDocument();
       expect(closeButton).toHaveClass('notification-close');
-      expect(closeButton).toHaveTextContent('×');
+      expect(closeButton.querySelector('svg')).toBeInTheDocument();
     });
 
     it('should dismiss notification when close button is clicked', async () => {

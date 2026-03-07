@@ -1,61 +1,110 @@
+/* ========================================
+   DEBIT/CREDIT RATIO DOUGHNUT
+   ======================================== */
+
 .doughnut-layout {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-8);
+  height: 100%;
+  justify-content: center;
 }
 
 .doughnut-chart-wrapper {
-  flex: 1;
-  max-width: 280px;
-  margin: 0 auto;
+  position: relative;
+  width: 100%;
+  max-width: 240px;
+  aspect-ratio: 1;
+}
+
+/* Add a subtle glow behind the chart */
+.doughnut-chart-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(circle, var(--color-primary-glow), transparent 70%);
+  opacity: 0.2;
+  filter: blur(20px);
+  z-index: -1;
 }
 
 .ratio-legend {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
+  justify-content: center;
+  gap: var(--space-8);
+  width: 100%;
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--color-border);
 }
 
 .ratio-legend-item {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
+  text-align: center;
+  gap: var(--space-2);
 }
 
 .ratio-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-1);
 }
+
+.ratio-dot.debit { background: var(--color-debit); box-shadow: 0 0 8px var(--color-debit-dim); }
+.ratio-dot.credit { background: var(--color-credit); box-shadow: 0 0 8px var(--color-credit-dim); }
 
 .ratio-detail {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 2px;
 }
 
 .ratio-label {
   font-size: var(--text-xs);
+  font-weight: var(--font-weight-bold);
   color: var(--color-text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .ratio-value {
   font-family: var(--font-mono);
   font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
+  font-weight: var(--font-weight-bold);
   font-variant-numeric: tabular-nums;
 }
 
-.ratio-value.debit {
-  color: var(--color-debit);
-}
+.ratio-value.debit { color: var(--color-text-primary); }
+.ratio-value.credit { color: var(--color-credit); }
 
-.ratio-value.credit {
-  color: var(--color-credit);
+@media (max-width: 1024px) {
+  .doughnut-layout {
+    flex-direction: row;
+    justify-content: space-around;
+  }
+
+  .ratio-legend {
+    flex-direction: column;
+    width: auto;
+    border-top: none;
+    border-left: 1px dashed var(--color-border);
+    padding-top: 0;
+    padding-left: var(--space-6);
+    align-items: flex-start;
+  }
+
+  .ratio-legend-item {
+    align-items: flex-start;
+    text-align: left;
+    flex-direction: row;
+  }
 }
 
 @media (max-width: 640px) {
@@ -63,16 +112,17 @@
     flex-direction: column;
   }
 
-  .doughnut-chart-wrapper {
-    max-width: 220px;
-  }
-
   .ratio-legend {
     flex-direction: row;
-    gap: var(--space-6);
+    border-left: none;
+    border-top: 1px dashed var(--color-border);
+    padding-left: 0;
+    padding-top: var(--space-6);
+    justify-content: center;
   }
-
-  .ratio-value {
-    font-size: var(--text-base);
+  
+  .ratio-legend-item {
+    flex-direction: column;
+    align-items: center;
   }
 }

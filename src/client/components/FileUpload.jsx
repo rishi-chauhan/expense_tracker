@@ -14,7 +14,7 @@ function FileUpload({ onFileUpload, onError }) {
 
   // Handle file selection (from input or drop)
   const handleFileSelection = (file) => {
-    if (file && file.type === 'text/csv') {
+    if (file && (file.type === 'text/csv' || file.name.endsWith('.csv'))) {
       setSelectedFile(file);
       onFileUpload(file);
     } else {
@@ -90,14 +90,23 @@ function FileUpload({ onFileUpload, onError }) {
 
         {!selectedFile ? (
           <div className="upload-prompt">
-            <div className="upload-icon">↑</div>
+            <div className="upload-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+              </svg>
+            </div>
             <p className="upload-prompt-text">
               Drop CSV here or <strong>browse</strong>
             </p>
+            <p className="upload-prompt-subtext">Supports statements from major Indian banks</p>
           </div>
         ) : (
           <div className="file-preview">
-            <div className="file-preview-icon">✓</div>
+            <div className="file-preview-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </div>
             <div className="file-info">
               <div className="file-name">{selectedFile.name}</div>
               <div className="file-meta">
@@ -111,7 +120,9 @@ function FileUpload({ onFileUpload, onError }) {
               onClick={handleRemoveFile}
               aria-label="Remove file"
             >
-              ×
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
             </button>
           </div>
         )}

@@ -55,8 +55,14 @@ function AnalyticsDashboard({ csvData, cards }) {
 
   if (!csvData || csvData.length === 0) {
     return (
-      <div className="analytics-empty">
-        <div className="analytics-empty-icon">📊</div>
+      <div className="analytics-empty glass">
+        <div className="analytics-empty-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+        </div>
         <h2>No Data Yet</h2>
         <p>Upload a credit card statement on the <Link to="/">Home page</Link> to see analytics.</p>
       </div>
@@ -79,7 +85,7 @@ function AnalyticsDashboard({ csvData, cards }) {
         <p className="analytics-subtitle">Deep dive into your spending patterns</p>
       </div>
 
-      <div className="analytics-filters">
+      <div className="analytics-filters glass">
         {cards && cards.length > 1 && (
           <div className="filter-group">
             <label className="filter-label" htmlFor="card-filter">Card</label>
@@ -96,16 +102,21 @@ function AnalyticsDashboard({ csvData, cards }) {
             </select>
           </div>
         )}
-        <div className="filter-group">
+        <div className="filter-group search-group">
           <label className="filter-label" htmlFor="search-input">Search</label>
-          <input
-            id="search-input"
-            type="text"
-            className="filter-input"
-            placeholder="Search transactions..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
+          <div className="search-wrapper">
+            <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              id="search-input"
+              type="text"
+              className="filter-input has-icon"
+              placeholder="Search transactions..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
         <div className="filter-group">
           <label className="filter-label" htmlFor="date-start">From</label>
@@ -146,16 +157,19 @@ function AnalyticsDashboard({ csvData, cards }) {
         </div>
         {hasFilters && (
           <button className="clear-filters-btn" onClick={handleClearFilters}>
-            Clear filters
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}>
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+            Clear
           </button>
         )}
       </div>
 
       {filteredData.length === 0 ? (
-        <div className="analytics-no-results">
+        <div className="analytics-no-results glass">
           <p>No transactions match your filters.</p>
           <button className="clear-filters-btn" onClick={handleClearFilters}>
-            Clear filters
+            Reset Filters
           </button>
         </div>
       ) : (

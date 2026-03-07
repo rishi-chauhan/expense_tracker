@@ -3,29 +3,30 @@ import { useTheme } from '../contexts/ThemeContext';
 
 const DARK_CHART_COLORS = {
   // Tooltip
-  tooltipBg: '#1a1f35',
-  tooltipBorder: '#d4952e',
-  tooltipTitleColor: '#eaecf0',
-  tooltipBodyColor: '#8b8fa6',
+  tooltipBg: '#111827', // dark navy
+  tooltipBorder: '#8b5cf6', // violet accent
+  tooltipTitleColor: '#f9fafb',
+  tooltipBodyColor: '#9ca3af',
 
   // Grid & axes
-  gridColor: 'rgba(255, 255, 255, 0.04)',
-  borderColor: 'rgba(255, 255, 255, 0.06)',
-  tickColorPrimary: '#8b8fa6',
-  tickColorSecondary: '#5a5e76',
+  gridColor: 'rgba(255, 255, 255, 0.05)',
+  borderColor: 'rgba(255, 255, 255, 0.1)',
+  tickColorPrimary: '#9ca3af',
+  tickColorSecondary: '#6b7280',
 
   // Data colors
-  debit: 'rgba(232, 84, 110, 0.75)',
-  debitSolid: '#e8546e',
-  debitFill: 'rgba(232, 84, 110, 0.08)',
-  credit: 'rgba(54, 201, 145, 0.75)',
-  creditSolid: '#36c991',
-  creditFill: 'rgba(54, 201, 145, 0.08)',
+  debit: 'rgba(244, 63, 94, 0.75)', // Rose
+  debitSolid: '#f43f5e',
+  debitFill: 'rgba(244, 63, 94, 0.15)',
+  
+  credit: 'rgba(16, 185, 129, 0.75)', // Emerald
+  creditSolid: '#10b981',
+  creditFill: 'rgba(16, 185, 129, 0.15)',
 
   // Misc
-  pointBorderColor: '#141828',
-  doughnutBorder: '#141828',
-  accent: '#d4952e',
+  pointBorderColor: '#111827',
+  doughnutBorder: '#111827',
+  accent: '#8b5cf6',
 
   // Fonts
   fontHeading: "'Plus Jakarta Sans', sans-serif",
@@ -36,28 +37,29 @@ const DARK_CHART_COLORS = {
 const LIGHT_CHART_COLORS = {
   // Tooltip
   tooltipBg: '#ffffff',
-  tooltipBorder: '#b8751a',
-  tooltipTitleColor: '#1a1d2e',
-  tooltipBodyColor: '#5c6070',
+  tooltipBorder: '#7c3aed',
+  tooltipTitleColor: '#111827',
+  tooltipBodyColor: '#4b5563',
 
   // Grid & axes
   gridColor: 'rgba(0, 0, 0, 0.06)',
-  borderColor: 'rgba(0, 0, 0, 0.10)',
-  tickColorPrimary: '#5c6070',
-  tickColorSecondary: '#8a8e9e',
+  borderColor: 'rgba(0, 0, 0, 0.1)',
+  tickColorPrimary: '#4b5563',
+  tickColorSecondary: '#9ca3af',
 
   // Data colors
-  debit: 'rgba(212, 66, 90, 0.75)',
-  debitSolid: '#d4425a',
-  debitFill: 'rgba(212, 66, 90, 0.10)',
-  credit: 'rgba(30, 165, 110, 0.75)',
-  creditSolid: '#1ea56e',
-  creditFill: 'rgba(30, 165, 110, 0.10)',
+  debit: 'rgba(244, 63, 94, 0.75)',
+  debitSolid: '#f43f5e',
+  debitFill: 'rgba(244, 63, 94, 0.10)',
+  
+  credit: 'rgba(16, 185, 129, 0.75)',
+  creditSolid: '#10b981',
+  creditFill: 'rgba(16, 185, 129, 0.10)',
 
   // Misc
   pointBorderColor: '#ffffff',
   doughnutBorder: '#ffffff',
-  accent: '#b8751a',
+  accent: '#7c3aed',
 
   // Fonts
   fontHeading: "'Plus Jakarta Sans', sans-serif",
@@ -67,6 +69,7 @@ const LIGHT_CHART_COLORS = {
 
 export function useChartTheme() {
   const { theme } = useTheme();
+  
   return useMemo(
     () => (theme === 'light' ? LIGHT_CHART_COLORS : DARK_CHART_COLORS),
     [theme]

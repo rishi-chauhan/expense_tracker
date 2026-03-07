@@ -225,7 +225,7 @@ describe('Dashboard Component', () => {
 
     render(<Dashboard csvData={mockData} />);
 
-    expect(screen.getByText(/Credit Card Statement Analysis/i)).toBeInTheDocument();
+    expect(screen.getByText(/Statement Analysis/i)).toBeInTheDocument();
     expect(screen.getByText(/Total Debits/i)).toBeInTheDocument();
     expect(screen.getByText(/Total Credits/i)).toBeInTheDocument();
     expect(screen.getByText(/Net Spending/i)).toBeInTheDocument();
