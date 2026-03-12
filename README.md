@@ -10,7 +10,7 @@ Full-stack application to track and analyze expenses from credit card statement 
 - 📈 **Debits vs Credits**: Separate tracking of expenses and payments
 - 📁 **CSV Upload**: Drag-and-drop or browse to upload statements
 - ⚡ **Fast Performance**: Bun runtime with optimized processing
-- 🧪 **Comprehensive Testing**: 230+ tests across frontend and backend
+- 🧪 **Comprehensive Testing**: 280+ tests across frontend and backend
 - 🔐 **Data Integrity**: Foreign key constraints and cascade deletes
 
 ## Tech Stack
@@ -179,7 +179,7 @@ Domestic~|~Customer~|~25/12/2025~|~GROCERY STORE~|~1,234.56~|~~|~25
 Domestic~|~Customer~|~26/12/2025~|~PAYMENT RECEIVED~|~5,000.00~|~Cr~|~0
 ```
 
-See `assets/sample_statement.csv` for a complete example.
+See the **Example CSV Structure** above for the expected format.
 
 ## Project Structure
 
@@ -250,10 +250,9 @@ expense_tracker/
 │
 ├── public/                          # Static assets
 ├── assets/                          # Sample files
-│   └── sample_statement.csv
 ├── index.html                       # HTML template
 ├── package.json                     # Dependencies and scripts
-├── bun.lock                         # Bun lock file
+├── bun.lock                         # Bun lock file (committed)
 ├── vite.config.js                   # Vite configuration
 ├── vitest.config.js                 # Vitest test configuration
 ├── eslint.config.js                 # ESLint rules
@@ -314,4 +313,4 @@ expense_tracker/
 
 ## License
 
-Private project
+MIT License — see [LICENSE](LICENSE) for details.

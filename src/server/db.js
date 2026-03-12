@@ -205,6 +205,42 @@ export function deleteStatement(statementId) {
 }
 
 /**
+ * Execute a read-only SQL query (for AI chat feature)
+ * Validates that the query is a safe SELECT before executing
+ */
+const DANGEROUS_KEYWORDS = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|ATTACH|DETACH|PRAGMA|REPLACE)\b/i;
+
+export function executeReadOnlyQuery(sql) {
+  const trimmed = sql.trim();
+
+  // Must start with SELECT
+  if (!/^\s*SELECT/i.test(trimmed)) {
+    throw new Error('Only SELECT queries are allowed');
+  }
+
+  // Reject dangerous keywords
+  if (DANGEROUS_KEYWORDS.test(trimmed)) {
+    throw new Error('Query contains disallowed keywords');
+  }
+
+  // Reject multiple statements (semicolons before the end)
+  const withoutStrings = trimmed.replace(/'[^']*'/g, ''); // strip string literals
+  if (withoutStrings.indexOf(';') !== -1) {
+    throw new Error('Multiple statements are not allowed');
+  }
+
+  // Auto-append LIMIT if not present
+  let query = trimmed;
+  if (!/\bLIMIT\b/i.test(query)) {
+    query = `${query} LIMIT 100`;
+  }
+
+  const rows = db.query(query).all();
+  const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+  return { rows, columns };
+}
+
+/**
  * Get statistics about stored data
  */
 export function getStatistics() {

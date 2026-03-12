@@ -7,10 +7,12 @@ import {
   deleteStatement,
   getStatistics,
   findOrCreateCard,
-  getAllCards
+  getAllCards,
+  executeReadOnlyQuery
 } from './db.js';
 import { generateFileHash, generateTxHash } from './utils.js';
 import { parseCSV } from './parser.js';
+import { checkHealth, generateSQL, summarizeResults } from './ollama.js';
 
 /**
  * Handle API requests
@@ -209,6 +211,90 @@ export async function handleApiRequest(req, url) {
       });
     } catch (error) {
       console.error('Error deleting statement:', error);
+      return Response.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
+  }
+
+  // GET /api/chat/health - Check Ollama availability
+  if (pathname === '/api/chat/health' && req.method === 'GET') {
+    try {
+      const health = await checkHealth();
+      return Response.json({ success: true, ...health });
+    } catch (error) {
+      console.error('Error checking chat health:', error);
+      return Response.json(
+        { success: false, available: false, error: error.message },
+        { status: 500 }
+      );
+    }
+  }
+
+  // POST /api/chat - Ask a question about expenses
+  if (pathname === '/api/chat' && req.method === 'POST') {
+    try {
+      const { question } = await req.json();
+
+      if (!question || typeof question !== 'string' || question.trim().length === 0) {
+        return Response.json(
+          { success: false, error: 'Question is required' },
+          { status: 400 }
+        );
+      }
+
+      if (question.length > 500) {
+        return Response.json(
+          { success: false, error: 'Question must be 500 characters or less' },
+          { status: 400 }
+        );
+      }
+
+      // Generate SQL from question
+      let sql;
+      try {
+        sql = await generateSQL(question.trim());
+      } catch (error) {
+        console.error('SQL generation failed:', error);
+        return Response.json(
+          { success: false, error: 'Could not generate query. Is Ollama running?' },
+          { status: 502 }
+        );
+      }
+
+      // Execute the query
+      let rows;
+      try {
+        ({ rows } = executeReadOnlyQuery(sql));
+      } catch (error) {
+        console.error('Query execution failed:', error, 'SQL:', sql);
+        return Response.json(
+          { success: false, error: `Query failed: ${error.message}`, sql },
+          { status: 422 }
+        );
+      }
+
+      // Summarize results
+      let answer;
+      try {
+        answer = await summarizeResults(question.trim(), sql, rows);
+      } catch (error) {
+        console.error('Summary generation failed:', error);
+        answer = rows.length > 0
+          ? `Found ${rows.length} result${rows.length === 1 ? '' : 's'}.`
+          : 'No results found for your query.';
+      }
+
+      return Response.json({
+        success: true,
+        answer,
+        sql,
+        rowCount: rows.length,
+        data: rows.slice(0, 50),
+      });
+    } catch (error) {
+      console.error('Error in chat:', error);
       return Response.json(
         { success: false, error: error.message },
         { status: 500 }

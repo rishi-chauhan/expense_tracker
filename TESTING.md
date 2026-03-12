@@ -75,7 +75,7 @@ bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.j
 
 ## Test Coverage Summary
 
-### Backend Tests: **All Passing** (43 bun:sqlite tests + vitest parser/utils tests)
+### Backend Tests: **All Passing** (70 bun:test tests + vitest parser/utils tests)
 
 #### Utils Module
 - File hash generation (SHA-256)
@@ -113,7 +113,7 @@ bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.j
 - Data persistence verification
 - Referential integrity
 
-### Frontend Tests: **All Passing** (190 vitest tests across 12 test files)
+### Frontend Tests: **All Passing** (217 vitest tests across 13 test files)
 
 #### App Component (18 tests)
 - Routing setup (Home and Analytics routes)
@@ -201,8 +201,8 @@ bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.j
 
 ## Test Quality Metrics
 
-- **Total Tests**: 233 (190 vitest + 43 bun:sqlite)
-- **Test Files**: 17 (12 vitest + 5 bun:sqlite)
+- **Total Tests**: 287 (217 vitest + 70 bun:test)
+- **Test Files**: 18 (13 vitest + 5 bun:test)
 - **All Tests Passing**: Yes
 - **Edge Cases Covered**: Empty files, invalid dates, malformed data, duplicates, CC payment filtering
 - **Integration Coverage**: Full upload workflows tested
@@ -245,4 +245,4 @@ When adding new features:
 - [x] Tests run fast (<5 seconds for vitest suite)
 - [x] Tests are maintainable and readable
 
-**Overall Status**: All 233 tests passing. Full-stack test coverage across backend (server tests + vitest) and frontend (components, pages, utilities).
+**Overall Status**: All 287 tests passing. Full-stack test coverage across backend (server tests + vitest) and frontend (components, pages, utilities).

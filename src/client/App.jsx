@@ -5,6 +5,7 @@ import { useSettings } from './contexts/SettingsContext';
 import HomePage from './pages/HomePage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import CardInfoModal from './components/CardInfoModal';
+import AskAI from './components/AskAI';
 import './App.css';
 
 // API base URL - uses relative path so it works in both dev and production
@@ -30,6 +31,7 @@ function App() {
   const [notification, setNotification] = useState(null);
   const [cards, setCards] = useState([]);
   const [pendingUpload, setPendingUpload] = useState(null); // { file, detected, transactionCount }
+  const [aiChatOpen, setAiChatOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -178,6 +180,16 @@ function App() {
             )}
           </button>
           <button
+            className={`ai-chat-toggle-btn${aiChatOpen ? ' active' : ''}`}
+            onClick={() => setAiChatOpen(prev => !prev)}
+            aria-label="Ask AI about your expenses"
+            title="Ask AI"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
+          <button
             className="theme-toggle-btn"
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
@@ -241,6 +253,8 @@ function App() {
           onCancel={handleCancelUpload}
         />
       )}
+
+      <AskAI isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
     </div>
   );
 }

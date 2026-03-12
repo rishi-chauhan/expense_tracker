@@ -13,7 +13,7 @@ dist-ssr
 *.local
 
 # Bun
-bun.lock
+# bun.lock is committed for reproducible builds
 
 # Package manager lock files
 package-lock.json
@@ -35,6 +35,9 @@ assets/*.csv
 # Environment
 .env
 .env.local
+
+# Claude Code
+.claude/
 
 # Editor directories and files
 .vscode/*

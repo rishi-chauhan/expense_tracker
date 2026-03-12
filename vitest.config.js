@@ -16,10 +16,12 @@ export default defineConfig({
     setupFiles: ['./src/client/__tests__/setup.js'],
     exclude: [
       'node_modules/**',
-      // Server tests that import bun:sqlite must be run with `bun test` instead
+      // Server tests that import bun:sqlite or bun:test must be run with `bun test` instead
       'src/server/__tests__/db.test.js',
       'src/server/__tests__/integration.test.js',
-      'src/server/__tests__/routes.test.js'
+      'src/server/__tests__/routes.test.js',
+      'src/server/__tests__/ollama.test.js',
+      'src/server/__tests__/executeReadOnlyQuery.test.js'
     ],
     coverage: {
       provider: 'v8',
