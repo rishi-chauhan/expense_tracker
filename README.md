@@ -2,7 +2,7 @@
 
 **पैसा किधर गया?!** — *"Where did the money go?!"*
 
-A personal expense analyzer for Indian credit card statements. Upload your CSVs, get instant dashboards and charts — no cloud, no signup, everything stays on your machine.
+A vibe coded personal expense analyzer for Indian credit card statements. Upload your CSVs, get instant dashboards and charts — no cloud, no signup, everything stays on your machine.
 
 ## Highlights
 
