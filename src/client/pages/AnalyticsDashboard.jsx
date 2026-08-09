@@ -4,7 +4,9 @@ import SpendingTrends from '../components/SpendingTrends';
 import TopMerchants from '../components/TopMerchants';
 import DebitCreditRatio from '../components/DebitCreditRatio';
 import TransactionExplorer from '../components/TransactionExplorer';
+import CategoryBreakdown from '../components/CategoryBreakdown';
 import { useSettings } from '../contexts/SettingsContext';
+import { exportTransactions } from '../utils/api.js';
 import {
   filterAnalyticsData,
   filterByDateRange,
@@ -13,18 +15,18 @@ import {
 } from '../utils/dataProcessing.js';
 import './AnalyticsDashboard.css';
 
-function AnalyticsDashboard({ csvData, cards }) {
+function AnalyticsDashboard({ csvData, cards, onCategoryChange }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   const [granularity, setGranularity] = useState('monthly');
   const [selectedCardId, setSelectedCardId] = useState('all');
+  const [exporting, setExporting] = useState(false);
   const { showCredits } = useSettings();
 
   const cardFilteredData = useMemo(() => filterByCard(csvData, selectedCardId), [csvData, selectedCardId]);
   const analyticsData = useMemo(() => filterAnalyticsData(cardFilteredData), [cardFilteredData]);
 
-  // Compute 1-month default window from latest transaction
   const { defaultStart, defaultEnd } = useMemo(() => {
     if (analyticsData.length === 0) return { defaultStart: '', defaultEnd: '' };
     const latest = analyticsData.reduce((max, t) => {
@@ -37,7 +39,6 @@ function AnalyticsDashboard({ csvData, cards }) {
     return { defaultStart: fmt(start), defaultEnd: fmt(latest) };
   }, [analyticsData]);
 
-  // Apply 1-month default on first load
   useEffect(() => {
     if (defaultStart && !dateStart && !dateEnd) {
       setDateStart(defaultStart);
@@ -68,6 +69,22 @@ function AnalyticsDashboard({ csvData, cards }) {
     setDateStart(defaultStart);
     setDateEnd(defaultEnd);
     setSelectedCardId('all');
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportTransactions({
+        cardId: selectedCardId !== 'all' ? selectedCardId : undefined,
+        startDate: dateStart || undefined,
+        endDate: dateEnd || undefined,
+      });
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert(err.message || 'Export failed');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const hasFilters = searchQuery || dateStart !== defaultStart || dateEnd !== defaultEnd || selectedCardId !== 'all';
@@ -144,6 +161,14 @@ function AnalyticsDashboard({ csvData, cards }) {
             </button>
           </div>
         </div>
+        <button
+          type="button"
+          className="clear-filters-btn export-btn"
+          onClick={handleExport}
+          disabled={exporting}
+        >
+          {exporting ? 'Exporting…' : 'Export CSV'}
+        </button>
         {hasFilters && (
           <button className="clear-filters-btn" onClick={handleClearFilters}>
             Clear filters
@@ -171,8 +196,9 @@ function AnalyticsDashboard({ csvData, cards }) {
             )}
           </div>
 
+          <CategoryBreakdown data={filteredData} />
           <TopMerchants data={filteredData} />
-          <TransactionExplorer data={filteredData} />
+          <TransactionExplorer data={filteredData} onCategoryChange={onCategoryChange} />
         </>
       )}
     </div>

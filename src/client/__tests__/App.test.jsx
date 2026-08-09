@@ -11,16 +11,27 @@ vi.mock('../contexts/SettingsContext', () => ({
   useSettings: () => ({ showCredits: true, toggleShowCredits: () => {} }),
 }));
 
+function jsonResponse(data, { ok, status } = {}) {
+  const resolvedOk = ok ?? (data.success !== false && !data.needsCardInfo && !data.isDuplicate);
+  return {
+    ok: resolvedOk,
+    status: status ?? (data.needsCardInfo ? 422 : resolvedOk ? 200 : 400),
+    headers: { get: () => 'application/json' },
+    json: async () => data,
+  };
+}
+
 // Helper: create a URL-aware fetch mock with optional per-endpoint overrides
 function makeFetchMock(overrides = {}) {
   const defaults = {
     '/api/transactions': { success: true, transactions: [] },
     '/api/cards': { success: true, cards: [] },
+    '/api/categories': { success: true, categories: [], rules: [] },
   };
   return vi.fn((url) => {
     const endpoint = typeof url === 'string' ? url.replace(/\?.*$/, '') : url;
     const data = overrides[endpoint] || defaults[endpoint] || { success: true };
-    return Promise.resolve({ json: async () => data });
+    return Promise.resolve(jsonResponse(data));
   });
 }
 
@@ -63,19 +74,17 @@ describe('App Component', () => {
     renderApp();
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/transactions');
+      expect(fetchMock.mock.calls.some((c) => c[0] === '/api/transactions')).toBe(true);
     });
   });
 
-  it('should not show error when initial load fails', async () => {
+  it('should show banner when initial load fails', async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
     renderApp();
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
+      expect(screen.getByText(/Could not load data/i)).toBeInTheDocument();
     });
-
-    expect(screen.queryByText(/Upload Failed/i)).not.toBeInTheDocument();
   });
 
   it('should handle empty transactions array', async () => {
@@ -147,16 +156,14 @@ describe('App Component', () => {
       const { container } = renderApp();
 
       await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledWith('/api/transactions');
+        expect(fetchMock.mock.calls.some((c) => c[0] === '/api/transactions')).toBe(true);
       });
 
       // Override for upload call
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({
-          success: false,
-          error: 'Could not find header row with DATE and AMT columns'
-        })
-      });
+      fetchMock.mockResolvedValueOnce(jsonResponse({
+        success: false,
+        error: 'Could not find header row with DATE and AMT columns'
+      }));
 
       const file = new File(['invalid content'], 'test.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
@@ -182,12 +189,10 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({
-          success: false,
-          error: 'Upload failed: Invalid format'
-        })
-      });
+      fetchMock.mockResolvedValueOnce(jsonResponse({
+        success: false,
+        error: 'Upload failed: Invalid format'
+      }));
 
       const file = new File(['test'], 'test.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
@@ -213,12 +218,10 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({
-          success: false,
-          error: 'Upload failed: Test error message'
-        })
-      });
+      fetchMock.mockResolvedValueOnce(jsonResponse({
+        success: false,
+        error: 'Upload failed: Test error message'
+      }));
 
       const file = new File(['test'], 'test.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
@@ -273,8 +276,7 @@ describe('App Component', () => {
 
       // Upload succeeds, then fetchData re-fetches both endpoints
       fetchMock
-        .mockResolvedValueOnce({
-          json: async () => ({
+        .mockResolvedValueOnce(jsonResponse({
             success: true,
             isDuplicate: false,
             newCount: 10,
@@ -285,14 +287,9 @@ describe('App Component', () => {
               periodEnd: '2025-01-31'
             },
             cardInfo: { bankName: 'HDFC', cardLast4: '1234', cardId: 1 }
-          })
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({ success: true, transactions: [] })
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({ success: true, cards: [] })
-        });
+          }))
+        .mockResolvedValueOnce(jsonResponse({ success: true, transactions: [] }))
+        .mockResolvedValueOnce(jsonResponse({ success: true, cards: [] }));
 
       const file = new File(['test'], 'statement.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
@@ -318,8 +315,7 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({
+      fetchMock.mockResolvedValueOnce(jsonResponse({
           success: true,
           isDuplicate: true,
           existingStatement: {
@@ -328,8 +324,7 @@ describe('App Component', () => {
             period_start: '2025-01-01',
             period_end: '2025-01-31'
           }
-        })
-      });
+        }));
 
       const file = new File(['test'], 'statement.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
@@ -355,8 +350,7 @@ describe('App Component', () => {
       });
 
       fetchMock
-        .mockResolvedValueOnce({
-          json: async () => ({
+        .mockResolvedValueOnce(jsonResponse({
             success: true,
             isDuplicate: false,
             newCount: 5,
@@ -367,14 +361,9 @@ describe('App Component', () => {
               periodEnd: '2025-01-31'
             },
             cardInfo: { bankName: 'HDFC', cardLast4: '1234', cardId: 1 }
-          })
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({ success: true, transactions: [] })
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({ success: true, cards: [] })
-        });
+          }))
+        .mockResolvedValueOnce(jsonResponse({ success: true, transactions: [] }))
+        .mockResolvedValueOnce(jsonResponse({ success: true, cards: [] }));
 
       const file = new File(['test'], 'test.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
@@ -401,8 +390,7 @@ describe('App Component', () => {
       });
 
       fetchMock
-        .mockResolvedValueOnce({
-          json: async () => ({
+        .mockResolvedValueOnce(jsonResponse({
             success: true,
             isDuplicate: false,
             newCount: 5,
@@ -413,14 +401,9 @@ describe('App Component', () => {
               periodEnd: '2025-01-31'
             },
             cardInfo: { bankName: 'HDFC', cardLast4: '1234', cardId: 1 }
-          })
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({ success: true, transactions: [] })
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({ success: true, cards: [] })
-        });
+          }))
+        .mockResolvedValueOnce(jsonResponse({ success: true, transactions: [] }))
+        .mockResolvedValueOnce(jsonResponse({ success: true, cards: [] }));
 
       const file = new File(['test'], 'test.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
@@ -448,13 +431,10 @@ describe('App Component', () => {
         expect(fetchMock).toHaveBeenCalled();
       });
 
-      // First upload fails
-      fetchMock.mockResolvedValueOnce({
-        json: async () => ({
-          success: false,
-          error: 'First error message'
-        })
-      });
+      fetchMock.mockResolvedValueOnce(jsonResponse({
+        success: false,
+        error: 'First error message'
+      }));
 
       const file1 = new File(['test1'], 'test1.csv', { type: 'text/csv' });
       const input = container.querySelector('input[type="file"]');
@@ -464,28 +444,21 @@ describe('App Component', () => {
         expect(screen.getByText(/First error message/i)).toBeInTheDocument();
       });
 
-      // Second upload succeeds
       fetchMock
-        .mockResolvedValueOnce({
-          json: async () => ({
-            success: true,
-            isDuplicate: false,
-            newCount: 5,
-            duplicateCount: 0,
-            statementInfo: {
-              fileName: 'test2.csv',
-              periodStart: '2025-01-01',
-              periodEnd: '2025-01-31'
-            },
-            cardInfo: { bankName: 'HDFC', cardLast4: '1234', cardId: 1 }
-          })
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({ success: true, transactions: [] })
-        })
-        .mockResolvedValueOnce({
-          json: async () => ({ success: true, cards: [] })
-        });
+        .mockResolvedValueOnce(jsonResponse({
+          success: true,
+          isDuplicate: false,
+          newCount: 5,
+          duplicateCount: 0,
+          statementInfo: {
+            fileName: 'test2.csv',
+            periodStart: '2025-01-01',
+            periodEnd: '2025-01-31'
+          },
+          cardInfo: { bankName: 'HDFC', cardLast4: '1234', cardId: 1 }
+        }))
+        .mockResolvedValueOnce(jsonResponse({ success: true, transactions: [] }))
+        .mockResolvedValueOnce(jsonResponse({ success: true, cards: [] }));
 
       const file2 = new File(['test2'], 'test2.csv', { type: 'text/csv' });
       await userEvent.upload(input, file2);
@@ -493,6 +466,33 @@ describe('App Component', () => {
       await waitFor(() => {
         expect(screen.queryByText(/First error message/i)).not.toBeInTheDocument();
         expect(screen.getByText('Upload Complete!')).toBeInTheDocument();
+      });
+    });
+
+    it('should show CardInfoModal when upload needs card info', async () => {
+      const fetchMock = makeFetchMock();
+      global.fetch = fetchMock;
+
+      const { container } = renderApp();
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled();
+      });
+
+      fetchMock.mockResolvedValueOnce(jsonResponse({
+        success: false,
+        needsCardInfo: true,
+        detected: { bankName: null, cardLast4: null },
+        transactionCount: 12,
+      }, { ok: false, status: 422 }));
+
+      const file = new File(['test'], 'needs-card.csv', { type: 'text/csv' });
+      const input = container.querySelector('input[type="file"]');
+      await userEvent.upload(input, file);
+
+      await waitFor(() => {
+        expect(screen.getByText('Card Information Needed')).toBeInTheDocument();
+        expect(screen.getByText(/12 transactions found/)).toBeInTheDocument();
       });
     });
   });

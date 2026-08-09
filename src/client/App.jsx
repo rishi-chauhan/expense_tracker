@@ -1,158 +1,45 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import { useTheme } from './contexts/ThemeContext';
 import { useSettings } from './contexts/SettingsContext';
+import { useTransactions } from './hooks/useTransactions';
+import { useUpload } from './hooks/useUpload';
 import HomePage from './pages/HomePage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import StatementsPage from './pages/StatementsPage';
+import CategoriesPage from './pages/CategoriesPage';
 import CardInfoModal from './components/CardInfoModal';
 import AskAI from './components/AskAI';
 import './App.css';
 
-// API base URL - uses relative path so it works in both dev and production
-const API_BASE = '/api';
-
-function transformTransactions(transactions) {
-  return transactions.map(tx => ({
-    Date: new Date(tx.date),
-    Amount: tx.amount,
-    Description: tx.description,
-    IsCredit: Boolean(tx.is_credit),
-    Type: tx.type,
-    CardId: tx.card_id,
-    CardLabel: tx.card_label,
-    BankName: tx.bank_name,
-  }));
-}
-
 function App() {
-  const [csvData, setCsvData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [notification, setNotification] = useState(null);
-  const [cards, setCards] = useState([]);
-  const [pendingUpload, setPendingUpload] = useState(null); // { file, detected, transactionCount }
+  const {
+    csvData,
+    cards,
+    loading: dataLoading,
+    error: loadError,
+    refetch,
+    setError: setLoadError,
+  } = useTransactions();
+
+  const {
+    loading: uploadLoading,
+    error: uploadError,
+    setError: setUploadError,
+    notification,
+    setNotification,
+    pendingUpload,
+    handleFileUpload,
+    handleConfirmUpload,
+    handleCancelUpload,
+  } = useUpload({ onSuccess: () => refetch() });
+
   const [aiChatOpen, setAiChatOpen] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    try {
-      const [txRes, cardsRes] = await Promise.all([
-        fetch(`${API_BASE}/transactions`),
-        fetch(`${API_BASE}/cards`),
-      ]);
-      const txData = await txRes.json();
-      const cardsData = await cardsRes.json();
-
-      if (txData.success && txData.transactions.length > 0) {
-        setCsvData(transformTransactions(txData.transactions));
-      }
-      if (cardsData.success) {
-        setCards(cardsData.cards);
-      }
-    } catch (err) {
-      console.error('Failed to load data:', err);
-    }
-  }, []);
-
-  // Load existing transactions on mount
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleFileUpload = async (file, cardOverrides) => {
-    setLoading(true);
-    setError(null);
-    setNotification(null);
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Attach card overrides if provided (from CardInfoModal)
-      if (cardOverrides) {
-        if (cardOverrides.bankName) formData.append('bankName', cardOverrides.bankName);
-        if (cardOverrides.cardLast4) formData.append('cardLast4', cardOverrides.cardLast4);
-        if (cardOverrides.cardLabel) formData.append('cardLabel', cardOverrides.cardLabel);
-      }
-
-      const res = await fetch(`${API_BASE}/upload`, {
-        method: 'POST',
-        body: formData
-      });
-
-      const result = await res.json();
-
-      // Check for duplicate statement
-      if (result.isDuplicate) {
-        const uploadDate = new Date(result.existingStatement.uploaded_at).toLocaleDateString();
-        setNotification({
-          type: 'info',
-          title: 'Duplicate Statement',
-          message: `This statement was already uploaded on ${uploadDate}.`,
-          details: [
-            `File: ${result.existingStatement.file_name}`,
-            `Period: ${result.existingStatement.period_start} to ${result.existingStatement.period_end}`
-          ]
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Card info needed — prompt user
-      if (result.needsCardInfo) {
-        setPendingUpload({
-          file,
-          detected: result.detected,
-          transactionCount: result.transactionCount
-        });
-        setLoading(false);
-        return;
-      }
-
-      if (!result.success) {
-        setError(result.error || 'Upload failed');
-        setLoading(false);
-        return;
-      }
-
-      // Success - reload all data
-      await fetchData();
-
-      // Show success message
-      const cardLabel = result.cardInfo
-        ? `${result.cardInfo.bankName} ...${result.cardInfo.cardLast4}`
-        : '';
-      setNotification({
-        type: 'success',
-        title: 'Upload Complete!',
-        message: `Successfully processed ${result.statementInfo.fileName}`,
-        details: [
-          `Added: ${result.newCount} new transaction${result.newCount !== 1 ? 's' : ''}`,
-          `Skipped: ${result.duplicateCount} duplicate${result.duplicateCount !== 1 ? 's' : ''}`,
-          `Period: ${result.statementInfo.periodStart} to ${result.statementInfo.periodEnd}`,
-          ...(cardLabel ? [`Card: ${cardLabel}`] : [])
-        ]
-      });
-
-    } catch (err) {
-      setError('Upload failed: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConfirmUpload = (cardDetails) => {
-    if (!pendingUpload) return;
-    const { file } = pendingUpload;
-    setPendingUpload(null);
-    handleFileUpload(file, cardDetails);
-  };
-
-  const handleCancelUpload = () => {
-    setPendingUpload(null);
-  };
-
   const { theme, toggleTheme } = useTheme();
   const { showCredits, toggleShowCredits } = useSettings();
+
+  const error = uploadError;
+  const loading = uploadLoading;
 
   return (
     <div className="App">
@@ -216,11 +103,30 @@ function App() {
           <nav className="header-nav">
             <NavLink to="/" end className="nav-link">Home</NavLink>
             <NavLink to="/analytics" className="nav-link">Analytics</NavLink>
+            <NavLink to="/statements" className="nav-link">Statements</NavLink>
+            <NavLink to="/categories" className="nav-link">Categories</NavLink>
           </nav>
         </div>
       </header>
 
       <main className="app-main">
+        {loadError && (
+          <div className="load-error-banner" role="alert">
+            <span>Could not load data: {loadError}</span>
+            <div className="load-error-actions">
+              <button type="button" onClick={() => refetch()}>Retry</button>
+              <button type="button" onClick={() => setLoadError(null)} aria-label="Dismiss">×</button>
+            </div>
+          </div>
+        )}
+
+        {dataLoading && !csvData && !loadError && (
+          <div className="loading-container initial-load">
+            <div className="loading-spinner"></div>
+            <div className="loading-text">Loading your data...</div>
+          </div>
+        )}
+
         <Routes>
           <Route
             path="/"
@@ -231,16 +137,30 @@ function App() {
                 error={error}
                 notification={notification}
                 onFileUpload={handleFileUpload}
-                onErrorDismiss={() => setError(null)}
+                onErrorDismiss={() => setUploadError(null)}
                 onNotificationDismiss={() => setNotification(null)}
-                onError={setError}
+                onError={setUploadError}
                 cards={cards}
               />
             }
           />
           <Route
             path="/analytics"
-            element={<AnalyticsDashboard csvData={csvData} cards={cards} />}
+            element={
+              <AnalyticsDashboard
+                csvData={csvData}
+                cards={cards}
+                onCategoryChange={refetch}
+              />
+            }
+          />
+          <Route
+            path="/statements"
+            element={<StatementsPage onChanged={refetch} />}
+          />
+          <Route
+            path="/categories"
+            element={<CategoriesPage csvData={csvData} onChanged={refetch} />}
           />
         </Routes>
       </main>

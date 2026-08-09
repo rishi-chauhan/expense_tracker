@@ -14,6 +14,8 @@
     "test:coverage": "vitest --coverage",
     "test:backend": "vitest src/server",
     "test:frontend": "vitest src/client",
+    "test:bun": "bun test src/server/__tests__/db.test.js src/server/__tests__/routes.test.js src/server/__tests__/integration.test.js src/server/__tests__/ollama.test.js src/server/__tests__/executeReadOnlyQuery.test.js",
+    "test:all": "bun run test -- --run && bun run test:bun",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -40,6 +42,7 @@
     "globals": "^15.15.0",
     "happy-dom": "^20.6.1",
     "vite": "^6.2.0",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "@vitest/coverage-v8": "^4.0.18"
   }
 }

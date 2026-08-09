@@ -22,6 +22,12 @@ const makeData = (overrides = []) => overrides.map((o, i) => ({
 describe('TransactionExplorer', () => {
   beforeEach(() => {
     mockShowCredits = true;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ success: true, categories: [], rules: [] }),
+    });
   });
 
   it('shows empty message for null data', () => {

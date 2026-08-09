@@ -170,6 +170,39 @@
   padding: var(--space-1);
 }
 
+.load-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: var(--space-4) auto;
+  max-width: 1280px;
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in srgb, var(--color-debit) 15%, var(--color-bg-surface));
+  border: 1px solid var(--color-debit);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+}
+
+.load-error-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.load-error-actions button {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+}
+
+.initial-load {
+  margin-top: var(--space-8);
+}
+
 .nav-link {
   padding: var(--space-2) var(--space-5);
   border-radius: var(--radius-md);
@@ -481,6 +514,8 @@
   .header-nav {
     order: 3;
     width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .nav-link {
@@ -488,6 +523,7 @@
     text-align: center;
     padding: var(--space-2) var(--space-3);
     font-size: var(--text-xs);
+    min-width: 4.5rem;
   }
 
   .app-main {

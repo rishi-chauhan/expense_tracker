@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
 
 // Replicate the executeReadOnlyQuery logic with a test database
-const DANGEROUS_KEYWORDS = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|ATTACH|DETACH|PRAGMA|REPLACE)\b/i;
+const DANGEROUS_KEYWORDS = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|ATTACH|DETACH|PRAGMA|REPLACE|VACUUM|REINDEX)\b/i;
+const BLOCKED_OBJECTS = /\b(sqlite_master|sqlite_schema|sqlite_temp_master)\b/i;
 
 let testDb;
 let executeReadOnlyQuery;
@@ -40,6 +41,10 @@ beforeEach(() => {
 
     if (DANGEROUS_KEYWORDS.test(trimmed)) {
       throw new Error('Query contains disallowed keywords');
+    }
+
+    if (BLOCKED_OBJECTS.test(trimmed)) {
+      throw new Error('Query references disallowed system tables');
     }
 
     const withoutStrings = trimmed.replace(/'[^']*'/g, '');
@@ -169,5 +174,11 @@ describe('executeReadOnlyQuery', () => {
         "SELECT * FROM transactions WHERE description LIKE '%DELETE%'"
       );
     }).toThrow('Query contains disallowed keywords');
+  });
+
+  it('should reject sqlite_master access', () => {
+    expect(() => {
+      executeReadOnlyQuery('SELECT * FROM sqlite_master');
+    }).toThrow('Query references disallowed system tables');
   });
 });

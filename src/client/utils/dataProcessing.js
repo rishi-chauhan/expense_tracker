@@ -153,6 +153,24 @@ export function filterByCard(data, cardId) {
   return data.filter(t => String(t.CardId) === String(cardId));
 }
 
+/** Group debit spending by category */
+export function groupByCategory(data) {
+  const grouped = {};
+  for (const item of data || []) {
+    if (!item.Amount || item.IsCredit) continue;
+    const name = item.CategoryName || 'Uncategorized';
+    const color = item.CategoryColor || '#8b90a0';
+    if (!grouped[name]) {
+      grouped[name] = { total: 0, count: 0, color, categoryId: item.CategoryId ?? null };
+    }
+    grouped[name].total += item.Amount;
+    grouped[name].count += 1;
+  }
+  return Object.entries(grouped)
+    .map(([name, info]) => ({ name, ...info }))
+    .sort((a, b) => b.total - a.total);
+}
+
 /** Format amount in Indian Rupee format */
 export function formatINR(amount) {
   return '₹' + amount.toLocaleString('en-IN', {

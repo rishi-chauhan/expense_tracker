@@ -1,15 +1,24 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSettings } from '../contexts/SettingsContext';
 import { formatINR } from '../utils/dataProcessing.js';
+import { getCategories, setTransactionCategory } from '../utils/api.js';
 import './TransactionExplorer.css';
 
 const PAGE_SIZE = 25;
 
-function TransactionExplorer({ data }) {
+function TransactionExplorer({ data, onCategoryChange }) {
   const [sortField, setSortField] = useState('Date');
   const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(0);
+  const [categories, setCategories] = useState([]);
+  const [savingId, setSavingId] = useState(null);
   const { showCredits } = useSettings();
+
+  useEffect(() => {
+    getCategories()
+      .then((res) => setCategories(res.categories || []))
+      .catch(() => setCategories([]));
+  }, []);
 
   const displayData = useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -31,6 +40,8 @@ function TransactionExplorer({ data }) {
         cmp = new Date(a.Date) - new Date(b.Date);
       } else if (sortField === 'Card') {
         cmp = (a.CardLabel || '').localeCompare(b.CardLabel || '');
+      } else if (sortField === 'Category') {
+        cmp = (a.CategoryName || '').localeCompare(b.CategoryName || '');
       } else {
         cmp = a.Amount - b.Amount;
       }
@@ -56,6 +67,19 @@ function TransactionExplorer({ data }) {
     return sortDir === 'asc' ? ' ↑' : ' ↓';
   };
 
+  const handleCategorySelect = async (tx, categoryId) => {
+    if (!tx.Id) return;
+    setSavingId(tx.Id);
+    try {
+      await setTransactionCategory(tx.Id, categoryId === '' ? null : Number(categoryId));
+      if (onCategoryChange) await onCategoryChange();
+    } catch (err) {
+      console.error('Failed to set category:', err);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   if (!data || data.length === 0) {
     return <p className="chart-empty">No transactions to display.</p>;
   }
@@ -75,49 +99,57 @@ function TransactionExplorer({ data }) {
         <table className="tx-table">
           <thead>
             <tr>
-              <th
-                className="tx-th sortable"
-                onClick={() => handleSort('Date')}
-              >
+              <th className="tx-th sortable" onClick={() => handleSort('Date')}>
                 Date{sortIndicator('Date')}
               </th>
               <th className="tx-th">Description</th>
               {hasMultipleCards && (
-                <th
-                  className="tx-th sortable"
-                  onClick={() => handleSort('Card')}
-                >
+                <th className="tx-th sortable hide-sm" onClick={() => handleSort('Card')}>
                   Card{sortIndicator('Card')}
                 </th>
               )}
-              <th
-                className="tx-th tx-amount sortable"
-                onClick={() => handleSort('Amount')}
-              >
+              <th className="tx-th sortable" onClick={() => handleSort('Category')}>
+                Category{sortIndicator('Category')}
+              </th>
+              <th className="tx-th tx-amount sortable" onClick={() => handleSort('Amount')}>
                 Amount{sortIndicator('Amount')}
               </th>
-              {showCredits && <th className="tx-th tx-type">Type</th>}
+              {showCredits && <th className="tx-th tx-type hide-sm">Type</th>}
             </tr>
           </thead>
           <tbody>
             {pageData.map((tx, i) => (
-              <tr key={page * PAGE_SIZE + i} className={`tx-row ${tx.IsCredit ? 'credit' : 'debit'}`}>
-                <td className="tx-td tx-date">
+              <tr key={tx.Id ?? (page * PAGE_SIZE + i)} className={`tx-row ${tx.IsCredit ? 'credit' : 'debit'}`}>
+                <td className="tx-td tx-date" data-label="Date">
                   {new Date(tx.Date).toLocaleDateString('en-IN', {
                     day: '2-digit',
                     month: 'short',
                     year: 'numeric'
                   })}
                 </td>
-                <td className="tx-td tx-desc">{tx.Description}</td>
+                <td className="tx-td tx-desc" data-label="Description">{tx.Description}</td>
                 {hasMultipleCards && (
-                  <td className="tx-td tx-card">{tx.CardLabel || ''}</td>
+                  <td className="tx-td tx-card hide-sm" data-label="Card">{tx.CardLabel || ''}</td>
                 )}
-                <td className="tx-td tx-amount">
+                <td className="tx-td tx-category" data-label="Category">
+                  <select
+                    className="tx-category-select"
+                    value={tx.CategoryId ?? ''}
+                    disabled={savingId === tx.Id || !tx.Id}
+                    onChange={(e) => handleCategorySelect(tx, e.target.value)}
+                    aria-label={`Category for ${tx.Description}`}
+                  >
+                    <option value="">Uncategorized</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </td>
+                <td className="tx-td tx-amount" data-label="Amount">
                   {formatINR(tx.Amount)}
                 </td>
                 {showCredits && (
-                  <td className="tx-td tx-type">
+                  <td className="tx-td tx-type hide-sm" data-label="Type">
                     <span className={`tx-badge ${tx.IsCredit ? 'credit' : 'debit'}`}>
                       {tx.IsCredit ? 'Credit' : 'Debit'}
                     </span>

@@ -43,7 +43,9 @@ tests/
     ├── sample_valid.csv               # Valid test CSV
     ├── sample_invalid.csv             # Invalid format
     ├── sample_malformed.csv           # Malformed data
-    └── sample_empty.csv               # Empty file
+    └── sample_invalid.csv             # Invalid / non-CSV content
+    └── sample_malformed.csv           # Malformed rows
+    └── sample_valid.csv               # Valid statement sample
 ```
 
 ## Running Tests
@@ -113,7 +115,9 @@ bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.j
 - Data persistence verification
 - Referential integrity
 
-### Frontend Tests: **All Passing** (217 vitest tests across 13 test files)
+### Frontend Tests: Vitest (React Testing Library)
+
+Run with `bun run test -- --run`. Counts drift as tests are added — prefer `bun run test:all` in CI.
 
 #### App Component (18 tests)
 - Routing setup (Home and Analytics routes)
@@ -201,15 +205,14 @@ bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.j
 
 ## Test Quality Metrics
 
-- **Total Tests**: 287 (217 vitest + 70 bun:test)
-- **Test Files**: 18 (13 vitest + 5 bun:test)
-- **All Tests Passing**: Yes
-- **Edge Cases Covered**: Empty files, invalid dates, malformed data, duplicates, CC payment filtering
+- **Total Tests**: run `bun run test:all` for current counts (vitest + bun:test)
+- **CI**: GitHub Actions runs lint + vitest + bun server tests on every PR
+- **Edge Cases Covered**: Empty files, invalid dates, malformed data, duplicates, CC payment filtering, upload size/CSV validation
 - **Integration Coverage**: Full upload workflows tested
 
 ## Known Issues
 
-None. All tests are passing.
+None noted at last update.
 
 ## Best Practices
 
@@ -224,9 +227,8 @@ None. All tests are passing.
 When adding new features:
 
 1. Write tests first (TDD approach recommended)
-2. Ensure all vitest tests pass: `bun run test -- --run`
-3. Ensure server tests pass: `bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.js src/server/__tests__/routes.test.js`
-4. Check coverage: `bun run test:coverage`
+2. Ensure all tests pass: `bun run test:all`
+3. Check coverage: `bun run test:coverage`
 5. Aim for 85%+ coverage for new code
 6. Include edge case tests
 

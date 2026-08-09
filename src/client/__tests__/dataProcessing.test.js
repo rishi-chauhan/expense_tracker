@@ -6,6 +6,7 @@ import {
   groupByMonth,
   groupByWeek,
   groupByDescription,
+  groupByCategory,
   filterByDateRange,
   searchByDescription,
   formatINR,
@@ -127,6 +128,22 @@ describe('groupByDescription', () => {
     const filtered = filterAnalyticsData(sampleData);
     const grouped = groupByDescription(filtered);
     expect(grouped.find(g => g.description === 'Refund')).toBeUndefined();
+  });
+});
+
+describe('groupByCategory', () => {
+  it('should aggregate debits by category name', () => {
+    const data = [
+      { Amount: 100, IsCredit: false, CategoryName: 'Dining', CategoryColor: '#fb923c', CategoryId: 1 },
+      { Amount: 50, IsCredit: false, CategoryName: 'Dining', CategoryColor: '#fb923c', CategoryId: 1 },
+      { Amount: 200, IsCredit: false, CategoryName: 'Transport', CategoryColor: '#60a5fa', CategoryId: 2 },
+      { Amount: 80, IsCredit: true, CategoryName: 'Dining', CategoryColor: '#fb923c', CategoryId: 1 },
+    ];
+    const grouped = groupByCategory(data);
+    expect(grouped[0].name).toBe('Transport');
+    expect(grouped[0].total).toBe(200);
+    expect(grouped[1].name).toBe('Dining');
+    expect(grouped[1].total).toBe(150);
   });
 });
 

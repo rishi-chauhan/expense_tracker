@@ -31,7 +31,7 @@ export default [
     },
   },
   {
-    files: ['src/server/**/*.js', 'check-credits.js', 'start-dev.js'],
+    files: ['src/server/**/*.js', 'scripts/**/*.js', 'start-dev.js'],
     languageOptions: {
       globals: {
         ...globals.node,

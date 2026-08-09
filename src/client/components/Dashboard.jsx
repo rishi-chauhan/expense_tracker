@@ -15,6 +15,7 @@ import {
   calculateSummaryStats,
   groupByMonth,
   formatINR,
+  filterByDateRange,
 } from '../utils/dataProcessing.js';
 import './Dashboard.css';
 
@@ -24,10 +25,13 @@ const RANGES = [
   { label: '6M', months: 6 },
   { label: '12M', months: 12 },
   { label: 'All', months: null },
+  { label: 'Custom', months: 'custom' },
 ];
 
 function Dashboard({ csvData }) {
   const [range, setRange] = useState('1M');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const chartColors = useChartTheme();
   const { showCredits } = useSettings();
 
@@ -35,6 +39,10 @@ function Dashboard({ csvData }) {
 
   const filteredData = useMemo(() => {
     if (analyticsData.length === 0) return analyticsData;
+
+    if (range === 'Custom') {
+      return filterByDateRange(analyticsData, customStart, customEnd);
+    }
 
     const selected = RANGES.find(r => r.label === range);
     if (!selected || selected.months === null) return analyticsData;
@@ -48,7 +56,7 @@ function Dashboard({ csvData }) {
     cutoff.setMonth(cutoff.getMonth() - selected.months);
 
     return analyticsData.filter(t => new Date(t.Date) >= cutoff);
-  }, [analyticsData, range]);
+  }, [analyticsData, range, customStart, customEnd]);
 
   if (!csvData || csvData.length === 0) {
     return <p className="dashboard-message">Upload a CSV file to see your dashboard.</p>;
@@ -160,6 +168,27 @@ function Dashboard({ csvData }) {
             </div>
           </div>
         </div>
+
+        {range === 'Custom' && (
+          <div className="custom-range-row">
+            <label>
+              From
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+              />
+            </label>
+            <label>
+              To
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+              />
+            </label>
+          </div>
+        )}
 
         {sortedMonths.length > 0 ? (
           <>

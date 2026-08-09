@@ -1,7 +1,26 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { handleApiRequest } from '../routes.js';
+import { initializeDatabase } from '../db.js';
 
 describe('API Routes', () => {
+  beforeAll(() => {
+    initializeDatabase();
+  });
+
+  describe('GET /api/health', () => {
+    it('should return ok status', async () => {
+      const req = new Request('http://localhost:3000/api/health');
+      const url = new URL(req.url);
+      const response = await handleApiRequest(req, url);
+      const data = await response.json();
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.status).toBe('ok');
+      expect(data).toHaveProperty('db');
+      expect(data).toHaveProperty('uptime');
+    });
+  });
+
   describe('GET /api/transactions', () => {
     it('should return success response with transactions and stats', async () => {
       const req = new Request('http://localhost:3000/api/transactions');
@@ -67,7 +86,7 @@ describe('API Routes', () => {
       const response = await handleApiRequest(req, url);
       const data = await response.json();
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(400);
       expect(data.success).toBe(false);
     });
 

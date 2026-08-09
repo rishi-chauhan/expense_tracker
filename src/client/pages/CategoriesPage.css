@@ -1,0 +1,226 @@
+.categories-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+.categories-header h2 {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-heading);
+}
+
+.categories-subtitle {
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-6);
+}
+
+.categories-alert {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}
+
+.categories-alert.error {
+  border: 1px solid var(--color-debit);
+  color: var(--color-debit);
+}
+
+.categories-alert.info {
+  border: 1px solid var(--color-accent);
+  color: var(--color-text-primary);
+  background: var(--color-accent-dim);
+}
+
+.categories-section {
+  margin-bottom: var(--space-8);
+  padding: var(--space-5);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.categories-section h3 {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-heading);
+}
+
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.section-heading-row h3 {
+  margin: 0;
+}
+
+.section-hint {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-3);
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.inline-form input,
+.inline-form select {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  padding: 0.45rem 0.7rem;
+  min-width: 140px;
+}
+
+.primary-btn,
+.secondary-btn {
+  border-radius: var(--radius-md);
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+}
+
+.primary-btn {
+  background: var(--color-accent-dim);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.secondary-btn {
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+}
+
+.link-danger {
+  background: none;
+  border: none;
+  color: var(--color-debit);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.category-list,
+.rule-list,
+.recurring-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.category-item,
+.rule-list li,
+.recurring-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.cat-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.cat-name {
+  font-weight: var(--font-medium);
+  flex: 1;
+}
+
+.cat-meta,
+.rule-priority {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.rule-list code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--color-bg);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.empty-row {
+  color: var(--color-text-secondary);
+  padding: var(--space-2) 0;
+}
+
+.budget-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.budget-card {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.budget-card-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.budget-card-top strong {
+  flex: 1;
+}
+
+.budget-amounts {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2);
+}
+
+.budget-amounts .over {
+  color: var(--color-debit);
+  font-weight: var(--font-medium);
+}
+
+.budget-bar {
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  height: 100%;
+  background: var(--color-credit);
+}
+
+.budget-bar-fill.warn {
+  background: var(--color-accent);
+}
+
+.budget-bar-fill.over {
+  background: var(--color-debit);
+}
+
+.recurring-desc {
+  flex: 1;
+  min-width: 140px;
+  word-break: break-word;
+}
+
+@media (max-width: 600px) {
+  .inline-form input,
+  .inline-form select {
+    width: 100%;
+  }
+}

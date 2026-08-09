@@ -20,7 +20,8 @@ Requires [Bun](https://bun.sh/) v1.1+.
 ```bash
 bun install
 bun run dev
-# open http://localhost:3000
+# Frontend: http://localhost:5173
+# API:      http://localhost:3000
 ```
 
 ## How It Works
@@ -73,10 +74,11 @@ The AI translates your questions into SQL queries, runs them against your data, 
 ## Development
 
 ```bash
-bun run dev          # start full-stack dev server (localhost:3000)
+bun run dev          # start full-stack dev (API :3000, Vite UI :5173)
 bun run build        # production build
 bun run start        # start production server
 bun run test         # run vitest tests (watch mode)
+bun run test:all     # vitest --run + bun sqlite server tests
 bun run lint         # run ESLint
 ```
 

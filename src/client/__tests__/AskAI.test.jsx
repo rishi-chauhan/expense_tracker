@@ -7,8 +7,17 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import AskAI from '../components/AskAI';
 
-// Mock fetch globally
 let fetchMock;
+
+function jsonResponse(data, { ok, status } = {}) {
+  const resolvedOk = ok ?? (data.success !== false);
+  return {
+    ok: resolvedOk,
+    status: status ?? (resolvedOk ? 200 : 400),
+    headers: { get: () => 'application/json' },
+    json: async () => data,
+  };
+}
 
 function renderAskAI(props = {}) {
   const defaultProps = { isOpen: true, onClose: vi.fn() };
@@ -26,29 +35,29 @@ describe('AskAI', () => {
   });
 
   it('should render nothing when isOpen is false', () => {
-    fetchMock.mockResolvedValue({ json: async () => ({ available: true }) });
+    fetchMock.mockResolvedValue(jsonResponse({ success: true, available: true }));
     const { container } = renderAskAI({ isOpen: false });
     expect(container.innerHTML).toBe('');
   });
 
   it('should render the chat panel when isOpen is true', () => {
-    fetchMock.mockResolvedValue({ json: async () => ({ available: true }) });
+    fetchMock.mockResolvedValue(jsonResponse({ success: true, available: true }));
     renderAskAI();
     expect(screen.getByText('Ask AI')).toBeTruthy();
     expect(screen.getByPlaceholderText('Ask about your expenses...')).toBeTruthy();
   });
 
   it('should check Ollama health on first open', async () => {
-    fetchMock.mockResolvedValue({ json: async () => ({ available: true }) });
+    fetchMock.mockResolvedValue(jsonResponse({ success: true, available: true }));
     renderAskAI();
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/chat/health');
+      expect(fetchMock.mock.calls.some((c) => c[0] === '/api/chat/health')).toBe(true);
     });
   });
 
   it('should show unavailable message when Ollama is down', async () => {
-    fetchMock.mockResolvedValue({ json: async () => ({ available: false }) });
+    fetchMock.mockResolvedValue(jsonResponse({ success: true, available: false }));
     renderAskAI();
 
     await waitFor(() => {
@@ -57,7 +66,7 @@ describe('AskAI', () => {
   });
 
   it('should show suggestion chips when no messages', async () => {
-    fetchMock.mockResolvedValue({ json: async () => ({ available: true }) });
+    fetchMock.mockResolvedValue(jsonResponse({ success: true, available: true }));
     renderAskAI();
 
     await waitFor(() => {
@@ -67,7 +76,7 @@ describe('AskAI', () => {
   });
 
   it('should disable input when Ollama is unavailable', async () => {
-    fetchMock.mockResolvedValue({ json: async () => ({ available: false }) });
+    fetchMock.mockResolvedValue(jsonResponse({ success: true, available: false }));
     renderAskAI();
 
     await waitFor(() => {
@@ -78,20 +87,18 @@ describe('AskAI', () => {
   it('should submit a question and display the answer', async () => {
     const user = userEvent.setup();
     fetchMock
-      .mockResolvedValueOnce({ json: async () => ({ available: true }) })
-      .mockResolvedValueOnce({
-        json: async () => ({
-          success: true,
-          answer: 'You spent ₹5,000 last month.',
-          sql: 'SELECT SUM(amount) FROM transactions',
-          rowCount: 1,
-        }),
-      });
+      .mockResolvedValueOnce(jsonResponse({ success: true, available: true }))
+      .mockResolvedValueOnce(jsonResponse({
+        success: true,
+        answer: 'You spent ₹5,000 last month.',
+        sql: 'SELECT SUM(amount) FROM transactions',
+        rowCount: 1,
+      }));
 
     renderAskAI();
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/chat/health');
+      expect(fetchMock.mock.calls.some((c) => c[0] === '/api/chat/health')).toBe(true);
     });
 
     const input = screen.getByPlaceholderText('Ask about your expenses...');
@@ -107,18 +114,16 @@ describe('AskAI', () => {
   it('should show error message on API failure', async () => {
     const user = userEvent.setup();
     fetchMock
-      .mockResolvedValueOnce({ json: async () => ({ available: true }) })
-      .mockResolvedValueOnce({
-        json: async () => ({
-          success: false,
-          error: 'Could not generate query. Is Ollama running?',
-        }),
-      });
+      .mockResolvedValueOnce(jsonResponse({ success: true, available: true }))
+      .mockResolvedValueOnce(jsonResponse({
+        success: false,
+        error: 'Could not generate query. Is Ollama running?',
+      }));
 
     renderAskAI();
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/chat/health');
+      expect(fetchMock.mock.calls.some((c) => c[0] === '/api/chat/health')).toBe(true);
     });
 
     const input = screen.getByPlaceholderText('Ask about your expenses...');
@@ -133,20 +138,18 @@ describe('AskAI', () => {
   it('should show SQL in collapsible details', async () => {
     const user = userEvent.setup();
     fetchMock
-      .mockResolvedValueOnce({ json: async () => ({ available: true }) })
-      .mockResolvedValueOnce({
-        json: async () => ({
-          success: true,
-          answer: 'Result here',
-          sql: 'SELECT * FROM transactions',
-          rowCount: 5,
-        }),
-      });
+      .mockResolvedValueOnce(jsonResponse({ success: true, available: true }))
+      .mockResolvedValueOnce(jsonResponse({
+        success: true,
+        answer: 'Result here',
+        sql: 'SELECT * FROM transactions',
+        rowCount: 5,
+      }));
 
     renderAskAI();
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/chat/health');
+      expect(fetchMock.mock.calls.some((c) => c[0] === '/api/chat/health')).toBe(true);
     });
 
     const input = screen.getByPlaceholderText('Ask about your expenses...');
@@ -161,7 +164,7 @@ describe('AskAI', () => {
 
   it('should call onClose when close button is clicked', async () => {
     const onClose = vi.fn();
-    fetchMock.mockResolvedValue({ json: async () => ({ available: true }) });
+    fetchMock.mockResolvedValue(jsonResponse({ success: true, available: true }));
     renderAskAI({ onClose });
 
     const closeBtn = screen.getByLabelText('Close AI chat');
@@ -172,7 +175,7 @@ describe('AskAI', () => {
 
   it('should close on Escape key', async () => {
     const onClose = vi.fn();
-    fetchMock.mockResolvedValue({ json: async () => ({ available: true }) });
+    fetchMock.mockResolvedValue(jsonResponse({ success: true, available: true }));
     renderAskAI({ onClose });
 
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -181,15 +184,13 @@ describe('AskAI', () => {
 
   it('should submit suggestion chip on click', async () => {
     fetchMock
-      .mockResolvedValueOnce({ json: async () => ({ available: true }) })
-      .mockResolvedValueOnce({
-        json: async () => ({
-          success: true,
-          answer: 'You spent a lot!',
-          sql: 'SELECT SUM(amount) FROM transactions',
-          rowCount: 1,
-        }),
-      });
+      .mockResolvedValueOnce(jsonResponse({ success: true, available: true }))
+      .mockResolvedValueOnce(jsonResponse({
+        success: true,
+        answer: 'You spent a lot!',
+        sql: 'SELECT SUM(amount) FROM transactions',
+        rowCount: 1,
+      }));
 
     renderAskAI();
 
@@ -209,13 +210,13 @@ describe('AskAI', () => {
   it('should handle network errors gracefully', async () => {
     const user = userEvent.setup();
     fetchMock
-      .mockResolvedValueOnce({ json: async () => ({ available: true }) })
+      .mockResolvedValueOnce(jsonResponse({ success: true, available: true }))
       .mockRejectedValueOnce(new Error('Network error'));
 
     renderAskAI();
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/chat/health');
+      expect(fetchMock.mock.calls.some((c) => c[0] === '/api/chat/health')).toBe(true);
     });
 
     const input = screen.getByPlaceholderText('Ask about your expenses...');

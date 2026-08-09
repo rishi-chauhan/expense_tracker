@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { chat, chatHealth } from '../utils/api.js';
 import './AskAI.css';
 
 const SUGGESTIONS = [
@@ -12,35 +13,30 @@ function AskAI({ isOpen, onClose }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
-  const [ollamaStatus, setOllamaStatus] = useState(null); // null = unchecked, true/false
+  const [ollamaStatus, setOllamaStatus] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const checkedHealth = useRef(false);
 
-  // Check Ollama health on first open
   useEffect(() => {
     if (isOpen && !checkedHealth.current) {
       checkedHealth.current = true;
-      fetch('/api/chat/health')
-        .then(res => res.json())
+      chatHealth()
         .then(data => setOllamaStatus(data.available ?? false))
         .catch(() => setOllamaStatus(false));
     }
   }, [isOpen]);
 
-  // Focus input when panel opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isOpen]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading, isOpen]);
 
-  // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
     const handleKey = (e) => {
@@ -59,31 +55,18 @@ function AskAI({ isOpen, onClose }) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          text: data.answer,
-          sql: data.sql,
-          rowCount: data.rowCount,
-        }]);
-      } else {
-        setMessages(prev => [...prev, {
-          role: 'error',
-          text: data.error || 'Something went wrong',
-          sql: data.sql,
-        }]);
-      }
-    } catch {
+      const data = await chat(q);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        text: data.answer,
+        sql: data.sql,
+        rowCount: data.rowCount,
+      }]);
+    } catch (err) {
       setMessages(prev => [...prev, {
         role: 'error',
-        text: 'Could not reach the server',
+        text: err.status ? (err.message || 'Something went wrong') : 'Could not reach the server',
+        sql: err.data?.sql,
       }]);
     } finally {
       setLoading(false);

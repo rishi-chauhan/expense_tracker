@@ -1,0 +1,8 @@
+.category-breakdown {
+  margin-top: var(--space-6);
+}
+
+.category-chart-wrap {
+  max-width: 480px;
+  margin: 0 auto;
+}
