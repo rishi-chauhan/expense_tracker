@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Paisa Kidhar Gaya?! — V2 Planning</title>
+  <title>Paisa Kidhar Gaya?! — V2 Status</title>
   <style>
     :root {
       --bg: #0f1117;
@@ -83,6 +83,32 @@
     .badge-planning { background: #312e1a; color: var(--accent); border: 1px solid var(--accent-dim); }
     .badge-pi       { background: #1a2e2a; color: var(--success); border: 1px solid #2a5e4a; }
     .badge-local    { background: #1a2233; color: var(--low); border: 1px solid #2a3a55; }
+    .badge-done     { background: #143028; color: var(--success); border: 1px solid #2a5e4a; }
+    .badge-remaining { background: #3b2510; color: var(--high); border: 1px solid #7a4a1a; }
+
+    .status-done { background: #143028; color: var(--success); }
+    .status-partial { background: #3b3010; color: var(--medium); }
+    .status-todo { background: #3b1520; color: var(--critical); }
+
+    .progress-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0 1.5rem;
+    }
+
+    .progress-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.85rem 1rem;
+      font-size: 0.85rem;
+    }
+
+    .progress-item strong {
+      display: block;
+      margin-bottom: 0.25rem;
+    }
 
     /* ── Layout ── */
     .container {
@@ -434,12 +460,13 @@
 
 <header class="hero">
   <h1>Paisa Kidhar Gaya?!</h1>
-  <p class="subtitle">पैसा किधर गया?! — V2 Planning Document</p>
-  <p class="meta">Last updated August 10, 2026 &middot; Target: Raspberry Pi local-server deployment</p>
+  <p class="subtitle">पैसा किधर गया?! — V2 Status &amp; Planning</p>
+  <p class="meta">Last updated August 10, 2026 &middot; Commit <code>1664920</code> on <code>main</code></p>
   <div class="badge-row">
-    <span class="badge badge-planning">V2 Planning</span>
-    <span class="badge badge-pi">Raspberry Pi</span>
+    <span class="badge badge-done">Code Complete</span>
+    <span class="badge badge-remaining">Pi Ops Pending</span>
     <span class="badge badge-local">Local-First</span>
+    <span class="badge badge-pi">Raspberry Pi Ready (app)</span>
   </div>
 </header>
 
@@ -448,50 +475,113 @@
 <nav class="toc" aria-label="Table of contents">
   <h2>Contents</h2>
   <ol>
+    <li><a href="#progress">Implementation Progress</a></li>
     <li><a href="#goals">Goals &amp; Non-Goals</a></li>
     <li><a href="#overview">Overview &amp; Current State</a></li>
     <li><a href="#security">Security Hardening</a></li>
     <li><a href="#deployment">Pi Deployment &amp; Operations</a></li>
     <li><a href="#architecture">Code Architecture</a></li>
-    <li><a href="#features">New Features</a></li>
+    <li><a href="#features">Features</a></li>
     <li><a href="#testing">Testing, Docs &amp; CI/CD</a></li>
     <li><a href="#performance">Pi Performance</a></li>
     <li><a href="#strengths">What's Already Good</a></li>
-    <li><a href="#roadmap">Recommended Roadmap</a></li>
+    <li><a href="#roadmap">Roadmap Status</a></li>
     <li><a href="#env-vars">Environment Variables</a></li>
     <li><a href="#success">Success Criteria</a></li>
+    <li><a href="#files">Key Files Delivered</a></li>
   </ol>
 </nav>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<section id="progress">
+  <h2>0. Implementation Progress</h2>
+
+  <div class="callout callout-success">
+    <strong>Application code for V2 is shipped</strong> on <code>main</code>
+    (<code>1664920</code>). All planned in-app tasks (server foundation, client architecture,
+    categories, statements, export, budgets/recurring, AI sandbox, CI/tests) are done.
+    Remaining work is <strong>Pi operations</strong>: <code>deploy/</code> artifacts, reverse-proxy
+    auth, firewall, and on-device verification.
+  </div>
+
+  <div class="progress-grid">
+    <div class="progress-item">
+      <strong><span class="status status-done">Done</span> Task 1</strong>
+      Server foundation: env, health, upload safety, WAL, shutdown
+    </div>
+    <div class="progress-item">
+      <strong><span class="status status-done">Done</span> Task 2</strong>
+      Shared <code>api.js</code> + hooks; slim App; load-error banner
+    </div>
+    <div class="progress-item">
+      <strong><span class="status status-done">Done</span> Task 3</strong>
+      CI, <code>test:all</code>, new tests, README/TESTING fixes
+    </div>
+    <div class="progress-item">
+      <strong><span class="status status-done">Done</span> Task 4</strong>
+      Statements page (list + delete)
+    </div>
+    <div class="progress-item">
+      <strong><span class="status status-done">Done</span> Task 5</strong>
+      Categories, rules, auto-tag, category chart
+    </div>
+    <div class="progress-item">
+      <strong><span class="status status-done">Done</span> Task 6</strong>
+      CSV export + home custom date range
+    </div>
+    <div class="progress-item">
+      <strong><span class="status status-done">Done</span> Task 7</strong>
+      Monthly budgets + recurring detection
+    </div>
+    <div class="progress-item">
+      <strong><span class="status status-done">Done</span> Task 8</strong>
+      Readonly AI SQL, stronger guards, mobile table UX
+    </div>
+    <div class="progress-item">
+      <strong><span class="status status-todo">Todo</span> Deploy</strong>
+      systemd / Caddy / backup / install scripts
+    </div>
+  </div>
+
+  <h3>How to verify locally</h3>
+  <pre><code>bun install
+bun run test:all    # Vitest --run + bun sqlite suites
+bun run lint
+bun run dev         # UI http://localhost:5173 · API http://localhost:3000</code></pre>
+</section>
 
 <!-- ════════════════════════════════════════════════════════════ -->
 <section id="goals">
   <h2>1. Goals &amp; Non-Goals</h2>
 
   <p>
-    V2 keeps the app local-first and single-user, but makes it safe and operable as a
+    V2 keeps the app local-first and single-user, but makes it safe and operable as an
     always-on service on a Raspberry Pi on a home LAN.
   </p>
 
   <h3>Goals</h3>
+  <ul class="checklist done">
+    <li>Close high-value product gaps: categories, statement management, export, budgets</li>
+    <li>Improve maintainability (shared API client, hooks, CI, doc fixes) without a rewrite</li>
+    <li>Add app-level production knobs: health checks, env config, HOST binding, upload limits</li>
+  </ul>
   <ul class="checklist todo">
     <li>Deploy safely on a Raspberry Pi behind a reverse proxy with authentication</li>
-    <li>Protect financial data from other devices on the LAN</li>
-    <li>Add production ops: systemd, backups, health checks, env config</li>
-    <li>Close high-value product gaps: categories, statement management, export</li>
-    <li>Improve maintainability (shared API client, CI, doc fixes) without a rewrite</li>
+    <li>Protect financial data from other devices on the LAN (proxy + firewall still needed)</li>
+    <li>Add ops artifacts: systemd unit, backups, Caddyfile, install notes</li>
   </ul>
 
-  <h3>Non-Goals (out of scope for V2)</h3>
+  <h3>Non-Goals (still out of scope)</h3>
   <ul>
     <li>Cloud hosting, SaaS signup, or multi-tenant accounts</li>
     <li>Mobile native apps (responsive web on LAN is enough)</li>
     <li>Replacing SQLite with Postgres/MySQL</li>
-    <li>Full TypeScript rewrite in one shot (gradual typing only, if at all)</li>
+    <li>Full TypeScript rewrite in one shot</li>
     <li>Internet exposure without a carefully reviewed threat model</li>
   </ul>
 
   <div class="callout callout-info">
-    <strong>Constraint:</strong> Prefer reverse-proxy auth (Caddy/nginx basic auth) over
+    <strong>Constraint (unchanged):</strong> Prefer reverse-proxy auth (Caddy/nginx basic auth) over
     building a full in-app auth system. In-app login can come later if multi-user is needed.
   </div>
 </section>
@@ -503,8 +593,9 @@
   <p>
     <strong>Paisa Kidhar Gaya?!</strong> is a full-stack local-first expense analyzer built with
     <strong>Bun</strong> (backend), <strong>React 19</strong> (frontend), and <strong>SQLite</strong> (storage).
-    Users upload Indian credit card CSV statements; the backend parses and deduplicates transactions;
-    the frontend provides Chart.js dashboards and an optional Ollama AI chat assistant.
+    Users upload Indian credit card CSV statements; the backend parses, categorizes, and deduplicates
+    transactions; the frontend provides Chart.js dashboards, statement/category management, budgets,
+    and an optional Ollama AI chat assistant.
   </p>
 
   <h3>Tech Stack</h3>
@@ -515,73 +606,111 @@
       </thead>
       <tbody>
         <tr><td>Runtime</td><td>Bun v1.1+</td><td>Single process in production — use <code>bun</code>, not npm</td></tr>
-        <tr><td>Frontend</td><td>React 19, React Router v7, Chart.js</td><td>Vite root <code>src/client</code> → <code>dist/</code></td></tr>
-        <tr><td>Backend</td><td><code>Bun.serve()</code> in <code>src/server/index.js</code></td><td>API + static SPA in production</td></tr>
-        <tr><td>Database</td><td>SQLite via <code>bun:sqlite</code></td><td><code>data/expenses.db</code> (gitignored)</td></tr>
-        <tr><td>AI (optional)</td><td>Ollama + <code>qwen2.5:1.5b</code></td><td>NL → SQL → summarize; fully local</td></tr>
-        <tr><td>Tests</td><td>Vitest + <code>bun test</code></td><td>~287 tests documented; split runners</td></tr>
+        <tr><td>Frontend</td><td>React 19, React Router v7, Chart.js</td><td>Routes: <code>/</code>, <code>/analytics</code>, <code>/statements</code>, <code>/categories</code></td></tr>
+        <tr><td>Backend</td><td><code>Bun.serve()</code> in <code>src/server/index.js</code></td><td>Configurable <code>HOST</code>/<code>PORT</code>; API + static SPA in production</td></tr>
+        <tr><td>Database</td><td>SQLite via <code>bun:sqlite</code></td><td><code>DB_PATH</code> (default <code>data/expenses.db</code>), WAL mode</td></tr>
+        <tr><td>AI (optional)</td><td>Ollama + <code>qwen2.5:1.5b</code></td><td>Readonly SQL connection + stricter sandbox</td></tr>
+        <tr><td>Tests / CI</td><td>Vitest + <code>bun test</code> + GitHub Actions</td><td><code>bun run test:all</code> (~227 Vitest + ~72 Bun)</td></tr>
       </tbody>
     </table>
   </div>
 
-  <h3>Current Architecture</h3>
-  <pre><code>CSV Upload → POST /api/upload → parser.js (auto-detect format + card)
-                                      ↓
-                            SQLite (cards, statements, transactions)
-                                      ↓
-                            GET /api/transactions → React dashboards
-                                      ↓
-                            POST /api/chat → Ollama → read-only SQL → summary</code></pre>
+  <h3>Architecture (post-V2)</h3>
+  <pre><code>CSV Upload → POST /api/upload
+              ├─ size / .csv / content validation
+              ├─ parse + card detect
+              ├─ auto category rules
+              └─ SQLite (cards, statements, transactions, categories, rules, budgets)
+                    ↓
+Client api.js → hooks (useTransactions / useUpload / useStatements)
+                    ↓
+Home · Analytics · Statements · Categories · AskAI</code></pre>
 
-  <h3>Current Database Schema</h3>
+  <h3>Database Schema</h3>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Table</th><th>Purpose</th><th>Key fields</th></tr>
+        <tr><th>Table</th><th>Purpose</th><th>Key fields</th><th>Status</th></tr>
       </thead>
       <tbody>
         <tr>
           <td><code>cards</code></td>
           <td>Credit cards</td>
-          <td><code>bank_name</code>, <code>card_last4</code>, <code>card_label</code> (unique on bank+last4)</td>
+          <td><code>bank_name</code>, <code>card_last4</code>, <code>card_label</code></td>
+          <td><span class="status status-ok">Exists</span></td>
         </tr>
         <tr>
           <td><code>statements</code></td>
           <td>Uploaded CSV files</td>
-          <td><code>file_hash</code> (unique), period, <code>card_id</code> FK</td>
+          <td><code>file_hash</code>, period, <code>card_id</code> FK</td>
+          <td><span class="status status-ok">Exists</span></td>
         </tr>
         <tr>
           <td><code>transactions</code></td>
           <td>Parsed rows</td>
-          <td><code>tx_hash</code> (unique), date, amount, description, <code>is_credit</code>, <code>statement_id</code> FK</td>
+          <td>+ <code>category_id</code>, <code>category_manual</code></td>
+          <td><span class="status status-done">V2 extended</span></td>
+        </tr>
+        <tr>
+          <td><code>categories</code></td>
+          <td>Spending categories</td>
+          <td><code>name</code> unique, <code>color</code>, <code>icon</code></td>
+          <td><span class="status status-done">V2 new</span></td>
+        </tr>
+        <tr>
+          <td><code>category_rules</code></td>
+          <td>Auto-tag patterns</td>
+          <td><code>pattern</code>, <code>priority</code>, FK category</td>
+          <td><span class="status status-done">V2 new</span></td>
+        </tr>
+        <tr>
+          <td><code>budgets</code></td>
+          <td>Monthly limits per category</td>
+          <td><code>amount</code>, <code>period</code>, unique category</td>
+          <td><span class="status status-done">V2 new</span></td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <h3>API Endpoints (today)</h3>
+  <p>
+    Default categories (Groceries, Dining, Transport, Utilities, Shopping, Entertainment, Health,
+    Transfer, Other) and common Indian merchant keyword rules are seeded on first DB init.
+  </p>
+
+  <h3>API Endpoints</h3>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Method</th><th>Endpoint</th><th>Purpose</th><th>UI wired?</th></tr>
+        <tr><th>Method</th><th>Endpoint</th><th>Purpose</th><th>UI</th></tr>
       </thead>
       <tbody>
-        <tr><td>GET</td><td><code>/api/cards</code></td><td>List cards with statement counts</td><td>Yes</td></tr>
-        <tr><td>GET</td><td><code>/api/transactions</code></td><td>All transactions + stats (<code>?cardId=</code>)</td><td>Yes</td></tr>
-        <tr><td>POST</td><td><code>/api/upload</code></td><td>Upload CSV (FormData); may return <code>needsCardInfo</code> (422)</td><td>Yes</td></tr>
-        <tr><td>GET</td><td><code>/api/statements</code></td><td>List uploaded statements</td><td><span class="status status-missing">No UI</span></td></tr>
-        <tr><td>DELETE</td><td><code>/api/statements/:id</code></td><td>Delete statement + cascading transactions</td><td><span class="status status-missing">No UI</span></td></tr>
-        <tr><td>GET</td><td><code>/api/chat/health</code></td><td>Ollama availability check</td><td>Yes (AskAI)</td></tr>
-        <tr><td>POST</td><td><code>/api/chat</code></td><td>AI question → SQL → summary</td><td>Yes (AskAI)</td></tr>
+        <tr><td>GET</td><td><code>/api/health</code></td><td>App + DB liveness + uptime</td><td><span class="status status-done">V2</span></td></tr>
+        <tr><td>GET</td><td><code>/api/cards</code></td><td>List cards</td><td>Yes</td></tr>
+        <tr><td>GET</td><td><code>/api/transactions</code></td><td>Transactions + category fields + stats</td><td>Yes</td></tr>
+        <tr><td>POST</td><td><code>/api/upload</code></td><td>CSV upload with validation + auto-categorize</td><td>Yes</td></tr>
+        <tr><td>GET</td><td><code>/api/statements</code></td><td>List statements (with card label)</td><td><span class="status status-done">Statements page</span></td></tr>
+        <tr><td>DELETE</td><td><code>/api/statements/:id</code></td><td>Delete statement + cascade</td><td><span class="status status-done">Statements page</span></td></tr>
+        <tr><td>GET/POST</td><td><code>/api/categories</code></td><td>List / create categories (+ rules on GET)</td><td><span class="status status-done">Categories page</span></td></tr>
+        <tr><td>PUT/DELETE</td><td><code>/api/categories/:id</code></td><td>Update / delete category</td><td><span class="status status-done">Categories page</span></td></tr>
+        <tr><td>POST</td><td><code>/api/categories/rules</code></td><td>Add keyword rule</td><td><span class="status status-done">Categories page</span></td></tr>
+        <tr><td>DELETE</td><td><code>/api/categories/rules/:id</code></td><td>Remove rule</td><td><span class="status status-done">Categories page</span></td></tr>
+        <tr><td>POST</td><td><code>/api/categories/apply-rules</code></td><td>Re-tag non-manual transactions</td><td><span class="status status-done">Categories page</span></td></tr>
+        <tr><td>PUT</td><td><code>/api/transactions/:id/category</code></td><td>Manual categorize / clear</td><td><span class="status status-done">Explorer</span></td></tr>
+        <tr><td>GET</td><td><code>/api/export</code></td><td>Filtered CSV download</td><td><span class="status status-done">Analytics</span></td></tr>
+        <tr><td>GET/POST</td><td><code>/api/budgets</code></td><td>List (with spent) / upsert budget</td><td><span class="status status-done">Categories page</span></td></tr>
+        <tr><td>DELETE</td><td><code>/api/budgets/:categoryId</code></td><td>Remove budget</td><td><span class="status status-done">Categories page</span></td></tr>
+        <tr><td>GET</td><td><code>/api/recurring</code></td><td>Detect recurring merchants</td><td><span class="status status-done">Categories page</span></td></tr>
+        <tr><td>GET</td><td><code>/api/chat/health</code></td><td>Ollama availability</td><td>Yes (AskAI)</td></tr>
+        <tr><td>POST</td><td><code>/api/chat</code></td><td>AI Q&amp;A (SQL not echoed on failure)</td><td>Yes (AskAI)</td></tr>
       </tbody>
     </table>
   </div>
 
-  <div class="callout callout-warn">
-    <strong>Key gap for Pi deployment:</strong> No authentication, no deployment artifacts
-    (systemd / reverse proxy / backups), and the server binds all interfaces by default
-    (<code>Bun.serve({ port })</code> with no <code>hostname</code>). Anyone on the LAN who can
-    reach the port can read, upload, and delete financial data.
+  <div class="callout callout-info">
+    <strong>Remaining Pi gap:</strong> Application can bind to <code>127.0.0.1</code> and reject bad uploads,
+    but LAN auth/TLS still require a reverse proxy + firewall (see Deployment). There is still no
+    in-app authentication by design.
   </div>
 </section>
 
@@ -590,110 +719,109 @@
   <h2>3. Security Hardening</h2>
 
   <p>
-    The app is designed for single-user localhost use. For Raspberry Pi deployment on a home
-    network, security hardening is the <strong>highest priority</strong>.
+    App-level hardening for V2 is largely complete. Proxy auth, TLS, and firewall remain
+    deployment responsibilities.
   </p>
 
-  <h3>Current Security Posture</h3>
+  <h3>Security Posture (updated)</h3>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Area</th><th>Status</th><th>Risk</th></tr>
+        <tr><th>Area</th><th>Status</th><th>Notes</th></tr>
       </thead>
       <tbody>
-        <tr><td>Authentication</td><td>None — all endpoints public</td><td><span class="priority priority-critical">Critical</span></td></tr>
-        <tr><td>Authorization</td><td>None — anyone can upload/delete</td><td><span class="priority priority-critical">Critical</span></td></tr>
-        <tr><td>Network binding</td><td>Defaults to all interfaces (0.0.0.0)</td><td><span class="priority priority-critical">Critical</span></td></tr>
-        <tr><td>HTTPS / TLS</td><td>Not built-in</td><td><span class="priority priority-high">High</span></td></tr>
-        <tr><td>Upload size limit</td><td>None — full file loaded via <code>file.text()</code></td><td><span class="priority priority-high">High</span></td></tr>
-        <tr><td>Server-side file validation</td><td>Client MIME check only (<code>text/csv</code>)</td><td><span class="priority priority-medium">Medium</span></td></tr>
-        <tr><td>Security headers</td><td>None (no CSP, X-Frame-Options, etc.)</td><td><span class="priority priority-medium">Medium</span></td></tr>
-        <tr><td>Path traversal (static files)</td><td><code>url.pathname</code> joined into <code>./dist</code> without sanitizing <code>..</code></td><td><span class="priority priority-medium">Medium</span></td></tr>
-        <tr><td>AI SQL sandbox</td><td>Regex keyword blocklist + SELECT-only + auto LIMIT 100</td><td><span class="priority priority-medium">Medium</span></td></tr>
-        <tr><td>Ollama exposure</td><td>Default Ollama listens broadly; app defaults to localhost URL</td><td><span class="priority priority-medium">Medium</span></td></tr>
-        <tr><td>Error disclosure</td><td>API returns <code>error.message</code>; chat may echo generated SQL</td><td><span class="priority priority-low">Low</span></td></tr>
-        <tr><td>Database encryption</td><td>SQLite file unencrypted at rest</td><td><span class="priority priority-low">Low</span></td></tr>
-        <tr><td>CORS (production)</td><td>Disabled (same-origin)</td><td><span class="status status-ok">OK</span></td></tr>
-        <tr><td>SQL injection (direct API)</td><td>Parameterized queries throughout</td><td><span class="status status-ok">OK</span></td></tr>
+        <tr><td>Authentication</td><td><span class="status status-todo">Ops pending</span></td><td>Still none in-app — use Caddy/nginx basic auth on Pi</td></tr>
+        <tr><td>Network binding</td><td><span class="status status-done">Done</span></td><td><code>HOST</code> env; production default <code>127.0.0.1</code> via <code>src/server/config.js</code></td></tr>
+        <tr><td>Upload size limit</td><td><span class="status status-done">Done</span></td><td><code>MAX_UPLOAD_SIZE</code> default 5&nbsp;MB; 413 on oversize</td></tr>
+        <tr><td>Server-side CSV validation</td><td><span class="status status-done">Done</span></td><td>Requires <code>.csv</code> extension + light content check</td></tr>
+        <tr><td>Security headers</td><td><span class="status status-done">Done</span></td><td><code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code> on Bun responses</td></tr>
+        <tr><td>Static path sanitization</td><td><span class="status status-done">Done</span></td><td>Resolved under <code>dist/</code>; rejects <code>..</code> escape</td></tr>
+        <tr><td>AI SQL sandbox</td><td><span class="status status-done">Hardened</span></td><td>Readonly DB connection; block <code>sqlite_master</code> / VACUUM / etc.; no SQL in client error payloads</td></tr>
+        <tr><td>HTTPS / TLS</td><td><span class="status status-todo">Ops pending</span></td><td>Terminate at reverse proxy</td></tr>
+        <tr><td>Firewall</td><td><span class="status status-todo">Ops pending</span></td><td>Document + apply on Pi</td></tr>
+        <tr><td>Encryption at rest</td><td><span class="status status-todo">Deferred</span></td><td>Prefer LUKS / encrypted SSD</td></tr>
+        <tr><td>CORS (production)</td><td><span class="status status-ok">OK</span></td><td>Disabled (same-origin)</td></tr>
+        <tr><td>SQL injection (direct API)</td><td><span class="status status-ok">OK</span></td><td>Parameterized queries</td></tr>
       </tbody>
     </table>
   </div>
 
-  <h3>V2 Security Tasks</h3>
+  <h3>Security Tasks</h3>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Priority</th><th>Task</th><th>Details</th></tr>
+        <tr><th>Priority</th><th>Task</th><th>Status</th><th>Details</th></tr>
       </thead>
       <tbody>
         <tr>
           <td><span class="priority priority-critical">Critical</span></td>
           <td>Reverse proxy with authentication</td>
-          <td>Put <strong>Caddy</strong> or <strong>nginx</strong> in front with HTTP basic auth. Prefer this over building in-app auth for V2.</td>
+          <td><span class="status status-todo">Todo</span></td>
+          <td>Caddy/nginx basic auth — still the preferred auth model</td>
         </tr>
         <tr>
           <td><span class="priority priority-critical">Critical</span></td>
           <td>Bind app to localhost only</td>
-          <td>Add <code>HOST</code> env support to <code>Bun.serve({ hostname })</code>. Production default: <code>127.0.0.1</code>.</td>
+          <td><span class="status status-done">Done</span></td>
+          <td><code>Bun.serve({ hostname: HOST })</code>; prod default <code>127.0.0.1</code></td>
         </tr>
         <tr>
           <td><span class="priority priority-high">High</span></td>
           <td>HTTPS via reverse proxy</td>
-          <td>Caddy TLS for a real domain, or a self-signed / local CA cert for LAN-only use.</td>
+          <td><span class="status status-todo">Todo</span></td>
+          <td>Document in upcoming <code>deploy/Caddyfile</code></td>
         </tr>
         <tr>
           <td><span class="priority priority-high">High</span></td>
           <td>Firewall rules</td>
-          <td>Allow only LAN (e.g. <code>ufw allow from 192.168.0.0/16 to any port 443</code>). Do not expose the Bun port publicly.</td>
+          <td><span class="status status-todo">Todo</span></td>
+          <td>Allow only LAN to proxy ports; never expose Bun publicly</td>
         </tr>
         <tr>
           <td><span class="priority priority-high">High</span></td>
           <td>Server-side upload limits + validation</td>
-          <td>Reject files over <code>MAX_UPLOAD_SIZE</code> (default 5 MB). Validate filename ends with <code>.csv</code> and content looks like CSV.</td>
+          <td><span class="status status-done">Done</span></td>
+          <td>Implemented in <code>routes.js</code> upload handler</td>
         </tr>
         <tr>
           <td><span class="priority priority-medium">Medium</span></td>
           <td>Security headers</td>
-          <td>Set CSP, <code>X-Frame-Options</code>, <code>X-Content-Type-Options</code>, <code>Referrer-Policy</code> on the proxy or Bun responses.</td>
+          <td><span class="status status-done">Done</span></td>
+          <td>Applied in <code>index.js</code> via <code>SECURITY_HEADERS</code></td>
         </tr>
         <tr>
           <td><span class="priority priority-medium">Medium</span></td>
           <td>Static path sanitization</td>
-          <td>Resolve path under <code>dist/</code> and reject anything that escapes that directory.</td>
+          <td><span class="status status-done">Done</span></td>
+          <td><code>resolveDistPath()</code> in <code>index.js</code></td>
         </tr>
         <tr>
           <td><span class="priority priority-medium">Medium</span></td>
           <td>Harden AI SQL sandbox</td>
-          <td>Open a second SQLite connection with <code>readonly: true</code>; block <code>sqlite_master</code> / attached DBs; stop returning raw SQL in client errors.</td>
+          <td><span class="status status-done">Done</span></td>
+          <td>Readonly connection + blocked system tables; chat errors omit SQL</td>
         </tr>
         <tr>
           <td><span class="priority priority-medium">Medium</span></td>
           <td>Lock down Ollama</td>
-          <td>Bind Ollama to <code>127.0.0.1</code> only on the Pi so the model API is not LAN-open.</td>
-        </tr>
-        <tr>
-          <td><span class="priority priority-low">Low</span></td>
-          <td>Encryption at rest</td>
-          <td>Prefer LUKS / encrypted SSD partition over SQLCipher unless there is a strong need.</td>
+          <td><span class="status status-todo">Docs</span></td>
+          <td>Bind Ollama to <code>127.0.0.1</code> on the Pi (ops doc)</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <h3>Example: Caddyfile (Caddy v2)</h3>
-  <pre><code># deploy/Caddyfile
-# Generate hash: caddy hash-password
+  <h3>Example: Caddyfile (still planned for deploy/)</h3>
+  <pre><code># deploy/Caddyfile (not yet in repo)
 expenses.home.lan {
     basic_auth {
         you $2a$14$...hashed_password...
     }
-
     header {
         X-Content-Type-Options nosniff
         X-Frame-Options DENY
         Referrer-Policy no-referrer
     }
-
     reverse_proxy 127.0.0.1:3000
 }</code></pre>
 </section>
@@ -703,70 +831,33 @@ expenses.home.lan {
   <h2>4. Raspberry Pi Deployment &amp; Operations</h2>
 
   <p>
-    Production start exists (<code>bun run build</code> + <code>bun run start</code>), but the repo
-    has <strong>no</strong> Docker, systemd, nginx/Caddy, or backup scripts. V2 should add a
-    <code>deploy/</code> directory with everything needed to run on a Pi.
+    Production start exists (<code>bun run build</code> + <code>bun run start</code>). The app now
+    supports the env knobs and health endpoint needed for Pi ops. The <code>deploy/</code>
+    directory itself is <strong>not yet added</strong>.
   </p>
 
   <h3>What Exists Today</h3>
   <ul class="checklist done">
     <li><code>bun run build</code> → Vite builds to <code>dist/</code></li>
     <li><code>bun run start</code> → <code>NODE_ENV=production bun run src/server/index.js</code></li>
-    <li>SQLite DB at <code>data/expenses.db</code> (gitignored, created at runtime)</li>
-    <li><code>.env</code> / <code>.env.local</code> gitignored</li>
+    <li>SQLite DB at <code>DB_PATH</code> (default <code>data/expenses.db</code>, gitignored)</li>
+    <li><code>.env</code> / <code>.env.local</code> gitignored; <code>.env.example</code> documented</li>
+    <li><code>HOST</code>, <code>PORT</code>, <code>DB_PATH</code>, <code>MAX_UPLOAD_SIZE</code> wired</li>
+    <li><code>GET /api/health</code> + graceful <code>SIGTERM</code>/<code>SIGINT</code> shutdown</li>
+    <li><code>PRAGMA journal_mode=WAL</code> enabled at DB init</li>
   </ul>
 
-  <h3>What V2 Should Add</h3>
+  <h3>What Still Needs Adding (ops)</h3>
   <ul class="checklist todo">
     <li><code>deploy/expense-tracker.service</code> — systemd unit</li>
     <li><code>deploy/Caddyfile</code> — reverse proxy + basic auth + headers</li>
     <li><code>deploy/backup.sh</code> — nightly SQLite <code>.backup</code> + rotation</li>
     <li><code>deploy/install.sh</code> — idempotent Pi setup helper</li>
     <li><code>deploy/README.md</code> — step-by-step guide</li>
-    <li><code>.env.example</code> — documented config knobs</li>
-    <li><code>GET /api/health</code> — liveness for monitoring / systemd</li>
-    <li>Graceful shutdown on <code>SIGTERM</code> / <code>SIGINT</code></li>
-    <li>Configurable <code>HOST</code>, <code>DB_PATH</code>, <code>MAX_UPLOAD_SIZE</code></li>
+    <li>Firewall + Ollama localhost binding documented on-device</li>
   </ul>
 
-  <h3>systemd Service Unit</h3>
-  <p>Auto-start on boot and restart on crash. Prefer <code>bun run start</code> so scripts stay the single source of truth:</p>
-  <pre><code># deploy/expense-tracker.service
-[Unit]
-Description=Paisa Kidhar Gaya Expense Tracker
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=expense
-Group=expense
-WorkingDirectory=/home/expense/expense_tracker
-Environment=NODE_ENV=production
-Environment=PORT=3000
-Environment=HOST=127.0.0.1
-EnvironmentFile=-/home/expense/expense_tracker/.env
-ExecStart=/home/expense/.bun/bin/bun run start
-Restart=on-failure
-RestartSec=5
-# Soft hardening
-NoNewPrivileges=true
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target</code></pre>
-
-  <h3>Database Backups</h3>
-  <p>SQLite on an SD card is a wear and corruption risk. V2 should include:</p>
-  <ul class="checklist todo">
-    <li>Nightly cron: <code>sqlite3 "$DB_PATH" ".backup '$BACKUP_DIR/expenses-$(date +%F).db'"</code></li>
-    <li>Store backups on an external SSD (not the boot SD card)</li>
-    <li>Enable WAL mode at startup: <code>PRAGMA journal_mode=WAL</code></li>
-    <li>Rotate backups (keep last 30 days)</li>
-    <li>Document restore steps in <code>deploy/README.md</code></li>
-  </ul>
-
-  <h3>Health Endpoint</h3>
+  <h3>Health Endpoint (shipped)</h3>
   <pre><code>GET /api/health
 
 {
@@ -776,108 +867,41 @@ WantedBy=multi-user.target</code></pre>
   "uptime": 3600
 }</code></pre>
 
-  <h3>Recommended Deploy Directory</h3>
-  <pre><code>deploy/
-├── expense-tracker.service   # systemd unit
-├── Caddyfile                 # reverse proxy + auth + headers
-├── backup.sh                 # nightly SQLite backup + rotation
-├── install.sh                # Pi setup helper
-└── README.md                 # step-by-step deployment guide</code></pre>
-
-  <h3>Pi Setup Steps (to document)</h3>
-  <ol class="checklist steps">
-    <li>Install Raspberry Pi OS 64-bit (Pi 4/5 recommended)</li>
-    <li>Install Bun for linux-arm64</li>
-    <li>Create dedicated <code>expense</code> system user</li>
-    <li>Clone repo (or rsync a pre-built tree from a desktop — preferred for weak Pis)</li>
-    <li><code>bun install --production</code> (or full install then <code>bun run build</code>)</li>
-    <li>Copy <code>.env.example</code> → <code>.env</code>, set <code>HOST=127.0.0.1</code></li>
-    <li>Install systemd unit, enable and start the service</li>
-    <li>Install Caddy, apply <code>Caddyfile</code>, open only proxy ports in <code>ufw</code></li>
-    <li>Mount external SSD for <code>data/</code> and backups; point <code>DB_PATH</code> at it</li>
-    <li>Schedule <code>backup.sh</code> via cron or a systemd timer</li>
-    <li>(Optional) Install Ollama, pull <code>qwen2.5:1.5b</code>, bind Ollama to localhost</li>
-  </ol>
-
   <div class="callout callout-info">
-    <strong>Tip:</strong> Building Vite on a low-RAM Pi is slow and can OOM. Prefer building on a
-    laptop (<code>bun run build</code>) and syncing <code>dist/</code> + source to the Pi, then
-    running only the production Bun server there.
+    <strong>Tip:</strong> Build Vite on a laptop and sync <code>dist/</code> to weak Pis to avoid OOM
+    during <code>bun run build</code>.
   </div>
 </section>
 
 <!-- ════════════════════════════════════════════════════════════ -->
 <section id="architecture">
-  <h2>5. Code Architecture Improvements</h2>
+  <h2>5. Code Architecture</h2>
 
-  <p>Not blocking for first Pi deploy, but needed before larger feature work.</p>
-
-  <h3>Centralize API Client</h3>
-  <p>
-    Fetch calls live in <code>App.jsx</code> and <code>AskAI.jsx</code> with no shared helper,
-    no reliable <code>res.ok</code> handling, and inconsistent base URLs
-    (<code>API_BASE</code> vs hardcoded <code>/api/...</code>).
-  </p>
-  <p>Create <code>src/client/utils/api.js</code>:</p>
-  <pre><code>const API_BASE = '/api';
-
-async function api(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, options);
-  let data;
-  try {
-    data = await res.json();
-  } catch {
-    throw new Error(res.statusText || 'Invalid JSON response');
-  }
-  if (!res.ok || data.success === false) {
-    const err = new Error(data.error || res.statusText);
-    err.status = res.status;
-    err.data = data; // preserve needsCardInfo / isDuplicate payloads
-    throw err;
-  }
-  return data;
-}
-
-export const getTransactions = (cardId) =>
-  api(`/transactions${cardId ? `?cardId=${cardId}` : ''}`);
-export const getCards = () => api('/cards');
-export const getStatements = () => api('/statements');
-export const uploadCSV = (formData) =>
-  api('/upload', { method: 'POST', body: formData });
-export const deleteStatement = (id) =>
-  api(`/statements/${id}`, { method: 'DELETE' });
-export const chatHealth = () => api('/chat/health');
-export const chat = (question) =>
-  api('/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
-  });
-export const health = () => api('/health');</code></pre>
-
-  <div class="callout callout-info">
-    Upload flow is special: <code>needsCardInfo</code> and duplicates are valid non-success
-    outcomes. The client helper should expose <code>err.data</code> so <code>useUpload</code>
-    can branch without treating every non-2xx as a hard failure.
+  <div class="callout callout-success">
+    Architecture refactor is complete. New features use the shared client and hooks.
   </div>
 
-  <h3>Split App.jsx</h3>
+  <h3>Centralized API Client — Done</h3>
   <p>
-    <code>App.jsx</code> currently owns global state, routing, upload flow, PascalCase
-    transformation, and header chrome. Extract hooks:
+    Implemented in <code>src/client/utils/api.js</code>. Shared <code>api()</code> helper checks
+    <code>res.ok</code> / <code>success === false</code>, preserves <code>err.data</code> for
+    <code>needsCardInfo</code> and duplicates, and exposes named helpers for every endpoint
+    (including export blob download).
   </p>
+
+  <h3>Split App.jsx — Done</h3>
   <div class="card-grid">
     <div class="card">
       <h4><code>useTransactions()</code></h4>
-      <p>Fetch transactions + cards on mount; expose data, loading, error, and <code>refetch()</code>.</p>
+      <p>Fetch transactions + cards; transform to PascalCase UI shape (incl. category fields); expose loading/error/refetch.</p>
     </div>
     <div class="card">
       <h4><code>useUpload()</code></h4>
-      <p>Handle upload, duplicates, <code>needsCardInfo</code> / CardInfoModal, and notifications.</p>
+      <p>Upload flow with duplicate + CardInfoModal branching via thrown <code>err.data</code>.</p>
     </div>
     <div class="card">
       <h4><code>useStatements()</code></h4>
-      <p>List and delete statements for the new management UI.</p>
+      <p>List/delete statements for the Statements page.</p>
     </div>
   </div>
 
@@ -885,43 +909,48 @@ export const health = () => api('/health');</code></pre>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Priority</th><th>Task</th><th>Details</th></tr>
+        <tr><th>Task</th><th>Status</th><th>Details</th></tr>
       </thead>
       <tbody>
         <tr>
-          <td><span class="priority priority-medium">Medium</span></td>
           <td>User-facing initial load errors</td>
-          <td><code>fetchData()</code> only <code>console.error</code>s today. Show a banner if the API is down.</td>
+          <td><span class="status status-done">Done</span></td>
+          <td>Banner in App with Retry when API is down</td>
         </tr>
         <tr>
-          <td><span class="priority priority-medium">Medium</span></td>
-          <td>Add <code>HOST</code> / <code>DB_PATH</code> on the server</td>
-          <td>Bind address + configurable DB location for external SSD.</td>
+          <td><code>HOST</code> / <code>DB_PATH</code> on server</td>
+          <td><span class="status status-done">Done</span></td>
+          <td><code>src/server/config.js</code></td>
         </tr>
         <tr>
-          <td><span class="priority priority-medium">Medium</span></td>
           <td>Chart theme sync</td>
-          <td><code>useChartTheme.js</code> duplicates CSS palette. Prefer reading CSS variables via <code>getComputedStyle</code>.</td>
+          <td><span class="status status-done">Done</span></td>
+          <td><code>useChartTheme</code> reads CSS variables via <code>getComputedStyle</code></td>
         </tr>
         <tr>
-          <td><span class="priority priority-low">Low</span></td>
-          <td>Align field naming</td>
-          <td>API is snake_case; client transforms to PascalCase in <code>App.jsx</code>. Consider one convention end-to-end.</td>
+          <td>AskAI uses shared API</td>
+          <td><span class="status status-done">Done</span></td>
+          <td><code>chat</code> / <code>chatHealth</code> from <code>api.js</code></td>
         </tr>
         <tr>
-          <td><span class="priority priority-low">Low</span></td>
+          <td>Root scripts cleanup</td>
+          <td><span class="status status-done">Done</span></td>
+          <td>Moved to <code>scripts/</code></td>
+        </tr>
+        <tr>
+          <td>Align field naming end-to-end</td>
+          <td><span class="status status-todo">Deferred</span></td>
+          <td>API snake_case; client still transforms to PascalCase</td>
+        </tr>
+        <tr>
           <td>Stream / chunk large CSVs</td>
-          <td>Avoid loading multi-MB statements entirely into memory on a Pi.</td>
+          <td><span class="status status-todo">Deferred</span></td>
+          <td>Size limit first; stream only if needed</td>
         </tr>
         <tr>
-          <td><span class="priority priority-low">Low</span></td>
-          <td>Clean up root scripts</td>
-          <td><code>check-credits.js</code> and <code>test-parse.js</code> are ad-hoc; move under <code>scripts/</code> or wire into package scripts.</td>
-        </tr>
-        <tr>
-          <td><span class="priority priority-low">Low</span></td>
           <td>Gradual TypeScript</td>
-          <td>Optional. Start with <code>api.js</code> / <code>dataProcessing.js</code> / shared types — not a big-bang rewrite.</td>
+          <td><span class="status status-todo">Deferred</span></td>
+          <td>Optional; not started</td>
         </tr>
       </tbody>
     </table>
@@ -930,166 +959,104 @@ export const health = () => api('/health');</code></pre>
 
 <!-- ════════════════════════════════════════════════════════════ -->
 <section id="features">
-  <h2>6. New Features for V2</h2>
-
-  <p>Core analytics are solid. These close the biggest product gaps for a personal finance tool.</p>
+  <h2>6. Features</h2>
 
   <div class="card-grid">
     <div class="card">
-      <h4><span class="priority priority-high">High</span> Spending Categories</h4>
-      <p>Tag merchants (groceries, dining, transport, utilities). Start with keyword rules + manual override; add category charts later.</p>
+      <h4><span class="status status-done">Done</span> Spending Categories</h4>
+      <p>Schema + CRUD + keyword rules + auto-tag on upload + manual override in TransactionExplorer + category doughnut on Analytics.</p>
     </div>
     <div class="card">
-      <h4><span class="priority priority-high">High</span> Statement Management UI</h4>
-      <p>Backend already has list/delete endpoints. Add a page/panel to view uploaded statements and remove bad imports.</p>
+      <h4><span class="status status-done">Done</span> Statement Management UI</h4>
+      <p><code>/statements</code> page lists file, card, period, rows; delete with confirm; refetches transactions.</p>
     </div>
     <div class="card">
-      <h4><span class="priority priority-medium">Medium</span> Monthly Budgets &amp; Alerts</h4>
-      <p>Per-category spending limits with progress (“80% of dining budget”). Depends on categories.</p>
+      <h4><span class="status status-done">Done</span> Monthly Budgets</h4>
+      <p>Per-category monthly budgets with spent/limit progress bars on Categories page (<code>/api/budgets</code>).</p>
     </div>
     <div class="card">
-      <h4><span class="priority priority-medium">Medium</span> Recurring Detection</h4>
-      <p>Flag subscriptions, EMIs, rent by repeated merchant + similar amounts.</p>
+      <h4><span class="status status-done">Done</span> Recurring Detection</h4>
+      <p><code>GET /api/recurring</code> flags merchants with similar amounts across 3+ months; shown on Categories page.</p>
     </div>
     <div class="card">
-      <h4><span class="priority priority-medium">Medium</span> Export</h4>
-      <p>Download filtered transactions as CSV (PDF optional later) for tax/records.</p>
+      <h4><span class="status status-done">Done</span> Export</h4>
+      <p><code>GET /api/export</code> filtered CSV; Analytics “Export CSV” button uses current card/date filters.</p>
     </div>
     <div class="card">
-      <h4><span class="priority priority-medium">Medium</span> Custom Date Range on Home</h4>
-      <p>Analytics already has date filters; home dashboard is limited to 1M/3M/6M/12M/All presets.</p>
+      <h4><span class="status status-done">Done</span> Custom Date Range on Home</h4>
+      <p>Dashboard range selector includes Custom with start/end date inputs (uses <code>filterByDateRange</code>).</p>
     </div>
     <div class="card">
-      <h4><span class="priority priority-low">Low</span> Mobile Table UX</h4>
-      <p>Improve <code>TransactionExplorer</code> for phones checking expenses on LAN.</p>
+      <h4><span class="status status-done">Done</span> Mobile Table UX</h4>
+      <p>TransactionExplorer becomes a stacked/labeled layout under 640px; hides less-critical columns.</p>
     </div>
     <div class="card">
-      <h4><span class="priority priority-low">Low</span> Multi-User</h4>
-      <p>Only if household sharing is needed. Requires real auth + data isolation — defer past V2 unless required.</p>
+      <h4><span class="status status-todo">Deferred</span> Multi-User</h4>
+      <p>Still out of scope — requires real auth + data isolation.</p>
     </div>
   </div>
 
-  <h3>Planned V2 API Additions</h3>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>GET</td><td><code>/api/health</code></td><td>App + DB liveness</td></tr>
-        <tr><td>GET</td><td><code>/api/categories</code></td><td>List categories</td></tr>
-        <tr><td>POST</td><td><code>/api/categories</code></td><td>Create category</td></tr>
-        <tr><td>PUT</td><td><code>/api/categories/:id</code></td><td>Update category</td></tr>
-        <tr><td>DELETE</td><td><code>/api/categories/:id</code></td><td>Delete category</td></tr>
-        <tr><td>PUT</td><td><code>/api/transactions/:id/category</code></td><td>Manual categorize / clear</td></tr>
-        <tr><td>POST</td><td><code>/api/categories/rules</code></td><td>Add description→category rule</td></tr>
-        <tr><td>GET</td><td><code>/api/export</code></td><td>Export filtered transactions (CSV)</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <h3>Category System Design (Proposed)</h3>
-  <p>
-    Prefer <strong>one category per transaction</strong> for V2 (simpler UI and analytics).
-    Keep rules as a separate table for auto-tagging.
-  </p>
-  <pre><code>-- V2 category tables (proposed)
-CREATE TABLE categories (
-  id INTEGER PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE,   -- "Groceries", "Dining", ...
-  color TEXT,                  -- chart color
-  icon TEXT,                   -- optional icon key
-  created_at TEXT NOT NULL
-);
-
-CREATE TABLE category_rules (
-  id INTEGER PRIMARY KEY,
-  category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-  pattern TEXT NOT NULL,       -- case-insensitive keyword or simple glob
-  priority INTEGER DEFAULT 0,
-  UNIQUE(pattern)
-);
-
--- Add to transactions (migration):
--- ALTER TABLE transactions ADD COLUMN category_id INTEGER
---   REFERENCES categories(id) ON DELETE SET NULL;
--- ALTER TABLE transactions ADD COLUMN category_manual INTEGER DEFAULT 0;
---   -- 1 = user override; skip auto-rules on re-run</code></pre>
+  <h3>Category System (as implemented)</h3>
+  <ul>
+    <li>One category per transaction</li>
+    <li>Manual overrides set <code>category_manual = 1</code> and are skipped by re-apply rules</li>
+    <li>Rules match case-insensitive substring of description, highest priority first</li>
+    <li>Upload path auto-assigns <code>category_id</code> via <code>matchCategoryForDescription()</code></li>
+  </ul>
 </section>
 
 <!-- ════════════════════════════════════════════════════════════ -->
 <section id="testing">
   <h2>7. Testing, Docs &amp; CI/CD</h2>
 
-  <p>
-    The suite is a real strength (~287 tests per project docs). V2 should fix doc drift,
-    unify how tests are run, and enforce them in CI.
-  </p>
+  <div class="callout callout-success">
+    CI and unified test scripts are in place. Counts: ~227 Vitest + ~72 Bun server tests
+    via <code>bun run test:all</code>.
+  </div>
 
-  <h3>Current Coverage Snapshot</h3>
+  <h3>Coverage Snapshot (updated)</h3>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Area</th><th>Files</th><th>Runner</th><th>Status</th></tr>
+        <tr><th>Area</th><th>Status</th><th>Notes</th></tr>
       </thead>
       <tbody>
-        <tr><td>Client components / pages / utils</td><td>11 files under <code>src/client/__tests__/</code></td><td>Vitest</td><td><span class="status status-ok">Good</span></td></tr>
-        <tr><td>Server parser / utils</td><td><code>parser.test.js</code>, <code>utils.test.js</code></td><td>Vitest</td><td><span class="status status-ok">Good</span></td></tr>
-        <tr><td>Server db / routes / integration / ollama / SQL guard</td><td>5 files (excluded from Vitest)</td><td><code>bun test</code></td><td><span class="status status-ok">Good</span></td></tr>
-        <tr><td>CardInfoModal / needsCardInfo UI flow</td><td>—</td><td>—</td><td><span class="status status-missing">Missing</span></td></tr>
-        <tr><td>ThemeContext / SettingsContext</td><td>—</td><td>—</td><td><span class="status status-missing">Missing</span> (mocked only)</td></tr>
-        <tr><td><code>useChartTheme</code></td><td>—</td><td>—</td><td><span class="status status-missing">Missing</span></td></tr>
-        <tr><td>E2E</td><td>—</td><td>—</td><td><span class="status status-missing">None</span></td></tr>
-        <tr><td>CI/CD</td><td>No <code>.github/workflows</code></td><td>—</td><td><span class="status status-missing">None</span></td></tr>
+        <tr><td>Client components / pages / utils</td><td><span class="status status-ok">Good</span></td><td>Vitest under <code>src/client/__tests__/</code></td></tr>
+        <tr><td>Server parser / utils</td><td><span class="status status-ok">Good</span></td><td>Vitest</td></tr>
+        <tr><td>Server db / routes / integration / ollama / SQL</td><td><span class="status status-ok">Good</span></td><td><code>bun run test:bun</code></td></tr>
+        <tr><td>CardInfoModal / needsCardInfo flow</td><td><span class="status status-done">Done</span></td><td>New tests + App upload flow test</td></tr>
+        <tr><td>ThemeContext / SettingsContext</td><td><span class="status status-done">Done</span></td><td><code>Contexts.test.jsx</code></td></tr>
+        <tr><td>Statements page</td><td><span class="status status-done">Done</span></td><td>List + delete happy path</td></tr>
+        <tr><td>CI/CD</td><td><span class="status status-done">Done</span></td><td><code>.github/workflows/ci.yml</code></td></tr>
+        <tr><td>Coverage provider</td><td><span class="status status-done">Done</span></td><td><code>@vitest/coverage-v8</code> added</td></tr>
+        <tr><td>E2E (Playwright)</td><td><span class="status status-todo">Optional</span></td><td>Not started</td></tr>
       </tbody>
     </table>
   </div>
 
-  <h3>Known Doc / Tooling Debt</h3>
-  <ul class="checklist todo">
-    <li>README says open <code>localhost:3000</code> after <code>bun run dev</code> — UI is on <strong>5173</strong> in dev; 3000 is API-only</li>
-    <li><code>TESTING.md</code> references missing fixture <code>sample_empty.csv</code> (only valid / invalid / malformed exist)</li>
-    <li><code>TESTING.md</code> claims 217 vitest tests across 13 files — counts may be stale; re-verify when adding CI</li>
-    <li><code>vitest.config.js</code> sets coverage provider <code>v8</code> but <code>@vitest/coverage-v8</code> is not in <code>package.json</code></li>
-    <li>No unified <code>test:all</code> script for Vitest + Bun sqlite suites</li>
+  <h3>Doc / Tooling Debt</h3>
+  <ul class="checklist done">
+    <li>README documents UI on <strong>5173</strong> and API on 3000</li>
+    <li>TESTING.md fixture list fixed (no phantom <code>sample_empty.csv</code>)</li>
+    <li><code>test:all</code> / <code>test:bun</code> scripts in <code>package.json</code></li>
+    <li>Coverage dependency installed</li>
+    <li>Ad-hoc scripts moved under <code>scripts/</code></li>
   </ul>
 
-  <h3>V2 Testing Tasks</h3>
-  <ul class="checklist todo">
-    <li>Add GitHub Actions: install → lint → Vitest run → Bun server tests</li>
-    <li>Add <code>"test:all"</code> script that runs both runners</li>
-    <li>Add CardInfoModal + needsCardInfo upload tests</li>
-    <li>Add ThemeContext / SettingsContext unit tests</li>
-    <li>Install <code>@vitest/coverage-v8</code> or remove broken coverage config</li>
-    <li>Fix README + TESTING.md drift</li>
-    <li>Optional later: Playwright smoke for upload → dashboard</li>
-  </ul>
-
-  <h3>Proposed CI Workflow</h3>
+  <h3>CI Workflow (shipped)</h3>
   <pre><code># .github/workflows/ci.yml
 name: CI
-on:
-  push:
-  pull_request:
-
+on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
       - run: bun install
       - run: bun run lint
       - run: bun run test -- --run
-      - run: >
-          bun test
-          src/server/__tests__/db.test.js
-          src/server/__tests__/routes.test.js
-          src/server/__tests__/integration.test.js
-          src/server/__tests__/ollama.test.js
-          src/server/__tests__/executeReadOnlyQuery.test.js</code></pre>
+      - run: bun run test:bun</code></pre>
 </section>
 
 <!-- ════════════════════════════════════════════════════════════ -->
@@ -1099,157 +1066,107 @@ jobs:
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Concern</th><th>Severity</th><th>Recommendation</th></tr>
+        <tr><th>Concern</th><th>Status</th><th>Recommendation</th></tr>
       </thead>
       <tbody>
         <tr>
           <td>Ollama RAM</td>
           <td><span class="priority priority-medium">Medium</span></td>
-          <td><code>qwen2.5:1.5b</code> ~1–2 GB. Fine on Pi 4/5 with 4+ GB. Keep AI optional and off by default on small boards.</td>
+          <td>Keep AI optional; <code>qwen2.5:1.5b</code> needs ~1–2&nbsp;GB</td>
         </tr>
         <tr>
           <td>Building on-device</td>
           <td><span class="priority priority-medium">Medium</span></td>
-          <td>Vite builds can OOM on 1–2 GB machines. Build elsewhere and sync <code>dist/</code>.</td>
+          <td>Build on laptop; sync <code>dist/</code></td>
         </tr>
         <tr>
           <td>Large CSV uploads</td>
-          <td><span class="priority priority-medium">Medium</span></td>
-          <td>Full-file <code>file.text()</code>. Add size limits first; stream later if needed.</td>
+          <td><span class="status status-done">Mitigated</span></td>
+          <td>5&nbsp;MB default limit shipped; streaming still deferred</td>
         </tr>
         <tr>
           <td>SQLite on SD card</td>
-          <td><span class="priority priority-medium">Medium</span></td>
-          <td>Use external SSD for <code>DB_PATH</code> + backups. Enable WAL.</td>
+          <td><span class="status status-partial">Partial</span></td>
+          <td>WAL enabled; point <code>DB_PATH</code> at SSD when deploying</td>
         </tr>
         <tr>
-          <td>Bun on ARM</td>
-          <td><span class="priority priority-low">Low</span></td>
-          <td>Official linux-arm64 builds target modern 64-bit OS (Pi 4/5). Document supported platforms.</td>
-        </tr>
-        <tr>
-          <td>Single Bun process + SQLite</td>
+          <td>Single Bun + SQLite</td>
           <td><span class="status status-ok">Good</span></td>
-          <td>Right fit for a home Pi — no Redis/Postgres required.</td>
-        </tr>
-        <tr>
-          <td>Charts on the client</td>
-          <td><span class="status status-ok">Good</span></td>
-          <td>Pi serves JSON + static assets; browser does Chart.js work.</td>
+          <td>Right fit for a home Pi</td>
         </tr>
       </tbody>
     </table>
-  </div>
-
-  <h3>Minimum Pi Requirements</h3>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Component</th><th>Without AI</th><th>With Ollama AI</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Board</td><td>Pi 4 (2 GB+) workable; Pi 4/5 preferred</td><td>Pi 4 (4 GB) or Pi 5</td></tr>
-        <tr><td>RAM</td><td>2 GB minimum for comfortable headroom</td><td>4 GB recommended</td></tr>
-        <tr><td>Storage</td><td>16 GB+ SD for OS; SSD for DB preferred</td><td>32 GB+; SSD strongly preferred</td></tr>
-        <tr><td>OS</td><td>Raspberry Pi OS 64-bit</td><td>Raspberry Pi OS 64-bit</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="callout callout-warn">
-    <strong>Correction from earlier draft:</strong> “Pi 3B+ with 1 GB is sufficient” is too optimistic
-    for Bun + production Node-like workloads. Treat Pi 4 (2 GB+) as the practical floor; use Pi 4/5
-    with 4 GB if you want Ollama.
   </div>
 </section>
 
 <!-- ════════════════════════════════════════════════════════════ -->
 <section id="strengths">
-  <h2>9. What's Already Good (Keep in V2)</h2>
-
-  <div class="callout callout-success">
-    Preserve these. V2 should harden and extend — not rewrite.
-  </div>
+  <h2>9. What's Already Good (Keep)</h2>
 
   <div class="card-grid">
-    <div class="card">
-      <h4>Local-First Design</h4>
-      <p>No cloud, no signup, data stays on your machine. Fits a private home server.</p>
-    </div>
-    <div class="card">
-      <h4>Smart CSV Parser</h4>
-      <p>Format-agnostic: delimiter/header/bank/card detection across many Indian banks, hash-based dedup.</p>
-    </div>
-    <div class="card">
-      <h4>Multi-Card Support</h4>
-      <p>Auto-detect plus CardInfoModal fallback; filters across Home and Analytics.</p>
-    </div>
-    <div class="card">
-      <h4>Privacy Toggle</h4>
-      <p><code>showCredits</code> hides credit stats/rows across Dashboard, Trends, Explorer, etc.</p>
-    </div>
-    <div class="card">
-      <h4>Design System</h4>
-      <p>CSS variables, dark/light theme, reduced-motion, consistent component + CSS pairing.</p>
-    </div>
-    <div class="card">
-      <h4>AI Read-Only Guard</h4>
-      <p>SELECT-only, keyword blocklist, multi-statement rejection, auto LIMIT — good base to harden further.</p>
-    </div>
-    <div class="card">
-      <h4>Test Suite</h4>
-      <p>Broad unit/integration coverage for parser, DB, routes, and UI — uncommon for personal apps.</p>
-    </div>
-    <div class="card">
-      <h4>Dev Experience</h4>
-      <p><code>start-dev.js</code> runs backend + Vite together; Vite proxies <code>/api</code> to port 3000.</p>
-    </div>
+    <div class="card"><h4>Local-First Design</h4><p>No cloud, no signup; data stays on your machine.</p></div>
+    <div class="card"><h4>Smart CSV Parser</h4><p>Format-agnostic Indian bank statements + hash dedup.</p></div>
+    <div class="card"><h4>Multi-Card Support</h4><p>Auto-detect + CardInfoModal; filters across pages.</p></div>
+    <div class="card"><h4>Privacy Toggle</h4><p><code>showCredits</code> hides credit stats/rows app-wide.</p></div>
+    <div class="card"><h4>Design System</h4><p>CSS variables, dark/light theme, reduced-motion.</p></div>
+    <div class="card"><h4>AI Read-Only Guard</h4><p>Now stronger: readonly connection + system-table block.</p></div>
+    <div class="card"><h4>Test Suite + CI</h4><p>Broad coverage enforced on every PR.</p></div>
+    <div class="card"><h4>Dev Experience</h4><p><code>start-dev.js</code> + Vite proxy to API still the happy path.</p></div>
   </div>
 </section>
 
 <!-- ════════════════════════════════════════════════════════════ -->
 <section id="roadmap">
-  <h2>10. Recommended Roadmap</h2>
+  <h2>10. Roadmap Status</h2>
 
   <div class="timeline">
     <div class="timeline-item">
-      <h4>Phase 1 — Security &amp; Deployment (ship first)</h4>
+      <h4>Phase 1 — Security &amp; Deployment <span class="status status-partial">Partial</span></h4>
       <p class="phase-goal">Safe to leave running on a Pi on the home LAN.</p>
-      <ul class="checklist todo">
+      <ul class="checklist done">
         <li><code>HOST</code> binding + production default <code>127.0.0.1</code></li>
-        <li><code>deploy/</code> systemd + Caddyfile + backup.sh + install notes</li>
         <li>Upload size limit + basic CSV validation</li>
         <li><code>GET /api/health</code> + graceful shutdown</li>
-        <li><code>.env.example</code>, WAL mode, path sanitization for static files</li>
-        <li>Firewall + Ollama localhost binding documented</li>
+        <li><code>.env.example</code>, WAL mode, path sanitization, security headers</li>
+      </ul>
+      <ul class="checklist todo">
+        <li><code>deploy/</code> systemd + Caddyfile + backup.sh + install notes</li>
+        <li>Firewall + Ollama localhost binding documented / verified on Pi</li>
       </ul>
     </div>
+
     <div class="timeline-item">
-      <h4>Phase 2 — Quality &amp; Maintainability</h4>
+      <h4>Phase 2 — Quality &amp; Maintainability <span class="status status-done">Done</span></h4>
       <p class="phase-goal">Safer iteration without regressions.</p>
-      <ul class="checklist todo">
+      <ul class="checklist done">
         <li>GitHub Actions CI + <code>test:all</code> script</li>
-        <li>Shared <code>api.js</code> client; extract upload/transactions hooks</li>
-        <li>CardInfoModal tests; fix README / TESTING.md / coverage dep</li>
+        <li>Shared <code>api.js</code> client; extract upload/transactions/statements hooks</li>
+        <li>CardInfoModal / context / Statements tests; README / TESTING / coverage dep</li>
         <li>User-visible error when initial fetch fails</li>
       </ul>
     </div>
+
     <div class="timeline-item">
-      <h4>Phase 3 — Product Features</h4>
+      <h4>Phase 3 — Product Features <span class="status status-done">Done</span></h4>
       <p class="phase-goal">Make it a better personal finance tool.</p>
-      <ul class="checklist todo">
-        <li>Statement management UI (wire existing APIs)</li>
-        <li>Categories + rules + migration</li>
+      <ul class="checklist done">
+        <li>Statement management UI</li>
+        <li>Categories + rules + migration + charts</li>
         <li>CSV export; custom date range on home dashboard</li>
-        <li>Budgets / recurring detection (after categories)</li>
+        <li>Budgets + recurring detection</li>
       </ul>
     </div>
+
     <div class="timeline-item">
-      <h4>Phase 4 — Polish (optional)</h4>
-      <p class="phase-goal">Nice-to-haves once the above is stable.</p>
+      <h4>Phase 4 — Polish <span class="status status-partial">Mostly done</span></h4>
+      <p class="phase-goal">Nice-to-haves.</p>
+      <ul class="checklist done">
+        <li>Stronger AI sandbox (readonly DB, system-table block, no SQL in errors)</li>
+        <li>Mobile TransactionExplorer UX</li>
+      </ul>
       <ul class="checklist todo">
-        <li>Playwright smoke tests; mobile table UX</li>
-        <li>Stream CSV parsing; stronger AI sandbox</li>
+        <li>Playwright smoke tests</li>
+        <li>Stream CSV parsing (only if 5&nbsp;MB limit proves insufficient)</li>
         <li>Disk encryption; gradual TypeScript; multi-user only if needed</li>
       </ul>
     </div>
@@ -1260,7 +1177,7 @@ jobs:
 <section id="env-vars">
   <h2>11. Environment Variables</h2>
 
-  <p>Document these in a root <code>.env.example</code>. Do not commit real <code>.env</code> files.</p>
+  <p>Documented in root <code>.env.example</code>. Do not commit real <code>.env</code> files.</p>
 
   <div class="table-wrap">
     <table>
@@ -1268,97 +1185,81 @@ jobs:
         <tr><th>Variable</th><th>Default</th><th>Status</th><th>Purpose</th></tr>
       </thead>
       <tbody>
-        <tr>
-          <td><code>NODE_ENV</code></td>
-          <td><em>unset = development</em></td>
-          <td><span class="status status-exists">Exists</span></td>
-          <td>Production vs development mode</td>
-        </tr>
-        <tr>
-          <td><code>PORT</code></td>
-          <td><code>3000</code></td>
-          <td><span class="status status-exists">Exists</span></td>
-          <td>HTTP listen port</td>
-        </tr>
-        <tr>
-          <td><code>OLLAMA_URL</code></td>
-          <td><code>http://localhost:11434</code></td>
-          <td><span class="status status-exists">Exists</span></td>
-          <td>Ollama API base URL</td>
-        </tr>
-        <tr>
-          <td><code>OLLAMA_MODEL</code></td>
-          <td><code>qwen2.5:1.5b</code></td>
-          <td><span class="status status-exists">Exists</span></td>
-          <td>Model name for AI chat</td>
-        </tr>
-        <tr>
-          <td><code>HOST</code></td>
-          <td><code>0.0.0.0</code> (today implicit)</td>
-          <td><span class="status status-new">V2 New</span></td>
-          <td>Bind address; use <code>127.0.0.1</code> behind a proxy</td>
-        </tr>
-        <tr>
-          <td><code>MAX_UPLOAD_SIZE</code></td>
-          <td><code>5242880</code> (5 MB)</td>
-          <td><span class="status status-new">V2 New</span></td>
-          <td>Max CSV upload size in bytes</td>
-        </tr>
-        <tr>
-          <td><code>DB_PATH</code></td>
-          <td><code>data/expenses.db</code></td>
-          <td><span class="status status-new">V2 New</span></td>
-          <td>SQLite path (point at SSD mount)</td>
-        </tr>
+        <tr><td><code>NODE_ENV</code></td><td>unset = development</td><td><span class="status status-ok">Exists</span></td><td>Production vs development</td></tr>
+        <tr><td><code>PORT</code></td><td><code>3000</code></td><td><span class="status status-ok">Exists</span></td><td>HTTP listen port</td></tr>
+        <tr><td><code>OLLAMA_URL</code></td><td><code>http://localhost:11434</code></td><td><span class="status status-ok">Exists</span></td><td>Ollama API base</td></tr>
+        <tr><td><code>OLLAMA_MODEL</code></td><td><code>qwen2.5:1.5b</code></td><td><span class="status status-ok">Exists</span></td><td>Chat model</td></tr>
+        <tr><td><code>HOST</code></td><td>prod <code>127.0.0.1</code> / dev <code>0.0.0.0</code></td><td><span class="status status-done">Shipped</span></td><td>Bind address</td></tr>
+        <tr><td><code>MAX_UPLOAD_SIZE</code></td><td><code>5242880</code> (5&nbsp;MB)</td><td><span class="status status-done">Shipped</span></td><td>Max CSV upload bytes</td></tr>
+        <tr><td><code>DB_PATH</code></td><td><code>data/expenses.db</code></td><td><span class="status status-done">Shipped</span></td><td>SQLite path (SSD on Pi)</td></tr>
       </tbody>
     </table>
   </div>
-
-  <h3>Proposed <code>.env.example</code></h3>
-  <pre><code># Server
-NODE_ENV=production
-PORT=3000
-HOST=127.0.0.1
-
-# Database (use an SSD path on the Pi when possible)
-DB_PATH=data/expenses.db
-
-# Upload limits
-MAX_UPLOAD_SIZE=5242880
-
-# Ollama AI (optional — leave unset / unused if Ollama is not installed)
-OLLAMA_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=qwen2.5:1.5b</code></pre>
 </section>
 
 <!-- ════════════════════════════════════════════════════════════ -->
 <section id="success">
   <h2>12. Success Criteria</h2>
 
-  <p>V2 Phase 1 is done when all of the following are true:</p>
-  <ul class="checklist todo">
-    <li>App binds to localhost; only Caddy/nginx is reachable on the LAN</li>
-    <li>Basic auth (or equivalent) required before any financial data is visible</li>
-    <li>Service starts on boot via systemd and survives reboot</li>
-    <li>Nightly DB backup exists and restore steps are documented</li>
+  <p>Phase 1 (app code) checklist:</p>
+  <ul class="checklist done">
+    <li>App can bind to localhost via <code>HOST=127.0.0.1</code></li>
     <li><code>/api/health</code> returns OK when DB is readable</li>
     <li>Oversized / non-CSV uploads are rejected server-side</li>
-    <li>Deploy steps are written in <code>deploy/README.md</code> and verified on a Pi (or Pi-like ARM host)</li>
+  </ul>
+  <ul class="checklist todo">
+    <li>Only Caddy/nginx is reachable on the LAN (ops)</li>
+    <li>Basic auth required before financial data is visible (ops)</li>
+    <li>Service starts on boot via systemd and survives reboot (ops)</li>
+    <li>Nightly DB backup exists and restore steps are documented (ops)</li>
+    <li>Deploy steps verified on a Pi (or Pi-like ARM host)</li>
   </ul>
 
-  <p>V2 overall (through Phase 3) is done when, in addition:</p>
-  <ul class="checklist todo">
+  <p>Through Phase 3 (product) — <strong>complete</strong>:</p>
+  <ul class="checklist done">
     <li>CI runs lint + both test runners on every PR</li>
     <li>Users can list/delete statements from the UI</li>
-    <li>Users can categorize spending (manual + simple rules) and export CSV</li>
+    <li>Users can categorize spending (manual + rules) and export CSV</li>
+    <li>Budgets and recurring merchant detection available</li>
+  </ul>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<section id="files">
+  <h2>13. Key Files Delivered</h2>
+
+  <h3>Server</h3>
+  <ul>
+    <li><code>src/server/config.js</code> — <code>HOST</code>, <code>PORT</code>, <code>DB_PATH</code>, <code>MAX_UPLOAD_SIZE</code>, security headers</li>
+    <li><code>src/server/index.js</code> — hostname bind, path sanitization, headers, graceful shutdown</li>
+    <li><code>src/server/db.js</code> — WAL, categories/rules/budgets, export query, readonly AI SQL, recurring</li>
+    <li><code>src/server/routes.js</code> — health, upload validation, categories, export, budgets, recurring</li>
+    <li><code>.env.example</code> — documented knobs</li>
+  </ul>
+
+  <h3>Client</h3>
+  <ul>
+    <li><code>src/client/utils/api.js</code> — shared fetch layer</li>
+    <li><code>src/client/hooks/useTransactions.js</code>, <code>useUpload.js</code>, <code>useStatements.js</code></li>
+    <li><code>src/client/pages/StatementsPage.jsx</code>, <code>CategoriesPage.jsx</code></li>
+    <li><code>src/client/components/CategoryBreakdown.jsx</code> — Analytics doughnut</li>
+    <li>Updated Dashboard (custom range), TransactionExplorer (categorize + mobile), Analytics (export)</li>
+  </ul>
+
+  <h3>Tooling</h3>
+  <ul>
+    <li><code>.github/workflows/ci.yml</code></li>
+    <li><code>package.json</code> scripts: <code>test:all</code>, <code>test:bun</code></li>
+    <li><code>scripts/check-credits.js</code>, <code>scripts/test-parse.js</code></li>
+    <li>New tests: CardInfoModal, Contexts, StatementsPage; updated App/AskAI/routes tests</li>
   </ul>
 </section>
 
 </div>
 
 <footer>
-  Paisa Kidhar Gaya?! V2 Planning Document &middot; August 2026 &middot;
-  Source of truth for planned Pi hardening and product work
+  Paisa Kidhar Gaya?! V2 Status Document &middot; Updated August 10, 2026 &middot;
+  Code complete on main; Pi deploy/ ops still pending
 </footer>
 
 </body>
