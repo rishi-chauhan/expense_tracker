@@ -1,0 +1,46 @@
+# Paisa Kidhar Gaya?! — reverse proxy with basic auth
+#
+# 1. Replace the password hash:
+#      caddy hash-password
+#    Paste the $2a$... output below (keep the username you choose).
+# 2. Point expenses.home.lan at the Pi (router DNS or /etc/hosts on clients).
+# 3. Reload: sudo systemctl reload caddy
+#
+# Default: internal TLS (Caddy local CA). Trust the CA on client devices once,
+# or temporarily use the http:// block at the bottom for LAN-only HTTP.
+
+{
+	# Optional: local CA for LAN HTTPS (default site below uses https)
+	# local_certs
+}
+
+expenses.home.lan {
+	tls internal
+
+	basic_auth {
+		# username  bcrypt_hash
+		you $2a$14$REPLACE_ME_WITH_OUTPUT_OF_caddy_hash_password
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	reverse_proxy 127.0.0.1:3000
+}
+
+# --- Optional: HTTP-only (less safe on open Wi‑Fi; passwords in cleartext) ---
+# http://expenses.home.lan {
+# 	basic_auth {
+# 		you $2a$14$REPLACE_ME_WITH_OUTPUT_OF_caddy_hash_password
+# 	}
+# 	header {
+# 		X-Content-Type-Options nosniff
+# 		X-Frame-Options DENY
+# 		Referrer-Policy no-referrer
+# 	}
+# 	reverse_proxy 127.0.0.1:3000
+# }

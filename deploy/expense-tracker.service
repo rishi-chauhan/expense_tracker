@@ -1,0 +1,33 @@
+[Unit]
+Description=Paisa Kidhar Gaya?! expense tracker
+Documentation=file:///opt/expense_tracker/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=expenses
+Group=expenses
+WorkingDirectory=/opt/expense_tracker
+
+# Optional env overrides (HOST, PORT, DB_PATH, MAX_UPLOAD_SIZE, OLLAMA_*)
+EnvironmentFile=-/opt/expense_tracker/.env
+
+# Prefer a full path to bun if /usr/bin/bun is not installed system-wide.
+# Install Bun for the expenses user, or symlink: ln -s /home/expenses/.bun/bin/bun /usr/local/bin/bun
+ExecStart=/usr/local/bin/bun run start
+
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+
+# Hardening (app binds to 127.0.0.1 in production; Caddy fronts it)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# If you set DB_PATH outside these dirs, add that path here too.
+ReadWritePaths=/opt/expense_tracker/data /opt/expense_tracker/backups
+
+[Install]
+WantedBy=multi-user.target

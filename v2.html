@@ -461,12 +461,12 @@
 <header class="hero">
   <h1>Paisa Kidhar Gaya?!</h1>
   <p class="subtitle">पैसा किधर गया?! — V2 Status &amp; Planning</p>
-  <p class="meta">Last updated August 10, 2026 &middot; Commit <code>1664920</code> on <code>main</code></p>
+  <p class="meta">Last updated August 10, 2026 &middot; <code>deploy/</code> package on <code>main</code></p>
   <div class="badge-row">
     <span class="badge badge-done">Code Complete</span>
-    <span class="badge badge-remaining">Pi Ops Pending</span>
+    <span class="badge badge-done">Pi Ops Artifacts</span>
     <span class="badge badge-local">Local-First</span>
-    <span class="badge badge-pi">Raspberry Pi Ready (app)</span>
+    <span class="badge badge-pi">Raspberry Pi Ready</span>
   </div>
 </header>
 
@@ -497,11 +497,11 @@
   <h2>0. Implementation Progress</h2>
 
   <div class="callout callout-success">
-    <strong>Application code for V2 is shipped</strong> on <code>main</code>
-    (<code>1664920</code>). All planned in-app tasks (server foundation, client architecture,
-    categories, statements, export, budgets/recurring, AI sandbox, CI/tests) are done.
-    Remaining work is <strong>Pi operations</strong>: <code>deploy/</code> artifacts, reverse-proxy
-    auth, firewall, and on-device verification.
+    <strong>V2 application code and <code>deploy/</code> ops package are shipped.</strong>
+    In-app tasks (server foundation, client architecture, categories, statements, export,
+    budgets/recurring, AI sandbox, CI/tests) plus systemd / Caddy / backup / install docs under
+    <code>deploy/</code> are done. Remaining: <strong>on-device verification</strong> on your Pi
+    (enable unit, set basic auth hash, firewall, cron backup).
   </div>
 
   <div class="progress-grid">
@@ -538,8 +538,8 @@
       Readonly AI SQL, stronger guards, mobile table UX
     </div>
     <div class="progress-item">
-      <strong><span class="status status-todo">Todo</span> Deploy</strong>
-      systemd / Caddy / backup / install scripts
+      <strong><span class="status status-done">Done</span> Deploy</strong>
+      <code>deploy/</code> systemd / Caddyfile / backup / install + README
     </div>
   </div>
 
@@ -564,11 +564,10 @@ bun run dev         # UI http://localhost:5173 · API http://localhost:3000</cod
     <li>Close high-value product gaps: categories, statement management, export, budgets</li>
     <li>Improve maintainability (shared API client, hooks, CI, doc fixes) without a rewrite</li>
     <li>Add app-level production knobs: health checks, env config, HOST binding, upload limits</li>
+    <li>Ops artifacts: systemd unit, Caddyfile, backups, install helper, Pi guide</li>
   </ul>
   <ul class="checklist todo">
-    <li>Deploy safely on a Raspberry Pi behind a reverse proxy with authentication</li>
-    <li>Protect financial data from other devices on the LAN (proxy + firewall still needed)</li>
-    <li>Add ops artifacts: systemd unit, backups, Caddyfile, install notes</li>
+    <li>Verify on a physical Pi: proxy auth, firewall, boot persistence, restore drill</li>
   </ul>
 
   <h3>Non-Goals (still out of scope)</h3>
@@ -708,9 +707,9 @@ Home · Analytics · Statements · Categories · AskAI</code></pre>
   </div>
 
   <div class="callout callout-info">
-    <strong>Remaining Pi gap:</strong> Application can bind to <code>127.0.0.1</code> and reject bad uploads,
-    but LAN auth/TLS still require a reverse proxy + firewall (see Deployment). There is still no
-    in-app authentication by design.
+    <strong>On-device gap:</strong> Application can bind to <code>127.0.0.1</code> and reject bad uploads.
+    Auth/TLS/firewall recipes live in <code>deploy/</code> — apply and verify them on the Pi.
+    There is still no in-app authentication by design.
   </div>
 </section>
 
@@ -719,8 +718,8 @@ Home · Analytics · Statements · Categories · AskAI</code></pre>
   <h2>3. Security Hardening</h2>
 
   <p>
-    App-level hardening for V2 is largely complete. Proxy auth, TLS, and firewall remain
-    deployment responsibilities.
+    App-level hardening for V2 is complete. Proxy auth, TLS, and firewall recipes ship under
+    <code>deploy/</code>; apply them on the Pi and verify.
   </p>
 
   <h3>Security Posture (updated)</h3>
@@ -730,15 +729,15 @@ Home · Analytics · Statements · Categories · AskAI</code></pre>
         <tr><th>Area</th><th>Status</th><th>Notes</th></tr>
       </thead>
       <tbody>
-        <tr><td>Authentication</td><td><span class="status status-todo">Ops pending</span></td><td>Still none in-app — use Caddy/nginx basic auth on Pi</td></tr>
+        <tr><td>Authentication</td><td><span class="status status-done">Docs</span></td><td>None in-app — use Caddy basic auth (<code>deploy/Caddyfile</code>)</td></tr>
         <tr><td>Network binding</td><td><span class="status status-done">Done</span></td><td><code>HOST</code> env; production default <code>127.0.0.1</code> via <code>src/server/config.js</code></td></tr>
         <tr><td>Upload size limit</td><td><span class="status status-done">Done</span></td><td><code>MAX_UPLOAD_SIZE</code> default 5&nbsp;MB; 413 on oversize</td></tr>
         <tr><td>Server-side CSV validation</td><td><span class="status status-done">Done</span></td><td>Requires <code>.csv</code> extension + light content check</td></tr>
         <tr><td>Security headers</td><td><span class="status status-done">Done</span></td><td><code>X-Content-Type-Options</code>, <code>X-Frame-Options</code>, <code>Referrer-Policy</code> on Bun responses</td></tr>
         <tr><td>Static path sanitization</td><td><span class="status status-done">Done</span></td><td>Resolved under <code>dist/</code>; rejects <code>..</code> escape</td></tr>
         <tr><td>AI SQL sandbox</td><td><span class="status status-done">Hardened</span></td><td>Readonly DB connection; block <code>sqlite_master</code> / VACUUM / etc.; no SQL in client error payloads</td></tr>
-        <tr><td>HTTPS / TLS</td><td><span class="status status-todo">Ops pending</span></td><td>Terminate at reverse proxy</td></tr>
-        <tr><td>Firewall</td><td><span class="status status-todo">Ops pending</span></td><td>Document + apply on Pi</td></tr>
+        <tr><td>HTTPS / TLS</td><td><span class="status status-done">Docs</span></td><td><code>tls internal</code> in <code>deploy/Caddyfile</code></td></tr>
+        <tr><td>Firewall</td><td><span class="status status-done">Docs</span></td><td>ufw example in <code>deploy/README.md</code></td></tr>
         <tr><td>Encryption at rest</td><td><span class="status status-todo">Deferred</span></td><td>Prefer LUKS / encrypted SSD</td></tr>
         <tr><td>CORS (production)</td><td><span class="status status-ok">OK</span></td><td>Disabled (same-origin)</td></tr>
         <tr><td>SQL injection (direct API)</td><td><span class="status status-ok">OK</span></td><td>Parameterized queries</td></tr>
@@ -756,8 +755,8 @@ Home · Analytics · Statements · Categories · AskAI</code></pre>
         <tr>
           <td><span class="priority priority-critical">Critical</span></td>
           <td>Reverse proxy with authentication</td>
-          <td><span class="status status-todo">Todo</span></td>
-          <td>Caddy/nginx basic auth — still the preferred auth model</td>
+          <td><span class="status status-done">Done</span></td>
+          <td><code>deploy/Caddyfile</code> — basic auth + reverse proxy</td>
         </tr>
         <tr>
           <td><span class="priority priority-critical">Critical</span></td>
@@ -768,14 +767,14 @@ Home · Analytics · Statements · Categories · AskAI</code></pre>
         <tr>
           <td><span class="priority priority-high">High</span></td>
           <td>HTTPS via reverse proxy</td>
-          <td><span class="status status-todo">Todo</span></td>
-          <td>Document in upcoming <code>deploy/Caddyfile</code></td>
+          <td><span class="status status-done">Done</span></td>
+          <td><code>tls internal</code> documented in <code>deploy/Caddyfile</code></td>
         </tr>
         <tr>
           <td><span class="priority priority-high">High</span></td>
           <td>Firewall rules</td>
-          <td><span class="status status-todo">Todo</span></td>
-          <td>Allow only LAN to proxy ports; never expose Bun publicly</td>
+          <td><span class="status status-done">Done</span></td>
+          <td>ufw LAN-only 80/443 example in <code>deploy/README.md</code></td>
         </tr>
         <tr>
           <td><span class="priority priority-high">High</span></td>
@@ -804,16 +803,17 @@ Home · Analytics · Statements · Categories · AskAI</code></pre>
         <tr>
           <td><span class="priority priority-medium">Medium</span></td>
           <td>Lock down Ollama</td>
-          <td><span class="status status-todo">Docs</span></td>
-          <td>Bind Ollama to <code>127.0.0.1</code> on the Pi (ops doc)</td>
+          <td><span class="status status-done">Done</span></td>
+          <td>Bind Ollama to <code>127.0.0.1</code> — documented in <code>deploy/README.md</code></td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <h3>Example: Caddyfile (still planned for deploy/)</h3>
-  <pre><code># deploy/Caddyfile (not yet in repo)
+  <h3>Caddyfile (shipped)</h3>
+  <pre><code># deploy/Caddyfile
 expenses.home.lan {
+    tls internal
     basic_auth {
         you $2a$14$...hashed_password...
     }
@@ -831,9 +831,9 @@ expenses.home.lan {
   <h2>4. Raspberry Pi Deployment &amp; Operations</h2>
 
   <p>
-    Production start exists (<code>bun run build</code> + <code>bun run start</code>). The app now
-    supports the env knobs and health endpoint needed for Pi ops. The <code>deploy/</code>
-    directory itself is <strong>not yet added</strong>.
+    Production start exists (<code>bun run build</code> + <code>bun run start</code>). The app supports
+    the env knobs and health endpoint needed for Pi ops. The <code>deploy/</code> package is
+    <strong>in the repo</strong> — follow <code>deploy/README.md</code> on the Pi to apply it.
   </p>
 
   <h3>What Exists Today</h3>
@@ -845,16 +845,19 @@ expenses.home.lan {
     <li><code>HOST</code>, <code>PORT</code>, <code>DB_PATH</code>, <code>MAX_UPLOAD_SIZE</code> wired</li>
     <li><code>GET /api/health</code> + graceful <code>SIGTERM</code>/<code>SIGINT</code> shutdown</li>
     <li><code>PRAGMA journal_mode=WAL</code> enabled at DB init</li>
+    <li><code>deploy/expense-tracker.service</code> — systemd unit</li>
+    <li><code>deploy/Caddyfile</code> — reverse proxy + basic auth + internal TLS</li>
+    <li><code>deploy/backup.sh</code> — nightly SQLite <code>.backup</code> + rotation</li>
+    <li><code>deploy/setup.sh</code> — one-shot Pi installer (apt, Caddy, ufw, cron)</li>
+    <li><code>deploy/install.sh</code> — app layer only (called by setup.sh)</li>
+    <li><code>deploy/README.md</code> — step-by-step guide (firewall, Ollama, restore)</li>
   </ul>
 
-  <h3>What Still Needs Adding (ops)</h3>
+  <h3>What Still Needs Doing (on your Pi)</h3>
   <ul class="checklist todo">
-    <li><code>deploy/expense-tracker.service</code> — systemd unit</li>
-    <li><code>deploy/Caddyfile</code> — reverse proxy + basic auth + headers</li>
-    <li><code>deploy/backup.sh</code> — nightly SQLite <code>.backup</code> + rotation</li>
-    <li><code>deploy/install.sh</code> — idempotent Pi setup helper</li>
-    <li><code>deploy/README.md</code> — step-by-step guide</li>
-    <li>Firewall + Ollama localhost binding documented on-device</li>
+    <li>Run <code>sudo ./deploy/setup.sh</code> (one command — see root README)</li>
+    <li>Point DNS/hosts at <code>expenses.home.lan</code>; verify auth in browser</li>
+    <li>Confirm reboot persistence and restore drill once</li>
   </ul>
 
   <h3>Health Endpoint (shipped)</h3>
@@ -1121,17 +1124,18 @@ jobs:
 
   <div class="timeline">
     <div class="timeline-item">
-      <h4>Phase 1 — Security &amp; Deployment <span class="status status-partial">Partial</span></h4>
+      <h4>Phase 1 — Security &amp; Deployment <span class="status status-done">Done</span></h4>
       <p class="phase-goal">Safe to leave running on a Pi on the home LAN.</p>
       <ul class="checklist done">
         <li><code>HOST</code> binding + production default <code>127.0.0.1</code></li>
         <li>Upload size limit + basic CSV validation</li>
         <li><code>GET /api/health</code> + graceful shutdown</li>
         <li><code>.env.example</code>, WAL mode, path sanitization, security headers</li>
+        <li><code>deploy/</code> systemd + Caddyfile + backup.sh + install + README</li>
+        <li>Firewall + Ollama localhost binding documented</li>
       </ul>
       <ul class="checklist todo">
-        <li><code>deploy/</code> systemd + Caddyfile + backup.sh + install notes</li>
-        <li>Firewall + Ollama localhost binding documented / verified on Pi</li>
+        <li>On-device verification (auth, firewall, reboot, restore drill)</li>
       </ul>
     </div>
 
@@ -1201,18 +1205,18 @@ jobs:
 <section id="success">
   <h2>12. Success Criteria</h2>
 
-  <p>Phase 1 (app code) checklist:</p>
+  <p>Phase 1 (app + deploy artifacts) checklist:</p>
   <ul class="checklist done">
     <li>App can bind to localhost via <code>HOST=127.0.0.1</code></li>
     <li><code>/api/health</code> returns OK when DB is readable</li>
     <li>Oversized / non-CSV uploads are rejected server-side</li>
+    <li><code>deploy/</code> unit, Caddyfile, backup, install, and README exist</li>
   </ul>
   <ul class="checklist todo">
-    <li>Only Caddy/nginx is reachable on the LAN (ops)</li>
-    <li>Basic auth required before financial data is visible (ops)</li>
-    <li>Service starts on boot via systemd and survives reboot (ops)</li>
-    <li>Nightly DB backup exists and restore steps are documented (ops)</li>
-    <li>Deploy steps verified on a Pi (or Pi-like ARM host)</li>
+    <li>Only Caddy/nginx is reachable on the LAN (verify on Pi)</li>
+    <li>Basic auth required before financial data is visible (verify on Pi)</li>
+    <li>Service starts on boot via systemd and survives reboot (verify on Pi)</li>
+    <li>Nightly DB backup scheduled and restore steps exercised once</li>
   </ul>
 
   <p>Through Phase 3 (product) — <strong>complete</strong>:</p>
@@ -1253,13 +1257,23 @@ jobs:
     <li><code>scripts/check-credits.js</code></li>
     <li>New tests: CardInfoModal, Contexts, StatementsPage; updated App/AskAI/routes tests</li>
   </ul>
+
+  <h3>Deploy</h3>
+  <ul>
+    <li><code>deploy/expense-tracker.service</code> — systemd unit (<code>expenses</code> user, localhost Bun)</li>
+    <li><code>deploy/Caddyfile</code> — basic auth + <code>tls internal</code> + reverse proxy</li>
+    <li><code>deploy/backup.sh</code> — SQLite <code>.backup</code> + retention</li>
+    <li><code>deploy/setup.sh</code> — one-shot Pi installer (apt, Caddy, ufw, cron)</li>
+    <li><code>deploy/install.sh</code> — app layer only (called by setup.sh)</li>
+    <li><code>deploy/README.md</code> — full Pi guide</li>
+  </ul>
 </section>
 
 </div>
 
 <footer>
   Paisa Kidhar Gaya?! V2 Status Document &middot; Updated August 10, 2026 &middot;
-  Code complete on main; Pi deploy/ ops still pending
+  Code + deploy/ artifacts complete; on-device Pi verification remains
 </footer>
 
 </body>
