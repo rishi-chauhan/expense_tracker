@@ -15,35 +15,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# shellcheck source=tty.sh
+source "${SCRIPT_DIR}/tty.sh"
+
 APP_ROOT="${APP_ROOT:-/opt/expense_tracker}"
-APP_USER="${APP_USER:-expenses}"
-APP_GROUP="${APP_GROUP:-${APP_USER}}"
+APP_USER="${APP_USER:-}"
 SERVICE_NAME="${SERVICE_NAME:-expense-tracker}"
 DRY_RUN="${DRY_RUN:-0}"
 SKIP_NEXT_STEPS="${SKIP_NEXT_STEPS:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
-
-run() {
-  if [[ "${DRY_RUN}" == "1" ]]; then
-    echo "[dry-run] $*"
-  else
-    "$@"
-  fi
-}
-
-# bun/vite treat a closed stdin pipe as empty input and fail with "Error: EOF".
-run_as_app() {
-  if [[ "${DRY_RUN}" == "1" ]]; then
-    echo "[dry-run] sudo -u ${APP_USER} $* (in ${APP_ROOT})"
-    return 0
-  fi
-  local stdin_dev="/dev/tty"
-  if [[ ! -r /dev/tty ]]; then
-    stdin_dev="/dev/null"
-  fi
-  sudo -u "${APP_USER}" -H env HOME="${APP_ROOT}" \
-    bash -c "cd '${APP_ROOT}' && $*" <"${stdin_dev}"
-}
 
 run() {
   if [[ "${DRY_RUN}" == "1" ]]; then
@@ -60,13 +40,15 @@ need_root() {
   fi
 }
 
+need_root
+attach_controlling_tty
+resolve_app_user
+
 echo "==> Paisa Kidhar Gaya?! install"
 echo "    source:  ${SOURCE_ROOT}"
 echo "    target:  ${APP_ROOT}"
 echo "    user:    ${APP_USER}"
 echo "    dry-run: ${DRY_RUN}"
-
-need_root
 
 # shellcheck source=ensure-bun.sh
 source "${SCRIPT_DIR}/ensure-bun.sh"
@@ -87,12 +69,18 @@ if ! command -v sqlite3 >/dev/null 2>&1; then
   echo "    (continuing; required for deploy/backup.sh)"
 fi
 
-# --- user ---
+# --- user (login account; do not create a dedicated service user unless asked) ---
 if ! id -u "${APP_USER}" >/dev/null 2>&1; then
-  echo "==> Creating user ${APP_USER}"
-  run useradd --system --home-dir "${APP_ROOT}" --shell /usr/sbin/nologin "${APP_USER}"
+  echo "User '${APP_USER}' does not exist."
+  if confirm_tty "Create it as a system user? [y/N] "; then
+    echo "==> Creating user ${APP_USER}"
+    run useradd --system --home-dir "${APP_ROOT}" --shell /usr/sbin/nologin "${APP_USER}"
+  else
+    echo "install.sh: re-run as: sudo APP_USER=\$SUDO_USER $0" >&2
+    exit 1
+  fi
 else
-  echo "==> User ${APP_USER} already exists"
+  echo "==> Using existing user ${APP_USER}"
 fi
 
 # --- directories ---
@@ -137,26 +125,38 @@ else
   echo "==> .env already present — leaving untouched"
 fi
 
-# --- ownership ---
-echo "==> Fixing ownership"
-run chown -R "${APP_USER}:${APP_GROUP}" "${APP_ROOT}"
-
 assert_bun_runnable_by_app_user "${BUN_BIN}"
 
-# --- deps + production build (if dist missing) ---
-echo "==> Installing dependencies as ${APP_USER}"
-run_as_app "'${BUN_BIN}' install"
+# Run bun as root (this script is already sudo). sudo -u + closed stdin is
+# what produced "Error: EOF" from Vite/Bun on the Pi.
+echo "==> Installing dependencies"
+if [[ "${DRY_RUN}" == "1" ]]; then
+  echo "[dry-run] ${BUN_BIN} install (in ${APP_ROOT})"
+else
+  ( cd "${APP_ROOT}" && "${BUN_BIN}" install )
+fi
 
 if [[ "${SKIP_BUILD}" == "1" ]]; then
   echo "==> Skipping production build (SKIP_BUILD=1)"
-elif [[ ! -d "${APP_ROOT}/dist" ]]; then
-  echo "==> dist/ missing — running production build"
-  echo "    Tip: on weak Pis, build on a laptop and rsync dist/ instead."
-  run_as_app "'${BUN_BIN}' x vite build" \
-    || echo "WARNING: build failed — rsync a prebuilt dist/ from your laptop" >&2
-else
+elif [[ -d "${APP_ROOT}/dist" ]]; then
   echo "==> dist/ present — skipping build"
+elif [[ "${DRY_RUN}" == "1" ]]; then
+  echo "[dry-run] vite build in ${APP_ROOT}"
+else
+  echo "==> dist/ is missing."
+  echo "    Vite on a Raspberry Pi often fails with 'Error: EOF' (RAM)."
+  echo "    Safer: build on a laptop and copy dist/ into ${APP_ROOT}/dist/"
+  if confirm_tty "Build on this device now? [y/N] "; then
+    echo "==> Running production build (this can take a while)"
+    ( cd "${APP_ROOT}" && "${BUN_BIN}" ./node_modules/vite/bin/vite.js build ) \
+      || echo "WARNING: build failed — copy a prebuilt dist/ from your laptop" >&2
+  else
+    echo "==> Skipping build — copy dist/ later, then: sudo systemctl restart ${SERVICE_NAME}"
+  fi
 fi
+
+echo "==> Fixing ownership"
+run chown -R "${APP_USER}:${APP_GROUP}" "${APP_ROOT}"
 
 # --- systemd unit (rewrite paths if APP_ROOT is not the default) ---
 UNIT_SRC="${SOURCE_ROOT}/deploy/expense-tracker.service"

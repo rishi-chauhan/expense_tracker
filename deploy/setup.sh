@@ -22,8 +22,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# shellcheck source=tty.sh
+source "${SCRIPT_DIR}/tty.sh"
+
 APP_ROOT="${APP_ROOT:-/opt/expense_tracker}"
-APP_USER="${APP_USER:-expenses}"
+APP_USER="${APP_USER:-}"
 EXPENSES_HOST="${EXPENSES_HOST:-expenses.home.lan}"
 EXPENSES_ADMIN_USER="${EXPENSES_ADMIN_USER:-admin}"
 LAN_SUBNET="${LAN_SUBNET:-192.168.0.0/16}"
@@ -90,18 +93,14 @@ prompt_password() {
   if [[ -n "${EXPENSES_ADMIN_PASSWORD:-}" ]]; then
     return 0
   fi
-  if [[ ! -t 0 ]]; then
-    echo "setup.sh: set EXPENSES_ADMIN_PASSWORD for non-interactive install" >&2
-    exit 1
-  fi
-  echo "Caddy basic-auth password for user '${EXPENSES_ADMIN_USER}' (input is hidden)."
+  echo "Caddy basic-auth password for user '${EXPENSES_ADMIN_USER}' (typing is hidden)." >/dev/tty
+  echo "Waiting for input — type a password and press Enter." >/dev/tty
   while true; do
-    read -rsp "Password: " EXPENSES_ADMIN_PASSWORD
-    echo
+    EXPENSES_ADMIN_PASSWORD="$(read_tty -s "Password: ")" || exit 1
     if [[ -n "${EXPENSES_ADMIN_PASSWORD}" ]]; then
       break
     fi
-    echo "Password cannot be empty — try again."
+    echo "Password cannot be empty — try again." >/dev/tty
   done
 }
 
@@ -311,8 +310,12 @@ echo "  DRY_RUN:       ${DRY_RUN}"
 echo
 
 need_root
+attach_controlling_tty
+resolve_app_user
 
-# Ask before apt/build so a blank Enter is not after several minutes of output.
+echo "  APP_USER:      ${APP_USER}"
+
+# Ask before apt/build so prompts are not buried in Vite output.
 if [[ "${SKIP_CADDY}" != "1" ]]; then
   prompt_password
 fi
@@ -325,7 +328,7 @@ install_bun
 
 if [[ "${SKIP_INSTALL}" != "1" ]]; then
   echo "==> Installing application (systemd, build, deps)"
-  export APP_ROOT APP_USER DRY_RUN SKIP_NEXT_STEPS=1
+  export APP_ROOT APP_USER APP_GROUP DRY_RUN SKIP_NEXT_STEPS=1 SKIP_BUILD
   "${SCRIPT_DIR}/install.sh"
 else
   echo "==> Skipping app install (SKIP_INSTALL=1)"
