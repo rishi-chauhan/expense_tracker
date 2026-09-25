@@ -21,6 +21,29 @@ APP_GROUP="${APP_GROUP:-${APP_USER}}"
 SERVICE_NAME="${SERVICE_NAME:-expense-tracker}"
 DRY_RUN="${DRY_RUN:-0}"
 SKIP_NEXT_STEPS="${SKIP_NEXT_STEPS:-0}"
+SKIP_BUILD="${SKIP_BUILD:-0}"
+
+run() {
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[dry-run] $*"
+  else
+    "$@"
+  fi
+}
+
+# bun/vite treat a closed stdin pipe as empty input and fail with "Error: EOF".
+run_as_app() {
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[dry-run] sudo -u ${APP_USER} $* (in ${APP_ROOT})"
+    return 0
+  fi
+  local stdin_dev="/dev/tty"
+  if [[ ! -r /dev/tty ]]; then
+    stdin_dev="/dev/null"
+  fi
+  sudo -u "${APP_USER}" -H env HOME="${APP_ROOT}" \
+    bash -c "cd '${APP_ROOT}' && $*" <"${stdin_dev}"
+}
 
 run() {
   if [[ "${DRY_RUN}" == "1" ]]; then
@@ -76,6 +99,11 @@ fi
 echo "==> Ensuring directories under ${APP_ROOT}"
 run mkdir -p "${APP_ROOT}" "${APP_ROOT}/data" "${APP_ROOT}/backups"
 
+if systemctl is-active --quiet "${SERVICE_NAME}" 2>/dev/null; then
+  echo "==> Stopping ${SERVICE_NAME} before sync/build"
+  run systemctl stop "${SERVICE_NAME}.service" || true
+fi
+
 # --- sync tree (if installing from another path) ---
 if [[ "$(cd "${SOURCE_ROOT}" && pwd)" != "$(cd "${APP_ROOT}" 2>/dev/null && pwd || true)" ]]; then
   echo "==> Syncing project files to ${APP_ROOT}"
@@ -84,6 +112,7 @@ if [[ "$(cd "${SOURCE_ROOT}" && pwd)" != "$(cd "${APP_ROOT}" 2>/dev/null && pwd 
       --exclude '.git/' \
       --exclude '.bun/' \
       --exclude 'node_modules/' \
+      --exclude 'dist/' \
       --exclude 'data/*.db' \
       --exclude 'data/*.db-*' \
       --exclude 'backups/' \
@@ -115,23 +144,16 @@ run chown -R "${APP_USER}:${APP_GROUP}" "${APP_ROOT}"
 assert_bun_runnable_by_app_user "${BUN_BIN}"
 
 # --- deps + production build (if dist missing) ---
-# Use absolute bun path — expenses login shell may not include /usr/local/bin
 echo "==> Installing dependencies as ${APP_USER}"
-if [[ "${DRY_RUN}" == "1" ]]; then
-  echo "[dry-run] sudo -u ${APP_USER} env HOME=${APP_ROOT} ${BUN_BIN} install (in ${APP_ROOT})"
-else
-  sudo -u "${APP_USER}" -H env HOME="${APP_ROOT}" bash -c "cd '${APP_ROOT}' && '${BUN_BIN}' install"
-fi
+run_as_app "'${BUN_BIN}' install"
 
-if [[ ! -d "${APP_ROOT}/dist" ]]; then
+if [[ "${SKIP_BUILD}" == "1" ]]; then
+  echo "==> Skipping production build (SKIP_BUILD=1)"
+elif [[ ! -d "${APP_ROOT}/dist" ]]; then
   echo "==> dist/ missing — running production build"
   echo "    Tip: on weak Pis, build on a laptop and rsync dist/ instead."
-  if [[ "${DRY_RUN}" == "1" ]]; then
-    echo "[dry-run] sudo -u ${APP_USER} env HOME=${APP_ROOT} ${BUN_BIN} run build"
-  else
-    sudo -u "${APP_USER}" -H env HOME="${APP_ROOT}" bash -c "cd '${APP_ROOT}' && '${BUN_BIN}' run build" \
-      || echo "WARNING: build failed — rsync a prebuilt dist/ from your laptop" >&2
-  fi
+  run_as_app "'${BUN_BIN}' x vite build" \
+    || echo "WARNING: build failed — rsync a prebuilt dist/ from your laptop" >&2
 else
   echo "==> dist/ present — skipping build"
 fi

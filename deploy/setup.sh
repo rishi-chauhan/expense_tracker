@@ -16,7 +16,7 @@
 #   EXPENSES_ADMIN_PASSWORD  required if non-interactive (no TTY)
 #   LAN_SUBNET            default 192.168.0.0/16
 #   SETUP_FIREWALL=1      apply ufw rules (default 1)
-#   SKIP_APT=1 SKIP_CADDY=1 SKIP_FIREWALL=1 SKIP_CRON=1  partial re-runs
+#   SKIP_APT=1 SKIP_INSTALL=1 SKIP_CADDY=1 SKIP_FIREWALL=1 SKIP_CRON=1  partial re-runs
 
 set -euo pipefail
 
@@ -29,6 +29,7 @@ EXPENSES_ADMIN_USER="${EXPENSES_ADMIN_USER:-admin}"
 LAN_SUBNET="${LAN_SUBNET:-192.168.0.0/16}"
 SETUP_FIREWALL="${SETUP_FIREWALL:-1}"
 SKIP_APT="${SKIP_APT:-0}"
+SKIP_INSTALL="${SKIP_INSTALL:-0}"
 SKIP_CADDY="${SKIP_CADDY:-0}"
 SKIP_FIREWALL="${SKIP_FIREWALL:-0}"
 SKIP_CRON="${SKIP_CRON:-0}"
@@ -322,9 +323,13 @@ fi
 
 install_bun
 
-echo "==> Installing application (systemd, build, deps)"
-export APP_ROOT APP_USER DRY_RUN SKIP_NEXT_STEPS=1
-"${SCRIPT_DIR}/install.sh"
+if [[ "${SKIP_INSTALL}" != "1" ]]; then
+  echo "==> Installing application (systemd, build, deps)"
+  export APP_ROOT APP_USER DRY_RUN SKIP_NEXT_STEPS=1
+  "${SCRIPT_DIR}/install.sh"
+else
+  echo "==> Skipping app install (SKIP_INSTALL=1)"
+fi
 
 if [[ "${SKIP_CADDY}" != "1" ]]; then
   configure_caddy
