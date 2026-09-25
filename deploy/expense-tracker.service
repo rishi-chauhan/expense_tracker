@@ -13,8 +13,8 @@ WorkingDirectory=/opt/expense_tracker
 # Optional env overrides (HOST, PORT, DB_PATH, MAX_UPLOAD_SIZE, OLLAMA_*)
 EnvironmentFile=-/opt/expense_tracker/.env
 
-# Prefer a full path to bun if /usr/bin/bun is not installed system-wide.
-# Install Bun for the expenses user, or symlink: ln -s /home/expenses/.bun/bin/bun /usr/local/bin/bun
+# Must be a real 0755 binary under /usr/local/bin — a symlink into /root/.bun
+# is not executable by User=expenses (and ProtectHome=true would block it).
 ExecStart=/usr/local/bin/bun run start
 
 Restart=on-failure

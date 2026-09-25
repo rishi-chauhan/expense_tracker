@@ -45,27 +45,17 @@ echo "    dry-run: ${DRY_RUN}"
 
 need_root
 
-# --- Bun ---
-BUN_BIN=""
-for candidate in /usr/local/bin/bun /usr/bin/bun "${HOME}/.bun/bin/bun"; do
-  if [[ -x "${candidate}" ]]; then
-    BUN_BIN="${candidate}"
-    break
-  fi
-done
+# shellcheck source=ensure-bun.sh
+source "${SCRIPT_DIR}/ensure-bun.sh"
 
-if [[ -z "${BUN_BIN}" ]]; then
-  if command -v bun >/dev/null 2>&1; then
-    BUN_BIN="$(command -v bun)"
-  fi
-fi
-
-if [[ -z "${BUN_BIN}" ]]; then
+# --- Bun (must be a real 0755 file, not a symlink into /root/.bun) ---
+if ! promote_bun_to_system; then
   echo "install.sh: Bun not found. Install from https://bun.sh then re-run." >&2
   echo "  curl -fsSL https://bun.sh/install | bash" >&2
-  echo "  sudo ln -sf \"\$HOME/.bun/bin/bun\" /usr/local/bin/bun" >&2
+  echo "  sudo ./deploy/setup.sh" >&2
   exit 1
 fi
+BUN_BIN="${SYSTEM_BUN}"
 echo "==> Found bun at ${BUN_BIN}"
 
 # --- sqlite3 (for backups) ---
@@ -92,6 +82,7 @@ if [[ "$(cd "${SOURCE_ROOT}" && pwd)" != "$(cd "${APP_ROOT}" 2>/dev/null && pwd 
   if command -v rsync >/dev/null 2>&1; then
     run rsync -a --delete \
       --exclude '.git/' \
+      --exclude '.bun/' \
       --exclude 'node_modules/' \
       --exclude 'data/*.db' \
       --exclude 'data/*.db-*' \
@@ -121,11 +112,7 @@ fi
 echo "==> Fixing ownership"
 run chown -R "${APP_USER}:${APP_GROUP}" "${APP_ROOT}"
 
-# --- bun path for systemd ---
-if [[ ! -e /usr/local/bin/bun ]]; then
-  echo "==> Linking bun to /usr/local/bin/bun for systemd"
-  run ln -sf "${BUN_BIN}" /usr/local/bin/bun
-fi
+assert_bun_runnable_by_app_user "${BUN_BIN}"
 
 # --- deps + production build (if dist missing) ---
 # Use absolute bun path — expenses login shell may not include /usr/local/bin

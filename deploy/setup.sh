@@ -101,19 +101,30 @@ prompt_password() {
   fi
 }
 
+# shellcheck source=ensure-bun.sh
+source "${SCRIPT_DIR}/ensure-bun.sh"
+
 install_bun() {
-  if command -v bun >/dev/null 2>&1 || [[ -x /usr/local/bin/bun ]]; then
-    echo "==> Bun already installed"
-    return 0
-  fi
-  echo "==> Installing Bun"
-  if [[ "${DRY_RUN}" == "1" ]]; then
-    echo "[dry-run] curl -fsSL https://bun.sh/install | bash"
-    return 0
-  fi
   export BUN_INSTALL="${BUN_INSTALL:-/root/.bun}"
-  curl -fsSL https://bun.sh/install | bash
-  run ln -sf "${BUN_INSTALL}/bin/bun" /usr/local/bin/bun
+  if _find_bun_binary >/dev/null; then
+    echo "==> Bun found — promoting to a world-executable ${SYSTEM_BUN}"
+  else
+    echo "==> Installing Bun"
+    if [[ "${DRY_RUN}" == "1" ]]; then
+      echo "[dry-run] curl -fsSL https://bun.sh/install | bash"
+      echo "[dry-run] copy bun -> ${SYSTEM_BUN} (mode 0755, not a symlink into /root)"
+      return 0
+    fi
+    curl -fsSL https://bun.sh/install | bash
+  fi
+  if ! promote_bun_to_system; then
+    echo "setup.sh: Bun install failed" >&2
+    exit 1
+  fi
+  if [[ "${DRY_RUN}" != "1" && ! -x "${SYSTEM_BUN}" ]]; then
+    echo "setup.sh: ${SYSTEM_BUN} is not executable" >&2
+    exit 1
+  fi
 }
 
 install_apt_packages() {
