@@ -82,7 +82,9 @@ assert_bun_runnable_by_app_user() {
   if ! id -u "${APP_USER}" >/dev/null 2>&1; then
     return 0
   fi
-  if sudo -u "${APP_USER}" -- "${bun_bin}" --version >/dev/null 2>&1; then
+  # Do not execute bun here: cwd is often the git clone (has .env) and stdin may
+  # be a TTY after password input — that combination is "Error: EOF".
+  if sudo -u "${APP_USER}" -- test -x "${bun_bin}"; then
     return 0
   fi
   echo "ensure-bun: ${APP_USER} cannot execute ${bun_bin}" >&2

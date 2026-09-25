@@ -40,6 +40,20 @@ need_root() {
   fi
 }
 
+# Bun treats a TTY stdin (especially after `read -s`) as a data stream → Error: EOF.
+run_bun() {
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[dry-run] ${BUN_BIN} $* (in ${APP_ROOT})"
+    return 0
+  fi
+  restore_tty
+  (
+    cd "${APP_ROOT}"
+    export CI=true
+    "${BUN_BIN}" "$@"
+  ) </dev/null
+}
+
 need_root
 attach_controlling_tty
 resolve_app_user
@@ -130,11 +144,7 @@ assert_bun_runnable_by_app_user "${BUN_BIN}"
 # Run bun as root (this script is already sudo). sudo -u + closed stdin is
 # what produced "Error: EOF" from Vite/Bun on the Pi.
 echo "==> Installing dependencies"
-if [[ "${DRY_RUN}" == "1" ]]; then
-  echo "[dry-run] ${BUN_BIN} install (in ${APP_ROOT})"
-else
-  ( cd "${APP_ROOT}" && "${BUN_BIN}" install )
-fi
+run_bun install
 
 if [[ "${SKIP_BUILD}" == "1" ]]; then
   echo "==> Skipping production build (SKIP_BUILD=1)"
@@ -148,7 +158,7 @@ else
   echo "    Safer: build on a laptop and copy dist/ into ${APP_ROOT}/dist/"
   if confirm_tty "Build on this device now? [y/N] "; then
     echo "==> Running production build (this can take a while)"
-    ( cd "${APP_ROOT}" && "${BUN_BIN}" ./node_modules/vite/bin/vite.js build ) \
+    run_bun ./node_modules/vite/bin/vite.js build \
       || echo "WARNING: build failed — copy a prebuilt dist/ from your laptop" >&2
   else
     echo "==> Skipping build — copy dist/ later, then: sudo systemctl restart ${SERVICE_NAME}"

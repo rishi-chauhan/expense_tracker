@@ -1,13 +1,16 @@
 # Sourced by setup.sh and install.sh.
-# Always talk to the user's keyboard, even under sudo (sudo's stdin is often a pipe → EOF).
+# Prompts must use /dev/tty. Do not exec-replace stdin — that makes Bun inherit a
+# half-configured terminal after `read -s` and exit with "Error: EOF".
+
+restore_tty() {
+  if [[ -r /dev/tty ]]; then
+    stty sane < /dev/tty 2>/dev/null || true
+    stty echo icanon < /dev/tty 2>/dev/null || true
+  fi
+}
 
 attach_controlling_tty() {
-  if [[ "${DRY_RUN:-0}" == "1" ]]; then
-    return 0
-  fi
-  if [[ -r /dev/tty ]]; then
-    exec </dev/tty
-  fi
+  restore_tty
 }
 
 read_tty() {
@@ -28,6 +31,7 @@ read_tty() {
   else
     read -r -p "${prompt}" value </dev/tty
   fi
+  restore_tty
   printf '%s' "${value}"
 }
 
