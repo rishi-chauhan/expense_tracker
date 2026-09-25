@@ -93,12 +93,15 @@ prompt_password() {
     echo "setup.sh: set EXPENSES_ADMIN_PASSWORD for non-interactive install" >&2
     exit 1
   fi
-  read -rsp "Password for Caddy basic auth (${EXPENSES_ADMIN_USER}): " EXPENSES_ADMIN_PASSWORD
-  echo
-  if [[ -z "${EXPENSES_ADMIN_PASSWORD}" ]]; then
-    echo "setup.sh: password cannot be empty" >&2
-    exit 1
-  fi
+  echo "Caddy basic-auth password for user '${EXPENSES_ADMIN_USER}' (input is hidden)."
+  while true; do
+    read -rsp "Password: " EXPENSES_ADMIN_PASSWORD
+    echo
+    if [[ -n "${EXPENSES_ADMIN_PASSWORD}" ]]; then
+      break
+    fi
+    echo "Password cannot be empty — try again."
+  done
 }
 
 # shellcheck source=ensure-bun.sh
@@ -307,6 +310,11 @@ echo "  DRY_RUN:       ${DRY_RUN}"
 echo
 
 need_root
+
+# Ask before apt/build so a blank Enter is not after several minutes of output.
+if [[ "${SKIP_CADDY}" != "1" ]]; then
+  prompt_password
+fi
 
 if [[ "${SKIP_APT}" != "1" ]]; then
   install_apt_packages
