@@ -201,7 +201,13 @@ configure_caddy() {
   echo "==> Validating Caddy configuration"
   run caddy validate --config "${CADDY_MAIN}" --adapter caddyfile
   run systemctl enable caddy
-  run systemctl reload caddy || run systemctl restart caddy
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[dry-run] systemctl reload caddy (or start when inactive)"
+  elif systemctl is-active --quiet caddy; then
+    systemctl reload caddy
+  else
+    systemctl start caddy
+  fi
 }
 
 configure_firewall() {
