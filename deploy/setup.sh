@@ -198,6 +198,8 @@ configure_caddy() {
     fi
   fi
 
+  echo "==> Validating Caddy configuration"
+  run caddy validate --config "${CADDY_MAIN}" --adapter caddyfile
   run systemctl enable caddy
   run systemctl reload caddy || run systemctl restart caddy
 }

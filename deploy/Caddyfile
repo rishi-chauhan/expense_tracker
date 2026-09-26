@@ -17,7 +17,7 @@
 expenses.home.lan {
 	tls internal
 
-	basic_auth {
+	basicauth {
 		# username  bcrypt_hash
 		you $2a$14$REPLACE_ME_WITH_OUTPUT_OF_caddy_hash_password
 	}
@@ -39,7 +39,7 @@ expenses.home.lan {
 
 # --- Optional: HTTP-only (less safe on open Wi‑Fi; passwords in cleartext) ---
 # http://expenses.home.lan {
-# 	basic_auth {
+# 	basicauth {
 # 		you $2a$14$REPLACE_ME_WITH_OUTPUT_OF_caddy_hash_password
 # 	}
 # 	header {

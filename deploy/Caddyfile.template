@@ -3,7 +3,7 @@
 {{HOST}} {
 	tls internal
 
-	basic_auth {
+	basicauth {
 		{{USER}} {{HASH}}
 	}
 
