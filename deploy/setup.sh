@@ -156,7 +156,7 @@ configure_caddy() {
     echo "[dry-run] caddy hash-password"
   else
     # Prefer stdin so the plaintext password is not visible in `ps`
-    hash="$(printf '%s' "${EXPENSES_ADMIN_PASSWORD}" | caddy hash-password)"
+    hash="$(printf '%s\n' "${EXPENSES_ADMIN_PASSWORD}" | caddy hash-password)"
     unset EXPENSES_ADMIN_PASSWORD
   fi
 
