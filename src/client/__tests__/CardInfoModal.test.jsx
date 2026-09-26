@@ -66,4 +66,14 @@ describe('CardInfoModal', () => {
     await user.click(container.querySelector('.modal-overlay'));
     expect(onCancel).toHaveBeenCalled();
   });
+
+  it('calls onCancel when Escape is pressed', async () => {
+    const onCancel = vi.fn();
+    const user = userEvent.setup();
+    render(<CardInfoModal detected={{}} onConfirm={vi.fn()} onCancel={onCancel} />);
+
+    await user.keyboard('{Escape}');
+
+    expect(onCancel).toHaveBeenCalled();
+  });
 });

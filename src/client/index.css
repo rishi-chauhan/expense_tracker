@@ -12,11 +12,11 @@
   /* ===== Color System (Dark — default) ===== */
 
   /* Backgrounds */
-  --color-bg-base: #0b0f1a;
-  --color-bg-card: #141828;
-  --color-bg-elevated: #1a1f35;
-  --color-bg-surface: #0f1322;
-  --color-bg-header: rgba(11, 15, 26, 0.85);
+  --color-bg-base: #080c14;
+  --color-bg-card: #111722;
+  --color-bg-elevated: #18202d;
+  --color-bg-surface: #0c121c;
+  --color-bg-header: rgba(8, 12, 20, 0.82);
 
   /* Borders */
   --color-border: rgba(255, 255, 255, 0.06);
@@ -27,14 +27,14 @@
   --color-row-hover: rgba(255, 255, 255, 0.02);
 
   /* Text */
-  --color-text-primary: #eaecf0;
-  --color-text-secondary: #8b8fa6;
-  --color-text-tertiary: #5a5e76;
+  --color-text-primary: #f3f5f7;
+  --color-text-secondary: #9ba6b5;
+  --color-text-tertiary: #667386;
 
   /* Accent - Rich Amber */
-  --color-accent: #d4952e;
-  --color-accent-dim: rgba(212, 149, 46, 0.15);
-  --color-accent-hover: #e0a33e;
+  --color-accent: #f0ad3d;
+  --color-accent-dim: rgba(240, 173, 61, 0.13);
+  --color-accent-hover: #f5bb58;
 
   /* Semantic - Debit (Rose) */
   --color-debit: #e8546e;
@@ -217,11 +217,16 @@ html {
 
 body {
   margin: 0;
+  min-width: 320px;
   font-family: var(--font-body);
   font-size: var(--text-base);
   line-height: var(--leading-normal);
   color: var(--color-text-primary);
   background-color: var(--color-bg-base);
+  background-image:
+    radial-gradient(circle at 8% 0%, var(--color-accent-dim), transparent 28rem),
+    radial-gradient(circle at 90% 20%, var(--color-info-dim), transparent 32rem);
+  background-attachment: fixed;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -257,9 +262,23 @@ button {
   cursor: pointer;
 }
 
+button, a, input, textarea, select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
 input, textarea, select {
   font-family: inherit;
   font-size: inherit;
+  color-scheme: var(--color-scheme);
 }
 
 /* ===== Utility Classes ===== */

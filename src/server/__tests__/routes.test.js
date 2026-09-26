@@ -22,7 +22,7 @@ describe('API Routes', () => {
   });
 
   describe('GET /api/transactions', () => {
-    it('should return success response with transactions and stats', async () => {
+    it('should return a successful transaction list', async () => {
       const req = new Request('http://localhost:3000/api/transactions');
       const url = new URL(req.url);
 
@@ -32,11 +32,7 @@ describe('API Routes', () => {
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.transactions).toBeInstanceOf(Array);
-      expect(data.stats).toBeDefined();
-      expect(data.stats).toHaveProperty('totalTransactions');
-      expect(data.stats).toHaveProperty('totalStatements');
-      expect(data.stats).toHaveProperty('totalDebits');
-      expect(data.stats).toHaveProperty('totalCredits');
+      expect(data).not.toHaveProperty('stats');
     });
   });
 

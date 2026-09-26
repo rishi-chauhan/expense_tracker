@@ -88,7 +88,7 @@ if ! id -u "${APP_USER}" >/dev/null 2>&1; then
   echo "User '${APP_USER}' does not exist."
   if confirm_tty "Create it as a system user? [y/N] "; then
     echo "==> Creating user ${APP_USER}"
-    run useradd --system --home-dir "${APP_ROOT}" --shell /usr/sbin/nologin "${APP_USER}"
+    run useradd --system --user-group --home-dir "${APP_ROOT}" --shell /usr/sbin/nologin "${APP_USER}"
   else
     echo "install.sh: re-run as: sudo APP_USER=\$SUDO_USER $0" >&2
     exit 1
@@ -110,17 +110,21 @@ fi
 if [[ "$(cd "${SOURCE_ROOT}" && pwd)" != "$(cd "${APP_ROOT}" 2>/dev/null && pwd || true)" ]]; then
   echo "==> Syncing project files to ${APP_ROOT}"
   if command -v rsync >/dev/null 2>&1; then
-    run rsync -a --delete \
-      --exclude '.git/' \
-      --exclude '.bun/' \
-      --exclude 'node_modules/' \
-      --exclude 'dist/' \
-      --exclude 'data/*.db' \
-      --exclude 'data/*.db-*' \
-      --exclude 'backups/' \
-      --exclude '.env' \
-      --exclude '.env.local' \
-      "${SOURCE_ROOT}/" "${APP_ROOT}/"
+    RSYNC_ARGS=(
+      -a --delete
+      --exclude '.git/'
+      --exclude '.bun/'
+      --exclude 'node_modules/'
+      --exclude 'data/*.db'
+      --exclude 'data/*.db-*'
+      --exclude 'backups/'
+      --exclude '.env'
+      --exclude '.env.local'
+    )
+    if [[ ! -d "${SOURCE_ROOT}/dist" ]]; then
+      RSYNC_ARGS+=(--exclude 'dist/')
+    fi
+    run rsync "${RSYNC_ARGS[@]}" "${SOURCE_ROOT}/" "${APP_ROOT}/"
   else
     echo "install.sh: rsync not found; copy manually or apt install rsync" >&2
     exit 1
@@ -165,8 +169,14 @@ else
   fi
 fi
 
-echo "==> Fixing ownership"
+echo "==> Fixing ownership and private data permissions"
 run chown -R "${APP_USER}:${APP_GROUP}" "${APP_ROOT}"
+run chmod 700 "${APP_ROOT}/data" "${APP_ROOT}/backups"
+run find "${APP_ROOT}/data" -maxdepth 1 -type f \( -name '*.db' -o -name '*.db-*' \) -exec chmod 600 {} +
+run find "${APP_ROOT}/backups" -maxdepth 1 -type f -name 'expenses-*.db' -exec chmod 600 {} +
+if [[ -f "${APP_ROOT}/.env" ]]; then
+  run chmod 600 "${APP_ROOT}/.env"
+fi
 
 # --- systemd unit (rewrite paths if APP_ROOT is not the default) ---
 UNIT_SRC="${SOURCE_ROOT}/deploy/expense-tracker.service"

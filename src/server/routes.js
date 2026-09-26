@@ -5,7 +5,6 @@ import {
   insertStatement,
   insertTransaction,
   deleteStatement,
-  getStatistics,
   findOrCreateCard,
   getAllCards,
   executeReadOnlyQuery,
@@ -17,7 +16,8 @@ import {
   getAllCategoryRules,
   createCategoryRule,
   deleteCategoryRule,
-  matchCategoryForDescription,
+  createCategoryMatcher,
+  runInTransaction,
   setTransactionCategory,
   applyCategoryRules,
   getAllBudgets,
@@ -90,13 +90,7 @@ export async function handleApiRequest(req, url) {
     try {
       const cardId = url.searchParams.get('cardId');
       const transactions = getAllTransactions(cardId ? Number(cardId) : undefined);
-      const stats = getStatistics();
-
-      return Response.json({
-        success: true,
-        transactions,
-        stats
-      });
+      return Response.json({ success: true, transactions });
     } catch (error) {
       console.error('Error fetching transactions:', error);
       return Response.json(
@@ -189,44 +183,43 @@ export async function handleApiRequest(req, url) {
         }, { status: 422 });
       }
 
-      const cardId = findOrCreateCard(bankName, cardLast4, cardLabel);
-
       const dates = transactions.map(t => new Date(t.date).getTime());
       const periodStart = new Date(Math.min(...dates)).toISOString().split('T')[0];
       const periodEnd = new Date(Math.max(...dates)).toISOString().split('T')[0];
 
-      const statementId = insertStatement(
-        file.name,
-        fileHash,
-        periodStart,
-        periodEnd,
-        transactions.length,
-        cardId
-      );
-
-      let newCount = 0;
-      let duplicateCount = 0;
-
-      for (const tx of transactions) {
-        const txHash = generateTxHash(tx.date, tx.amount, tx.description);
-        const categoryId = matchCategoryForDescription(tx.description);
-        const changes = insertTransaction(
-          txHash,
-          tx.date,
-          tx.amount,
-          tx.description,
-          tx.isCredit,
-          tx.type,
-          statementId,
-          categoryId
+      const { cardId, statementId, newCount, duplicateCount } = runInTransaction(() => {
+        const cardId = findOrCreateCard(bankName, cardLast4, cardLabel);
+        const statementId = insertStatement(
+          file.name,
+          fileHash,
+          periodStart,
+          periodEnd,
+          transactions.length,
+          cardId
         );
+        const getCategoryId = createCategoryMatcher();
+        let newCount = 0;
 
-        if (changes > 0) {
-          newCount++;
-        } else {
-          duplicateCount++;
+        for (const tx of transactions) {
+          newCount += insertTransaction(
+            generateTxHash(tx.date, tx.amount, tx.description),
+            tx.date,
+            tx.amount,
+            tx.description,
+            tx.isCredit,
+            tx.type,
+            statementId,
+            getCategoryId(tx.description)
+          );
         }
-      }
+
+        return {
+          cardId,
+          statementId,
+          newCount,
+          duplicateCount: transactions.length - newCount,
+        };
+      });
 
       return Response.json({
         success: true,

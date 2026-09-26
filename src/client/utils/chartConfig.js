@@ -7,12 +7,9 @@ import {
   Legend,
   CategoryScale,
   LinearScale,
-  BarElement,
   LineElement,
   PointElement,
-  ArcElement,
   Filler,
-  Title,
 } from 'chart.js';
 
 ChartJS.register(
@@ -20,12 +17,9 @@ ChartJS.register(
   Legend,
   CategoryScale,
   LinearScale,
-  BarElement,
   LineElement,
   PointElement,
-  ArcElement,
   Filler,
-  Title,
 );
 
 /** Tooltip config factory — accepts a chart colors object */

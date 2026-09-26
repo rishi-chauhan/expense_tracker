@@ -1,10 +1,12 @@
 import React, { useMemo } from 'react';
+import { ArcElement, Chart as ChartJS } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
-import '../utils/chartConfig.js';
 import { getTooltipConfig, sharedAnimation } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
 import { groupByCategory, formatINR } from '../utils/dataProcessing.js';
 import './CategoryBreakdown.css';
+
+ChartJS.register(ArcElement);
 
 function CategoryBreakdown({ data }) {
   const chartColors = useChartTheme();

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import FileUpload from '../components/FileUpload';
-import Dashboard from '../components/Dashboard';
 import { filterByCard } from '../utils/dataProcessing.js';
 import './HomePage.css';
+
+const Dashboard = lazy(() => import('../components/Dashboard'));
 
 function HomePage({ csvData, loading, error, notification, onFileUpload, onErrorDismiss, onNotificationDismiss, onError, cards }) {
   const [selectedCardId, setSelectedCardId] = useState('all');
@@ -11,10 +12,20 @@ function HomePage({ csvData, loading, error, notification, onFileUpload, onError
 
   return (
     <div className="home-page">
-      <FileUpload onFileUpload={onFileUpload} onError={onError} />
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <span className="eyebrow">Personal finance, simplified</span>
+          <h2>Know where every rupee went.</h2>
+          <p>Upload a card statement and turn a wall of transactions into a clear picture of your spending.</p>
+        </div>
+        <div className="home-upload-wrap">
+          <FileUpload onFileUpload={onFileUpload} onError={onError} />
+          <p className="upload-privacy">CSV only · Processed by your private tracker</p>
+        </div>
+      </section>
 
       {loading && (
-        <div className="loading-container">
+        <div className="loading-container" role="status">
           <div className="loading-spinner"></div>
           <div className="loading-text">Uploading statement...</div>
           <div className="loading-subtext">Processing and storing transactions</div>
@@ -22,13 +33,14 @@ function HomePage({ csvData, loading, error, notification, onFileUpload, onError
       )}
 
       {error && (
-        <div className="error-container">
+        <div className="error-container" role="alert">
           <div className="error-icon">!</div>
           <div className="error-content">
             <div className="error-title">Upload Failed</div>
             <div className="error-message">{error}</div>
           </div>
           <button
+            type="button"
             className="error-close"
             onClick={onErrorDismiss}
             aria-label="Close error"
@@ -39,7 +51,7 @@ function HomePage({ csvData, loading, error, notification, onFileUpload, onError
       )}
 
       {notification && (
-        <div className={`notification-container ${notification.type}`}>
+        <div className={`notification-container ${notification.type}`} role="status">
           <div className="notification-icon">
             {notification.type === 'success' ? '✓' : 'ⓘ'}
           </div>
@@ -55,6 +67,7 @@ function HomePage({ csvData, loading, error, notification, onFileUpload, onError
             )}
           </div>
           <button
+            type="button"
             className="notification-close"
             onClick={onNotificationDismiss}
             aria-label="Close notification"
@@ -66,8 +79,9 @@ function HomePage({ csvData, loading, error, notification, onFileUpload, onError
 
       {cards && cards.length > 1 && (
         <div className="card-filter-bar">
-          <label className="card-filter-label">Card:</label>
+          <label className="card-filter-label" htmlFor="home-card-filter">Card:</label>
           <select
+            id="home-card-filter"
             className="card-filter-select"
             value={selectedCardId}
             onChange={e => setSelectedCardId(e.target.value)}
@@ -80,7 +94,24 @@ function HomePage({ csvData, loading, error, notification, onFileUpload, onError
         </div>
       )}
 
-      <Dashboard csvData={filteredData} />
+      {filteredData?.length > 0 ? (
+        <Suspense fallback={
+          <div className="dashboard-loading" role="status">
+            <div className="loading-spinner"></div>
+            <span>Preparing dashboard...</span>
+          </div>
+        }>
+          <Dashboard csvData={filteredData} />
+        </Suspense>
+      ) : (
+        <div className="dashboard-empty">
+          <div className="dashboard-empty-icon" aria-hidden="true">↗</div>
+          <div>
+            <h3>Your spending overview will appear here</h3>
+            <p>Upload a CSV file to see your dashboard.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

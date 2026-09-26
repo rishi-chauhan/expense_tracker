@@ -176,6 +176,7 @@ function CategoriesPage({ onChanged }) {
         <form className="inline-form" onSubmit={handleCreateCategory}>
           <input
             type="text"
+            aria-label="New category name"
             placeholder="New category name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -212,13 +213,14 @@ function CategoriesPage({ onChanged }) {
         <h3>Auto-tag Rules</h3>
         <p className="section-hint">If a description contains the pattern (case-insensitive), it gets that category.</p>
         <form className="inline-form" onSubmit={handleAddRule}>
-          <select value={ruleCategoryId} onChange={(e) => setRuleCategoryId(e.target.value)}>
+          <select aria-label="Rule category" value={ruleCategoryId} onChange={(e) => setRuleCategoryId(e.target.value)}>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
           <input
             type="text"
+            aria-label="Rule keyword"
             placeholder="Keyword e.g. SWIGGY"
             value={rulePattern}
             onChange={(e) => setRulePattern(e.target.value)}
@@ -244,13 +246,14 @@ function CategoriesPage({ onChanged }) {
       <section className="categories-section">
         <h3>Monthly Budgets</h3>
         <form className="inline-form" onSubmit={handleSaveBudget}>
-          <select value={budgetCategoryId} onChange={(e) => setBudgetCategoryId(e.target.value)}>
+          <select aria-label="Budget category" value={budgetCategoryId} onChange={(e) => setBudgetCategoryId(e.target.value)}>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
           <input
             type="number"
+            aria-label="Monthly budget amount"
             min="1"
             step="1"
             placeholder="Amount (₹)"

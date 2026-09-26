@@ -92,7 +92,7 @@ function AskAI({ isOpen, onClose }) {
           </svg>
           Ask AI
         </div>
-        <button className="askai-close-btn" onClick={onClose} aria-label="Close AI chat">
+        <button type="button" className="askai-close-btn" onClick={onClose} aria-label="Close AI chat">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"/>
             <line x1="6" y1="6" x2="18" y2="18"/>
@@ -100,9 +100,9 @@ function AskAI({ isOpen, onClose }) {
         </button>
       </div>
 
-      <div className="askai-messages">
+      <div className="askai-messages" role="log" aria-live="polite">
         {ollamaStatus === false && (
-          <div className="askai-status-msg">
+          <div className="askai-status-msg" role="status">
             AI assistant is not available. Make sure Ollama is running.
           </div>
         )}
@@ -113,6 +113,7 @@ function AskAI({ isOpen, onClose }) {
             <div className="askai-suggestions">
               {SUGGESTIONS.map((s) => (
                 <button
+                  type="button"
                   key={s}
                   className="askai-suggestion-chip"
                   onClick={() => handleSubmit(s)}
@@ -153,6 +154,7 @@ function AskAI({ isOpen, onClose }) {
           ref={inputRef}
           type="text"
           className="askai-input"
+          aria-label="Ask a question about your expenses"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -161,6 +163,7 @@ function AskAI({ isOpen, onClose }) {
           maxLength={500}
         />
         <button
+          type="button"
           className="askai-send-btn"
           onClick={() => handleSubmit()}
           disabled={loading || !question.trim() || ollamaStatus === false}

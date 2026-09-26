@@ -127,7 +127,7 @@ describe('App Component', () => {
     const analyticsLink = screen.getByText('Analytics');
     await userEvent.click(analyticsLink);
 
-    expect(screen.getByText('No Data Yet')).toBeInTheDocument();
+    expect(await screen.findByText('No Data Yet')).toBeInTheDocument();
   });
 
   it('should show analytics with data', async () => {

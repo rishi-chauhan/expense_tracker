@@ -3,7 +3,7 @@
 # half-configured terminal after `read -s` and exit with "Error: EOF".
 
 restore_tty() {
-  if [[ -r /dev/tty ]]; then
+  if { : </dev/tty; } 2>/dev/null; then
     stty sane < /dev/tty 2>/dev/null || true
     stty echo icanon < /dev/tty 2>/dev/null || true
   fi
@@ -59,5 +59,11 @@ resolve_app_user() {
     echo "APP_USER must be a normal login user, not root. Example: sudo APP_USER=\$SUDO_USER $0" >&2
     return 1
   fi
-  APP_GROUP="${APP_GROUP:-${APP_USER}}"
+  if [[ -z "${APP_GROUP:-}" ]]; then
+    if id -u "${APP_USER}" >/dev/null 2>&1; then
+      APP_GROUP="$(id -gn "${APP_USER}")"
+    else
+      APP_GROUP="${APP_USER}"
+    fi
+  fi
 }

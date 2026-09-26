@@ -59,7 +59,15 @@ function Dashboard({ csvData }) {
   }, [analyticsData, range, customStart, customEnd]);
 
   if (!csvData || csvData.length === 0) {
-    return <p className="dashboard-message">Upload a CSV file to see your dashboard.</p>;
+    return (
+      <div className="dashboard-empty">
+        <div className="dashboard-empty-icon" aria-hidden="true">↗</div>
+        <div>
+          <h3>Your spending overview will appear here</h3>
+          <p>Upload a CSV file to see your dashboard.</p>
+        </div>
+      </div>
+    );
   }
 
   const { totalDebits, totalCredits, netSpending } = calculateSummaryStats(filteredData);
@@ -105,9 +113,15 @@ function Dashboard({ csvData }) {
 
   return (
     <div className="dashboard-container">
-      <h2>Credit Card Statement Analysis</h2>
+      <div className="dashboard-heading">
+        <div>
+          <span className="eyebrow">Overview</span>
+          <h2>Credit Card Statement Analysis</h2>
+        </div>
+        <p>A focused view of your selected statement period.</p>
+      </div>
 
-      <div className="summary-stats">
+      <div className={`summary-stats${showCredits ? '' : ' single'}`}>
         <div className="stat-card debits">
           <div className="stat-card-header">
             <div className="stat-icon">↓</div>
@@ -155,11 +169,13 @@ function Dashboard({ csvData }) {
                 <span className="legend-label">Spending</span>
               </div>
             </div>
-            <div className="range-selector">
+            <div className="range-selector" role="group" aria-label="Statement period">
               {RANGES.map(r => (
                 <button
+                  type="button"
                   key={r.label}
                   className={`range-btn${range === r.label ? ' active' : ''}`}
+                  aria-pressed={range === r.label}
                   onClick={() => setRange(r.label)}
                 >
                   {r.label}

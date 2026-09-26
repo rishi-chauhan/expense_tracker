@@ -22,6 +22,7 @@ function AnalyticsDashboard({ csvData, cards, onCategoryChange }) {
   const [granularity, setGranularity] = useState('monthly');
   const [selectedCardId, setSelectedCardId] = useState('all');
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
   const { showCredits } = useSettings();
 
   const cardFilteredData = useMemo(() => filterByCard(csvData, selectedCardId), [csvData, selectedCardId]);
@@ -57,7 +58,9 @@ function AnalyticsDashboard({ csvData, cards, onCategoryChange }) {
   if (!csvData || csvData.length === 0) {
     return (
       <div className="analytics-empty">
-        <div className="analytics-empty-icon">📊</div>
+        <div className="analytics-empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 20V10m6 10V4m6 16v-7m4 7H2" /></svg>
+        </div>
         <h2>No Data Yet</h2>
         <p>Upload a credit card statement on the <Link to="/">Home page</Link> to see analytics.</p>
       </div>
@@ -73,6 +76,7 @@ function AnalyticsDashboard({ csvData, cards, onCategoryChange }) {
 
   const handleExport = async () => {
     setExporting(true);
+    setExportError('');
     try {
       await exportTransactions({
         cardId: selectedCardId !== 'all' ? selectedCardId : undefined,
@@ -81,7 +85,7 @@ function AnalyticsDashboard({ csvData, cards, onCategoryChange }) {
       });
     } catch (err) {
       console.error('Export failed:', err);
-      alert(err.message || 'Export failed');
+      setExportError(err.message || 'Export failed');
     } finally {
       setExporting(false);
     }
@@ -92,9 +96,18 @@ function AnalyticsDashboard({ csvData, cards, onCategoryChange }) {
   return (
     <div className="analytics-dashboard">
       <div className="analytics-header">
-        <h2>Analytics Dashboard</h2>
-        <p className="analytics-subtitle">Deep dive into your spending patterns</p>
+        <div>
+          <span className="eyebrow">Explore</span>
+          <h2>Analytics Dashboard</h2>
+          <p className="analytics-subtitle">Deep dive into your spending patterns</p>
+        </div>
+        <div className="analytics-result-count">
+          <strong>{filteredData.length}</strong>
+          <span>transactions in view</span>
+        </div>
       </div>
+
+      {exportError && <div className="analytics-alert" role="alert">{exportError}</div>}
 
       <div className="analytics-filters">
         {cards && cards.length > 1 && (
@@ -131,6 +144,7 @@ function AnalyticsDashboard({ csvData, cards, onCategoryChange }) {
             type="date"
             className="filter-input"
             value={dateStart}
+            max={dateEnd || undefined}
             onChange={e => setDateStart(e.target.value)}
           />
         </div>
@@ -141,20 +155,25 @@ function AnalyticsDashboard({ csvData, cards, onCategoryChange }) {
             type="date"
             className="filter-input"
             value={dateEnd}
+            min={dateStart || undefined}
             onChange={e => setDateEnd(e.target.value)}
           />
         </div>
         <div className="filter-group">
           <label className="filter-label">Granularity</label>
-          <div className="granularity-toggle">
+          <div className="granularity-toggle" role="group" aria-label="Chart granularity">
             <button
+              type="button"
               className={`toggle-btn ${granularity === 'weekly' ? 'active' : ''}`}
+              aria-pressed={granularity === 'weekly'}
               onClick={() => setGranularity('weekly')}
             >
               Weekly
             </button>
             <button
+              type="button"
               className={`toggle-btn ${granularity === 'monthly' ? 'active' : ''}`}
+              aria-pressed={granularity === 'monthly'}
               onClick={() => setGranularity('monthly')}
             >
               Monthly

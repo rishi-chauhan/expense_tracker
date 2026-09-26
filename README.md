@@ -78,7 +78,7 @@ sudo EXPENSES_ADMIN_PASSWORD='your-secret-password' ./deploy/setup.sh
 
 1. Installs system packages (`sqlite3`, `caddy`, `ufw`, `rsync`, `curl`)
 2. Installs Bun if missing
-3. Creates `expenses` user, syncs app to `/opt/expense_tracker`, runs `bun install` + build
+3. Uses your existing login user (for example `admin`), syncs app to `/opt/expense_tracker`, runs `bun install` + build
 4. Enables **systemd** service `expense-tracker`
 5. Configures **Caddy** reverse proxy + basic auth (`tls internal`)
 6. Applies **firewall** rules (LAN → SSH, 80, 443 only — never exposes `:3000`)
@@ -103,8 +103,9 @@ sudo DRY_RUN=1 ./deploy/setup.sh
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
+| `APP_USER` | invoking sudo user | Linux account that owns and runs the app (for example `admin`; never `root`) |
 | `EXPENSES_HOST` | `expenses.home.lan` | Hostname in Caddy |
-| `EXPENSES_ADMIN_USER` | `admin` | Basic-auth username |
+| `EXPENSES_ADMIN_USER` | `admin` | Basic-auth username; independent of `APP_USER` |
 | `EXPENSES_ADMIN_PASSWORD` | (prompt) | Basic-auth password |
 | `APP_ROOT` | `/opt/expense_tracker` | Install directory |
 | `LAN_SUBNET` | auto-detect | ufw allow source |
@@ -191,7 +192,7 @@ bun run test:all     # vitest --run + bun sqlite server tests
 bun run lint         # ESLint
 ```
 
-See [TESTING.md](TESTING.md) for the full test suite (287 tests across 18 test files).
+See [TESTING.md](TESTING.md) for the full test suite.
 
 ## Deploy scripts reference
 

@@ -6,10 +6,11 @@
 #   ./deploy/backup.sh
 #   DB_PATH=/path/to/expenses.db BACKUP_DIR=/path/to/backups RETENTION_DAYS=14 ./deploy/backup.sh
 #
-# Cron example (as expenses user):
+# Cron example (as the app login user):
 #   15 3 * * * /opt/expense_tracker/deploy/backup.sh >> /opt/expense_tracker/backups/backup.log 2>&1
 
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"

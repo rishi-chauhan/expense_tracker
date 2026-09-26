@@ -34,13 +34,15 @@ sudo DRY_RUN=1 ./deploy/setup.sh
 |------|-----------|
 | 1 | apt packages: `sqlite3`, `caddy`, `ufw`, `rsync`, `curl` |
 | 2 | Bun (if not already installed) |
-| 3 | App user `expenses`, files under `/opt/expense_tracker` |
+| 3 | Existing login user (for example `admin`), files under `/opt/expense_tracker` |
 | 4 | `bun install`, production build if `dist/` missing |
-| 5 | systemd unit `expense-tracker` (starts on boot) |
+| 5 | Hardened systemd unit `expense-tracker` (starts on boot) |
 | 6 | Caddy site with **basic auth** + internal TLS |
 | 7 | ufw: LAN → SSH, 80, 443 only (port **3000** stays closed) |
-| 8 | Nightly backup cron for the `expenses` user |
+| 8 | Nightly backup cron for the selected login user |
 | 9 | Health check on `http://127.0.0.1:3000/api/health` |
+
+When run with `sudo`, setup uses `SUDO_USER` as `APP_USER`. An OS login named `admin` is therefore supported automatically. The service does not run as `root`, and systemd prevents privilege escalation and hides home directories. `EXPENSES_ADMIN_USER` is only the browser basic-auth username and can be different from the Linux account.
 
 ### After setup
 
@@ -53,8 +55,10 @@ sudo DRY_RUN=1 ./deploy/setup.sh
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `APP_USER` | invoking sudo user | Existing Linux account that runs the service; must not be `root` |
+| `APP_GROUP` | primary group of `APP_USER` | Linux group for the installed files |
 | `EXPENSES_HOST` | `expenses.home.lan` | Hostname in Caddy |
-| `EXPENSES_ADMIN_USER` | `admin` | Basic-auth username |
+| `EXPENSES_ADMIN_USER` | `admin` | Browser basic-auth username; independent of `APP_USER` |
 | `EXPENSES_ADMIN_PASSWORD` | (interactive prompt) | Required if no TTY |
 | `APP_ROOT` | `/opt/expense_tracker` | Install path |
 | `LAN_SUBNET` | auto-detect | ufw source subnet |
@@ -81,13 +85,13 @@ Sync to the Pi (includes `dist/`):
 ```bash
 rsync -avz --delete \
   --exclude node_modules --exclude .git --exclude data --exclude backups --exclude .env \
-  ./ pi@raspberrypi:/opt/expense_tracker/
+  ./ admin@raspberrypi:~/expense_tracker/
 ```
 
 Then on the Pi:
 
 ```bash
-cd /opt/expense_tracker   # or your clone path
+cd ~/expense_tracker
 sudo ./deploy/setup.sh
 ```
 
@@ -183,11 +187,11 @@ The app defaults `OLLAMA_URL` to `http://127.0.0.1:11434`.
 
 ## Backups
 
-[`backup.sh`](backup.sh) uses SQLite’s online `.backup` (WAL-safe), keeps 14 days by default.
+[`backup.sh`](backup.sh) uses SQLite’s online `.backup` (WAL-safe), keeps 14 days by default. The examples use an OS login named `admin`; substitute your `APP_USER` if different.
 
 ```bash
 # one-shot
-sudo -u expenses /opt/expense_tracker/deploy/backup.sh
+sudo -u admin /opt/expense_tracker/deploy/backup.sh
 ```
 
 `setup.sh` adds a daily cron at 03:15. Manual cron line:
@@ -201,7 +205,8 @@ sudo -u expenses /opt/expense_tracker/deploy/backup.sh
 ```bash
 sudo systemctl stop expense-tracker
 cp /opt/expense_tracker/backups/expenses-YYYYMMDDThhmmssZ.db /opt/expense_tracker/data/expenses.db
-sudo chown expenses:expenses /opt/expense_tracker/data/expenses.db
+sudo chown admin:admin /opt/expense_tracker/data/expenses.db
+sudo chmod 600 /opt/expense_tracker/data/expenses.db
 sudo systemctl start expense-tracker
 curl -s http://127.0.0.1:3000/api/health
 ```
@@ -238,6 +243,7 @@ Unit file: [`expense-tracker.service`](expense-tracker.service)
 - [ ] `GET /api/health` returns OK
 - [ ] Only Caddy reachable on LAN (80/443)
 - [ ] Basic auth required before data is visible
+- [ ] `.env` and database are not readable by other Linux users
 - [ ] Service survives reboot
 - [ ] Nightly backup cron present; restore tested once
 - [ ] Ollama (if used) on `127.0.0.1` only

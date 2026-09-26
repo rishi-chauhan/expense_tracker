@@ -1,35 +1,181 @@
 /* Card filter bar */
+.home-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
+  align-items: center;
+  gap: clamp(2rem, 6vw, 5rem);
+  margin-bottom: var(--space-10);
+  padding: clamp(2rem, 5vw, 4.5rem);
+  background: linear-gradient(135deg, var(--color-bg-card), color-mix(in srgb, var(--color-bg-card) 82%, var(--color-accent)));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+}
+
+.home-hero::after {
+  content: '';
+  position: absolute;
+  width: 18rem;
+  height: 18rem;
+  right: -8rem;
+  top: -10rem;
+  border-radius: 50%;
+  background: var(--color-accent-dim);
+  filter: blur(3px);
+  pointer-events: none;
+}
+
+.home-hero-copy,
+.home-upload-wrap {
+  position: relative;
+  z-index: 1;
+}
+
+.eyebrow {
+  display: inline-flex;
+  margin-bottom: var(--space-4);
+  color: var(--color-accent);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.home-hero h2 {
+  max-width: 13ch;
+  margin: 0 0 var(--space-5);
+  font-size: clamp(2.25rem, 5vw, 4rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.home-hero-copy p {
+  max-width: 34rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-lg);
+  line-height: 1.7;
+}
+
+.home-upload-wrap .file-upload-card {
+  margin: 0;
+}
+
+.upload-privacy {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
 .card-filter-bar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  gap: var(--space-3);
   width: fit-content;
+  margin: 0 0 var(--space-6) auto;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .card-filter-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 .card-filter-select {
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 0.85rem;
+  min-height: 36px;
+  padding: 0.35rem 2rem 0.35rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 
 .card-filter-select:focus {
-  outline: none;
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
+}
+
+.dashboard-loading,
+.dashboard-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  max-width: 720px;
+  min-height: 94px;
+  margin: 0 auto;
+  padding: var(--space-6);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.dashboard-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  color: var(--color-accent);
+  background: var(--color-accent-dim);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-xl);
+}
+
+.dashboard-empty h3 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-base);
+}
+
+.dashboard-empty p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 900px) {
+  .home-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .home-hero h2 {
+    max-width: 16ch;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-hero {
+    gap: var(--space-8);
+    margin: 0 calc(var(--space-2) * -1) var(--space-8);
+    padding: var(--space-8) var(--space-5);
+  }
+
+  .home-hero h2 {
+    font-size: 2.35rem;
+  }
+
+  .home-hero-copy p {
+    font-size: var(--text-base);
+  }
+
+  .card-filter-bar {
+    width: 100%;
+    margin-bottom: var(--space-5);
+  }
+
+  .card-filter-select {
+    flex: 1;
+  }
 }

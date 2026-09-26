@@ -12,12 +12,16 @@ function TransactionExplorer({ data, onCategoryChange }) {
   const [page, setPage] = useState(0);
   const [categories, setCategories] = useState([]);
   const [savingId, setSavingId] = useState(null);
+  const [actionError, setActionError] = useState('');
   const { showCredits } = useSettings();
 
   useEffect(() => {
     getCategories()
       .then((res) => setCategories(res.categories || []))
-      .catch(() => setCategories([]));
+      .catch(() => {
+        setCategories([]);
+        setActionError('Could not load transaction categories');
+      });
   }, []);
 
   const displayData = useMemo(() => {
@@ -50,7 +54,8 @@ function TransactionExplorer({ data, onCategoryChange }) {
   }, [displayData, sortField, sortDir]);
 
   const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
-  const pageData = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const currentPage = Math.min(page, Math.max(totalPages - 1, 0));
+  const pageData = sorted.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -70,11 +75,13 @@ function TransactionExplorer({ data, onCategoryChange }) {
   const handleCategorySelect = async (tx, categoryId) => {
     if (!tx.Id) return;
     setSavingId(tx.Id);
+    setActionError('');
     try {
       await setTransactionCategory(tx.Id, categoryId === '' ? null : Number(categoryId));
       if (onCategoryChange) await onCategoryChange();
     } catch (err) {
       console.error('Failed to set category:', err);
+      setActionError(err.message || 'Could not update the transaction category');
     } finally {
       setSavingId(null);
     }
@@ -95,31 +102,41 @@ function TransactionExplorer({ data, onCategoryChange }) {
         </div>
       </div>
 
+      {actionError && <div className="tx-action-error" role="alert">{actionError}</div>}
+
       <div className="tx-table-wrapper">
         <table className="tx-table">
           <thead>
             <tr>
-              <th className="tx-th sortable" onClick={() => handleSort('Date')}>
-                Date{sortIndicator('Date')}
+              <th className="tx-th sortable" aria-sort={sortField === 'Date' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" className="tx-sort-btn" onClick={() => handleSort('Date')}>
+                  Date{sortIndicator('Date')}
+                </button>
               </th>
               <th className="tx-th">Description</th>
               {hasMultipleCards && (
-                <th className="tx-th sortable hide-sm" onClick={() => handleSort('Card')}>
-                  Card{sortIndicator('Card')}
+                <th className="tx-th sortable hide-sm" aria-sort={sortField === 'Card' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" className="tx-sort-btn" onClick={() => handleSort('Card')}>
+                    Card{sortIndicator('Card')}
+                  </button>
                 </th>
               )}
-              <th className="tx-th sortable" onClick={() => handleSort('Category')}>
-                Category{sortIndicator('Category')}
+              <th className="tx-th sortable" aria-sort={sortField === 'Category' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" className="tx-sort-btn" onClick={() => handleSort('Category')}>
+                  Category{sortIndicator('Category')}
+                </button>
               </th>
-              <th className="tx-th tx-amount sortable" onClick={() => handleSort('Amount')}>
-                Amount{sortIndicator('Amount')}
+              <th className="tx-th tx-amount sortable" aria-sort={sortField === 'Amount' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                <button type="button" className="tx-sort-btn" onClick={() => handleSort('Amount')}>
+                  Amount{sortIndicator('Amount')}
+                </button>
               </th>
               {showCredits && <th className="tx-th tx-type hide-sm">Type</th>}
             </tr>
           </thead>
           <tbody>
             {pageData.map((tx, i) => (
-              <tr key={tx.Id ?? (page * PAGE_SIZE + i)} className={`tx-row ${tx.IsCredit ? 'credit' : 'debit'}`}>
+              <tr key={tx.Id ?? (currentPage * PAGE_SIZE + i)} className={`tx-row ${tx.IsCredit ? 'credit' : 'debit'}`}>
                 <td className="tx-td tx-date" data-label="Date">
                   {new Date(tx.Date).toLocaleDateString('en-IN', {
                     day: '2-digit',
@@ -164,19 +181,21 @@ function TransactionExplorer({ data, onCategoryChange }) {
       {totalPages > 1 && (
         <div className="tx-pagination">
           <button
+            type="button"
             className="tx-page-btn"
-            onClick={() => setPage(p => p - 1)}
-            disabled={page === 0}
+            onClick={() => setPage(currentPage - 1)}
+            disabled={currentPage === 0}
           >
             Previous
           </button>
           <span className="tx-page-info">
-            Page {page + 1} of {totalPages}
+            Page {currentPage + 1} of {totalPages}
           </span>
           <button
+            type="button"
             className="tx-page-btn"
-            onClick={() => setPage(p => p + 1)}
-            disabled={page >= totalPages - 1}
+            onClick={() => setPage(currentPage + 1)}
+            disabled={currentPage >= totalPages - 1}
           >
             Next
           </button>

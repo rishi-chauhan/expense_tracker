@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import './FileUpload.css';
 
 function FileUpload({ onFileUpload, onError }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const inputRef = useRef(null);
 
   // Format file size helper
   const formatFileSize = (bytes) => {
@@ -14,7 +15,9 @@ function FileUpload({ onFileUpload, onError }) {
 
   // Handle file selection (from input or drop)
   const handleFileSelection = (file) => {
-    if (file && file.type === 'text/csv') {
+    const hasCsvExtension = file?.name.toLowerCase().endsWith('.csv');
+    const hasCsvType = !file?.type || ['text/csv', 'application/csv', 'application/vnd.ms-excel'].includes(file.type);
+    if (file && hasCsvExtension && hasCsvType) {
       setSelectedFile(file);
       onFileUpload(file);
     } else {
@@ -67,12 +70,12 @@ function FileUpload({ onFileUpload, onError }) {
     e.preventDefault();
     e.stopPropagation();
     setSelectedFile(null);
+    if (inputRef.current) inputRef.current.value = '';
   };
 
   return (
     <div className="file-upload-card">
-      <label
-        htmlFor="csv-file-upload"
+      <div
         className={`upload-zone ${isDragging ? 'dragging' : ''} ${selectedFile ? 'has-file' : ''}`}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
@@ -80,6 +83,7 @@ function FileUpload({ onFileUpload, onError }) {
         onDrop={handleDrop}
       >
         <input
+          ref={inputRef}
           type="file"
           accept=".csv"
           onChange={handleFileChange}
@@ -89,24 +93,28 @@ function FileUpload({ onFileUpload, onError }) {
         />
 
         {!selectedFile ? (
-          <div className="upload-prompt">
+          <label htmlFor="csv-file-upload" className="upload-prompt">
             <div className="upload-icon">↑</div>
-            <p className="upload-prompt-text">
-              Drop CSV here or <strong>browse</strong>
-            </p>
-          </div>
+            <div>
+              <p className="upload-prompt-text">
+                Drop CSV here or <strong>browse files</strong>
+              </p>
+              <span className="upload-prompt-hint">Credit card statement CSV files only</span>
+            </div>
+          </label>
         ) : (
           <div className="file-preview">
             <div className="file-preview-icon">✓</div>
-            <div className="file-info">
+            <label htmlFor="csv-file-upload" className="file-info">
               <div className="file-name">{selectedFile.name}</div>
               <div className="file-meta">
                 {formatFileSize(selectedFile.size)}
                 <span className="file-meta-divider">•</span>
                 CSV File
               </div>
-            </div>
+            </label>
             <button
+              type="button"
               className="remove-file-button"
               onClick={handleRemoveFile}
               aria-label="Remove file"
@@ -115,7 +123,7 @@ function FileUpload({ onFileUpload, onError }) {
             </button>
           </div>
         )}
-      </label>
+      </div>
     </div>
   );
 }

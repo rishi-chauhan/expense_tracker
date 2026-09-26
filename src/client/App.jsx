@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import { useTheme } from './contexts/ThemeContext';
 import { useSettings } from './contexts/SettingsContext';
 import { useTransactions } from './hooks/useTransactions';
 import { useUpload } from './hooks/useUpload';
 import HomePage from './pages/HomePage';
-import AnalyticsDashboard from './pages/AnalyticsDashboard';
-import StatementsPage from './pages/StatementsPage';
-import CategoriesPage from './pages/CategoriesPage';
 import CardInfoModal from './components/CardInfoModal';
-import AskAI from './components/AskAI';
 import './App.css';
+
+const AnalyticsDashboard = lazy(() => import('./pages/AnalyticsDashboard'));
+const StatementsPage = lazy(() => import('./pages/StatementsPage'));
+const CategoriesPage = lazy(() => import('./pages/CategoriesPage'));
+const AskAI = lazy(() => import('./components/AskAI'));
 
 function App() {
   const {
@@ -45,13 +46,37 @@ function App() {
     <div className="App">
       <header className="app-header">
         <div className="header-content">
-          <div className="logo-icon">₹</div>
-          <div className="header-text">
-            <h1 className="app-title">Paisa Kidhar Gaya?!</h1>
-          </div>
+          <NavLink to="/" className="app-brand" aria-label="Paisa Kidhar Gaya home">
+            <div className="logo-icon">₹</div>
+            <div className="header-text">
+              <h1 className="app-title">Paisa Kidhar Gaya?!</h1>
+              <p className="app-subtitle">Your money, made clear</p>
+            </div>
+          </NavLink>
+          <nav className="header-nav" aria-label="Primary navigation">
+            <NavLink to="/" end className="nav-link">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>
+              <span>Home</span>
+            </NavLink>
+            <NavLink to="/analytics" className="nav-link">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2" /></svg>
+              <span>Analytics</span>
+            </NavLink>
+            <NavLink to="/statements" className="nav-link">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM9 10h6m-6 4h6m-6 4h4" /></svg>
+              <span>Statements</span>
+            </NavLink>
+            <NavLink to="/categories" className="nav-link">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h7v6H4zm9 0h7v6h-7zM4 13h7v6H4zm9 0h7v6h-7z" /></svg>
+              <span>Categories</span>
+            </NavLink>
+          </nav>
+          <div className="header-actions">
           <button
+            type="button"
             className={`credits-toggle-btn${showCredits ? ' active' : ''}`}
             onClick={toggleShowCredits}
+            aria-pressed={showCredits}
             aria-label={showCredits ? 'Hide credits' : 'Show credits'}
             title={showCredits ? 'Hide credits' : 'Show credits'}
           >
@@ -67,8 +92,10 @@ function App() {
             )}
           </button>
           <button
+            type="button"
             className={`ai-chat-toggle-btn${aiChatOpen ? ' active' : ''}`}
             onClick={() => setAiChatOpen(prev => !prev)}
+            aria-pressed={aiChatOpen}
             aria-label="Ask AI about your expenses"
             title="Ask AI"
           >
@@ -77,6 +104,7 @@ function App() {
             </svg>
           </button>
           <button
+            type="button"
             className="theme-toggle-btn"
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
@@ -100,12 +128,7 @@ function App() {
               </svg>
             )}
           </button>
-          <nav className="header-nav">
-            <NavLink to="/" end className="nav-link">Home</NavLink>
-            <NavLink to="/analytics" className="nav-link">Analytics</NavLink>
-            <NavLink to="/statements" className="nav-link">Statements</NavLink>
-            <NavLink to="/categories" className="nav-link">Categories</NavLink>
-          </nav>
+          </div>
         </div>
       </header>
 
@@ -121,13 +144,19 @@ function App() {
         )}
 
         {dataLoading && !csvData && !loadError && (
-          <div className="loading-container initial-load">
+          <div className="loading-container initial-load" role="status">
             <div className="loading-spinner"></div>
             <div className="loading-text">Loading your data...</div>
           </div>
         )}
 
-        <Routes>
+        <Suspense fallback={
+          <div className="route-loading" role="status">
+            <div className="loading-spinner"></div>
+            <span>Loading view...</span>
+          </div>
+        }>
+          <Routes>
           <Route
             path="/"
             element={
@@ -162,7 +191,8 @@ function App() {
             path="/categories"
             element={<CategoriesPage csvData={csvData} onChanged={refetch} />}
           />
-        </Routes>
+          </Routes>
+        </Suspense>
       </main>
 
       {pendingUpload && (
@@ -174,7 +204,11 @@ function App() {
         />
       )}
 
-      <AskAI isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
+      {aiChatOpen && (
+        <Suspense fallback={null}>
+          <AskAI isOpen onClose={() => setAiChatOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

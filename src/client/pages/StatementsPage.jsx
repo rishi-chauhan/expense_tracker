@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useStatements } from '../hooks/useStatements';
 import './StatementsPage.css';
 
@@ -41,7 +42,12 @@ function StatementsPage({ onChanged }) {
           <div className="loading-text">Loading statements...</div>
         </div>
       ) : statements.length === 0 ? (
-        <p className="statements-empty">No statements uploaded yet.</p>
+        <div className="statements-empty">
+          <div className="statements-empty-icon" aria-hidden="true">↑</div>
+          <h3>No statements yet</h3>
+          <p>Upload your first CSV statement to start tracking expenses.</p>
+          <Link to="/">Upload a statement</Link>
+        </div>
       ) : (
         <div className="statements-table-wrap">
           <table className="statements-table">

@@ -1,10 +1,12 @@
 import React from 'react';
+import { ArcElement, Chart as ChartJS } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
-import '../utils/chartConfig.js';
 import { getTooltipConfig } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
 import { calculateSummaryStats, formatINR } from '../utils/dataProcessing.js';
 import './DebitCreditRatio.css';
+
+ChartJS.register(ArcElement);
 
 function DebitCreditRatio({ data }) {
   const chartColors = useChartTheme();

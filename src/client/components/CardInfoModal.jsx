@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './CardInfoModal.css';
 
 function CardInfoModal({ detected, transactionCount, onConfirm, onCancel }) {
   const [bankName, setBankName] = useState(detected?.bankName || '');
   const [cardLast4, setCardLast4] = useState(detected?.cardLast4 || '');
   const [cardLabel, setCardLabel] = useState('');
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -25,9 +33,15 @@ function CardInfoModal({ detected, transactionCount, onConfirm, onCancel }) {
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div
+        className="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="card-info-title"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h3>Card Information Needed</h3>
+          <h3 id="card-info-title">Card Information Needed</h3>
           <p className="modal-subtitle">
             We couldn't fully detect your card details from the CSV.
             {transactionCount > 0 && ` (${transactionCount} transactions found)`}

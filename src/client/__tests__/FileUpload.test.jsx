@@ -45,6 +45,16 @@ describe('FileUpload Component', () => {
     expect(mockHandler).toHaveBeenCalledWith(file);
   });
 
+  it('should accept CSV files when the browser omits the MIME type', async () => {
+    const mockHandler = vi.fn();
+    render(<FileUpload onFileUpload={mockHandler} />);
+
+    const file = new File(['test content'], 'statement.csv');
+    await userEvent.upload(screen.getByLabelText(/Upload Credit Card Statement/i), file);
+
+    expect(mockHandler).toHaveBeenCalledWith(file);
+  });
+
   it('should show alert for invalid file type when no onError callback', async () => {
     const mockHandler = vi.fn();
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});

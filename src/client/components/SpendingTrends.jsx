@@ -120,7 +120,9 @@ function SpendingTrends({ data, granularity }) {
         </div>
         <div className="chart-legend">
           <button
+            type="button"
             className={`legend-item${activeDatasets.debits ? '' : ' inactive'}`}
+            aria-pressed={activeDatasets.debits}
             onClick={() => toggleDataset('debits')}
           >
             <div className="legend-dot debits"></div>
@@ -128,7 +130,9 @@ function SpendingTrends({ data, granularity }) {
           </button>
           {showCredits && (
             <button
+              type="button"
               className={`legend-item${activeDatasets.credits ? '' : ' inactive'}`}
+              aria-pressed={activeDatasets.credits}
               onClick={() => toggleDataset('credits')}
             >
               <div className="legend-dot credits"></div>

@@ -11,6 +11,8 @@ export const db = new Database(DB_PATH, { create: true });
 // Enable foreign keys + WAL for safer concurrent reads / fewer SD-card issues
 db.run('PRAGMA foreign_keys = ON');
 db.run('PRAGMA journal_mode = WAL');
+db.run('PRAGMA synchronous = NORMAL');
+db.run('PRAGMA busy_timeout = 5000');
 
 /**
  * Initialize database schema
@@ -111,6 +113,9 @@ export function initializeDatabase() {
   }
 
   db.run('CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_statement ON transactions(statement_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_transactions_credit_date ON transactions(is_credit, date)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_statements_card ON statements(card_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_category_rules_priority ON category_rules(priority DESC)');
 
   // Seed default categories if empty
@@ -190,6 +195,10 @@ export function checkDbHealthy() {
   } catch {
     return false;
   }
+}
+
+export function runInTransaction(callback) {
+  return db.transaction(callback)();
 }
 
 /**
@@ -393,18 +402,20 @@ export function deleteCategoryRule(id) {
 /**
  * Match description against rules (highest priority first). Returns category_id or null.
  */
-export function matchCategoryForDescription(description) {
+function matchCategory(description, rules) {
   if (!description) return null;
-  const rules = db.query(
-    'SELECT category_id, pattern FROM category_rules ORDER BY priority DESC, id ASC'
-  ).all();
   const upper = description.toUpperCase();
   for (const rule of rules) {
-    if (upper.includes(String(rule.pattern).toUpperCase())) {
-      return rule.category_id;
-    }
+    if (upper.includes(rule.pattern_upper)) return rule.category_id;
   }
   return null;
+}
+
+export function createCategoryMatcher() {
+  const rules = db.query(
+    'SELECT category_id, UPPER(pattern) as pattern_upper FROM category_rules ORDER BY priority DESC, id ASC'
+  ).all();
+  return (description) => matchCategory(description, rules);
 }
 
 export function setTransactionCategory(txId, categoryId, manual = true) {
@@ -425,15 +436,15 @@ export function applyCategoryRules() {
   const update = db.prepare(
     'UPDATE transactions SET category_id = ? WHERE id = ? AND (category_manual = 0 OR category_manual IS NULL)'
   );
-  let updated = 0;
-  for (const tx of txs) {
-    const catId = matchCategoryForDescription(tx.description);
-    if (catId != null) {
-      const r = update.run(catId, tx.id);
-      updated += r.changes;
+  const getCategoryId = createCategoryMatcher();
+  return runInTransaction(() => {
+    let updated = 0;
+    for (const tx of txs) {
+      const catId = getCategoryId(tx.description);
+      if (catId != null) updated += update.run(catId, tx.id).changes;
     }
-  }
-  return updated;
+    return updated;
+  });
 }
 
 /**
@@ -635,15 +646,19 @@ export function closeDatabase() {
  * Get statistics about stored data
  */
 export function getStatistics() {
-  const totalTransactionsQuery = db.query('SELECT COUNT(*) as count FROM transactions');
-  const totalStatementsQuery = db.query('SELECT COUNT(*) as count FROM statements');
-  const totalDebitsQuery = db.query('SELECT SUM(amount) as sum FROM transactions WHERE is_credit = 0');
-  const totalCreditsQuery = db.query('SELECT SUM(amount) as sum FROM transactions WHERE is_credit = 1');
+  const stats = db.query(`
+    SELECT
+      COUNT(*) as total_transactions,
+      (SELECT COUNT(*) FROM statements) as total_statements,
+      COALESCE(SUM(CASE WHEN is_credit = 0 THEN amount ELSE 0 END), 0) as total_debits,
+      COALESCE(SUM(CASE WHEN is_credit = 1 THEN amount ELSE 0 END), 0) as total_credits
+    FROM transactions
+  `).get();
 
   return {
-    totalTransactions: totalTransactionsQuery.get().count,
-    totalStatements: totalStatementsQuery.get().count,
-    totalDebits: totalDebitsQuery.get().sum || 0,
-    totalCredits: totalCreditsQuery.get().sum || 0
+    totalTransactions: stats.total_transactions,
+    totalStatements: stats.total_statements,
+    totalDebits: stats.total_debits,
+    totalCredits: stats.total_credits,
   };
 }

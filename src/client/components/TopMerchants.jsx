@@ -1,6 +1,6 @@
 import React from 'react';
+import { Chart as ChartJS, BarElement } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
-import '../utils/chartConfig.js';
 import {
   getTooltipConfig,
   sharedAnimation,
@@ -8,6 +8,8 @@ import {
 import { useChartTheme } from '../hooks/useChartTheme';
 import { groupByDescription } from '../utils/dataProcessing.js';
 import './TopMerchants.css';
+
+ChartJS.register(BarElement);
 
 function TopMerchants({ data }) {
   const chartColors = useChartTheme();
