@@ -1,11 +1,11 @@
 # Raspberry Pi deployment
 
-Run **Paisa Kidhar Gaya?!** as an always-on LAN service:
+Run **Paisa Kidhar Gaya?!** as an always-on service. At home, Caddy serves the LAN. From anywhere, Tailscale reaches the same Bun process. Nothing is published to the public internet.
 
 ```
-LAN clients ──► Caddy (:443, basic auth) ──► Bun (127.0.0.1:3000) ──► SQLite
-                                                      ▲
-                                              backup.sh (cron)
+Home LAN  ──► Caddy (:443, basic auth) ──► Bun (127.0.0.1:3000) ──► SQLite
+Your phone/laptop (Tailscale) ──► tailscale serve (HTTPS) ──┘         ▲
+                                                                    backup.sh
 ```
 
 ## Quick start (one command)
@@ -38,9 +38,10 @@ sudo DRY_RUN=1 ./deploy/setup.sh
 | 4 | `bun install`, production build if `dist/` missing |
 | 5 | Hardened systemd unit `expense-tracker` (starts on boot) |
 | 6 | Caddy site with **basic auth** + internal TLS |
-| 7 | ufw: LAN → SSH, 80, 443 only (port **3000** stays closed) |
+| 7 | ufw: LAN → SSH, 80, 443 only (port **3000** stays closed). Tailscale interface + UDP 41641 |
 | 8 | Nightly backup cron for the selected login user |
 | 9 | Health check on `http://127.0.0.1:3000/api/health` |
+| 10 | Tailscale: log in, then `tailscale serve` so the app is HTTPS on your tailnet |
 
 When run with `sudo`, setup uses `SUDO_USER` as `APP_USER`. An OS login named `admin` is therefore supported automatically. The service does not run as `root`, and systemd prevents privilege escalation and hides home directories. `EXPENSES_ADMIN_USER` is only the browser basic-auth username and can be different from the Linux account.
 
@@ -67,7 +68,42 @@ When run with `sudo`, setup uses `SUDO_USER` as `APP_USER`. An OS login named `a
 | `SKIP_CADDY` | `0` | Skip Caddy config |
 | `SKIP_FIREWALL` | `0` | Skip ufw |
 | `SKIP_CRON` | `0` | Skip backup cron |
+| `SKIP_TAILSCALE` | `0` | Skip Tailscale install, login, and serve |
+| `TAILSCALE_HOSTNAME` | `expenses` | Machine name on the tailnet |
+| `TAILSCALE_AUTH_KEY` | (unset) | Optional login key. Prefer the interactive URL. Do not commit this |
+| `TAILSCALE_SSH` | `1` | Allow SSH from your other Tailscale devices |
 | `DRY_RUN` | `0` | Print actions only |
+
+---
+
+## Reach it from anywhere (Tailscale)
+
+`setup.sh` does this by default. You do not open a port on the router, and you do not need a public IP address. The app stays on `127.0.0.1:3000`. Tailscale gives your own phone and laptop an HTTPS name that only devices on your Tailscale account can open.
+
+### What you do once
+
+1. Create a free account at https://login.tailscale.com/start (Google, GitHub, Microsoft, or email). Use this same account on every device.
+2. On the Pi, from a current copy of this repo, run `sudo ./deploy/setup.sh` in an SSH session.
+3. When the script prints a login URL or QR code, open it and approve the Pi. If it also sends you to the DNS admin page, turn on **MagicDNS** and **HTTPS Certificates**, then re-run the command in the error text.
+4. Install the Tailscale app on your phone and laptop and sign in with that same account.
+5. Open the `https://….ts.net` URL printed at the end of setup. That is the app. It works on mobile data, away from home.
+6. SSH to the Pi from those devices with the `ssh user@100.x.x.x` line printed at the end (the `100.x` address is a Tailscale address, not a public IP). Use that address for SSH. For the website, use the `https://….ts.net` name — the certificate does not match the raw IP.
+
+The home URL `https://expenses.home.lan` still works on your Wi-Fi and still asks for the Caddy password. The tailnet URL does not use that password. The lock is your Tailscale login. Do not turn on Tailscale Funnel. That would publish the app to the whole internet.
+
+Already installed the app and only want to add Tailscale (skips the Caddy password prompt and the rebuild):
+
+```bash
+sudo SKIP_APT=1 SKIP_INSTALL=1 SKIP_CADDY=1 ./deploy/setup.sh
+```
+
+No browser on the Pi session (auth key, optional): create a **reusable, non-ephemeral** key at https://login.tailscale.com/admin/settings/keys and run the script on the Pi only. Do not commit the key and do not paste it into git.
+
+```bash
+sudo TAILSCALE_AUTH_KEY='tskey-auth-...' SKIP_CADDY=1 SKIP_INSTALL=1 ./deploy/setup.sh
+```
+
+After a reboot, `tailscaled` restores Serve on its own. Check with `tailscale serve status`.
 
 ---
 
@@ -232,8 +268,11 @@ Unit file: [`expense-tracker.service`](expense-tracker.service)
 | Health fails | `sudo journalctl -u expense-tracker -n 50` |
 | Caddy 502 | App running? `curl http://127.0.0.1:3000/api/health` |
 | Build OOM | Pre-build on laptop, rsync `dist/` |
-| Can’t reach from phone | DNS/hosts for `EXPENSES_HOST`; ufw allows your LAN subnet |
-| TLS warning | Expected with `tls internal` — trust local CA once |
+| Can’t reach from phone on Wi-Fi | DNS/hosts for `EXPENSES_HOST`; ufw allows your LAN subnet |
+| Can’t reach the `*.ts.net` URL | Tailscale app connected on that phone, same account. `tailscale serve status` on the Pi |
+| Browser warning on the `100.x` IP | Expected. Use the `https://….ts.net` name for the app |
+| TLS warning on `expenses.home.lan` | Expected with `tls internal` — trust local CA once |
+| `tailscale serve` asks to enable HTTPS | https://login.tailscale.com/admin/dns — MagicDNS and HTTPS Certificates, then re-run setup |
 
 ---
 
@@ -247,6 +286,9 @@ Unit file: [`expense-tracker.service`](expense-tracker.service)
 - [ ] Service survives reboot
 - [ ] Nightly backup cron present; restore tested once
 - [ ] Ollama (if used) on `127.0.0.1` only
+- [ ] `tailscale serve status` shows `https://….ts.net` → `127.0.0.1:3000`
+- [ ] Phone on cellular data, Tailscale connected, opens that URL
+- [ ] Same URL fails when Tailscale is disconnected on the phone
 
 ---
 

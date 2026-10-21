@@ -2,12 +2,17 @@
 # One-shot Pi / Debian setup for Paisa Kidhar Gaya?!
 #
 # Installs system packages, Bun (if needed), app (systemd), Caddy + basic auth,
-# firewall rules, and backup cron — then verifies /api/health.
+# firewall rules, Tailscale (tailnet HTTPS + SSH), and backup cron — then
+# verifies /api/health.
 #
 # Usage:
 #   sudo ./deploy/setup.sh
 #   sudo EXPENSES_ADMIN_PASSWORD='secret' ./deploy/setup.sh
 #   sudo DRY_RUN=1 ./deploy/setup.sh
+#
+# Tailscale login (pick one; do not commit a key):
+#   Interactive: the script prints a URL / QR. Approve the Pi in a browser.
+#   Auth key:    sudo TAILSCALE_AUTH_KEY='tskey-auth-...' ./deploy/setup.sh
 #
 # Environment (optional):
 #   APP_ROOT              default /opt/expense_tracker
@@ -16,7 +21,10 @@
 #   EXPENSES_ADMIN_PASSWORD  required if non-interactive (no TTY)
 #   LAN_SUBNET            default 192.168.0.0/16
 #   SETUP_FIREWALL=1      apply ufw rules (default 1)
-#   SKIP_APT=1 SKIP_INSTALL=1 SKIP_CADDY=1 SKIP_FIREWALL=1 SKIP_CRON=1  partial re-runs
+#   TAILSCALE_HOSTNAME    default expenses
+#   TAILSCALE_AUTH_KEY    optional; reusable, non-ephemeral. Or set TS_AUTHKEY.
+#   TAILSCALE_SSH=1       enable Tailscale SSH (default 1)
+#   SKIP_APT=1 SKIP_INSTALL=1 SKIP_CADDY=1 SKIP_FIREWALL=1 SKIP_CRON=1 SKIP_TAILSCALE=1
 
 set -euo pipefail
 
@@ -36,7 +44,12 @@ SKIP_INSTALL="${SKIP_INSTALL:-0}"
 SKIP_CADDY="${SKIP_CADDY:-0}"
 SKIP_FIREWALL="${SKIP_FIREWALL:-0}"
 SKIP_CRON="${SKIP_CRON:-0}"
+SKIP_TAILSCALE="${SKIP_TAILSCALE:-0}"
+TAILSCALE_HOSTNAME="${TAILSCALE_HOSTNAME:-expenses}"
+TAILSCALE_SSH="${TAILSCALE_SSH:-1}"
 DRY_RUN="${DRY_RUN:-0}"
+TAILSCALE_URL=""
+TAILSCALE_IP=""
 
 CADDY_SITE_PATH="/etc/caddy/sites/expense-tracker"
 CADDY_MAIN="/etc/caddy/Caddyfile"
@@ -224,6 +237,9 @@ configure_firewall() {
 
   if [[ "${DRY_RUN}" == "1" ]]; then
     echo "[dry-run] ufw allow from ${subnet} to any port 22,80,443"
+    if [[ "${SKIP_TAILSCALE}" != "1" ]]; then
+      echo "[dry-run] ufw allow in on tailscale0; ufw allow 41641/udp"
+    fi
     return 0
   fi
 
@@ -237,6 +253,15 @@ configure_firewall() {
     ufw allow from "${subnet}" to any port 80 proto tcp
   ufw allow from "${subnet}" to any port 443 proto tcp comment 'HTTPS from LAN' 2>/dev/null || \
     ufw allow from "${subnet}" to any port 443 proto tcp
+  if [[ "${SKIP_TAILSCALE}" != "1" ]]; then
+    # tailscale0 is the private tunnel only. UDP 41641 is WireGuard, not the app.
+    # Neither rule publishes Bun or Caddy on the home WAN address.
+    echo "==> Allowing Tailscale (interface tailscale0, UDP 41641)"
+    ufw allow in on tailscale0 comment 'Tailscale tailnet' 2>/dev/null || \
+      ufw allow in on tailscale0
+    ufw allow 41641/udp comment 'Tailscale WireGuard' 2>/dev/null || \
+      ufw allow 41641/udp
+  fi
   ufw --force enable
   ufw status verbose || true
 }
@@ -267,6 +292,133 @@ configure_cron() {
   else
     printf '%s\n' "${cron_line}" | crontab -u "${APP_USER}" -
   fi
+}
+
+app_listen_port() {
+  local env_file="${APP_ROOT}/.env" line
+  if [[ -f "${env_file}" ]]; then
+    line="$(grep -E '^[[:space:]]*PORT=' "${env_file}" | tail -n 1 || true)"
+    line="${line#*=}"
+    line="${line//\"/}"
+    line="${line//\'/}"
+    line="${line//$'\r'/}"
+    line="${line// /}"
+    if [[ "${line}" =~ ^[0-9]+$ ]]; then
+      echo "${line}"
+      return
+    fi
+  fi
+  echo "3000"
+}
+
+install_tailscale() {
+  if command -v tailscale >/dev/null 2>&1; then
+    echo "==> Tailscale already installed"
+  else
+    echo "==> Installing Tailscale"
+    if [[ "${DRY_RUN}" == "1" ]]; then
+      echo "[dry-run] curl -fsSL https://tailscale.com/install.sh | sh"
+      return 0
+    fi
+    curl -fsSL https://tailscale.com/install.sh | sh
+  fi
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[dry-run] systemctl enable --now tailscaled"
+    return 0
+  fi
+  systemctl enable tailscaled
+  systemctl start tailscaled
+}
+
+tailscale_is_running() {
+  tailscale status --json 2>/dev/null | grep -Eq '"BackendState":[[:space:]]*"Running"'
+}
+
+configure_tailscale() {
+  if [[ "${SKIP_TAILSCALE}" == "1" ]]; then
+    echo "==> Skipping Tailscale"
+    return 0
+  fi
+
+  install_tailscale
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[dry-run] tailscale up --hostname=${TAILSCALE_HOSTNAME} --ssh=${TAILSCALE_SSH} --operator=${APP_USER}"
+    echo "[dry-run] tailscale serve --bg --yes $(app_listen_port)"
+    TAILSCALE_URL="https://${TAILSCALE_HOSTNAME}.<tailnet>.ts.net"
+    return 0
+  fi
+
+  local up_help serve_help port
+  up_help="$(tailscale up --help 2>&1 || true)"
+  local -a up_args=(up --hostname="${TAILSCALE_HOSTNAME}" --accept-dns=true)
+  if [[ "${TAILSCALE_SSH}" == "1" && "${up_help}" == *"--ssh"* ]]; then
+    up_args+=(--ssh)
+  fi
+  if [[ "${up_help}" == *"--operator"* && -n "${APP_USER}" ]]; then
+    up_args+=(--operator="${APP_USER}")
+  fi
+
+  if [[ -n "${TAILSCALE_AUTH_KEY:-}" && -z "${TS_AUTHKEY:-}" ]]; then
+    export TS_AUTHKEY="${TAILSCALE_AUTH_KEY}"
+  fi
+
+  if tailscale_is_running; then
+    echo "==> Tailscale already logged in — applying hostname ${TAILSCALE_HOSTNAME}"
+    # Already online: don't block setup if the daemon is slow to report.
+    if [[ "${up_help}" == *"--timeout"* ]]; then
+      up_args+=(--timeout=90s)
+    fi
+  else
+    echo
+    echo "==> Log this Pi into Tailscale"
+    echo "    Approve the URL (or scan the QR) with the Tailscale account you use on your phone."
+    echo "    This waits until you approve. No public IP and no router port-forward."
+    if [[ -z "${TS_AUTHKEY:-}" && ! -r /dev/tty ]]; then
+      echo "setup.sh: no TTY and no TAILSCALE_AUTH_KEY, so Tailscale cannot log in." >&2
+      echo "Re-run from an SSH session, or:" >&2
+      echo "  sudo TAILSCALE_AUTH_KEY='tskey-auth-...' ./deploy/setup.sh" >&2
+      echo "Create a reusable, non-ephemeral key at https://login.tailscale.com/admin/settings/keys" >&2
+      exit 1
+    fi
+    if [[ -z "${TS_AUTHKEY:-}" && "${up_help}" == *"--qr"* && -r /dev/tty ]]; then
+      up_args+=(--qr)
+    fi
+  fi
+
+  # TS_AUTHKEY is read by the CLI. Do not put the key on the command line.
+  tailscale "${up_args[@]}"
+  unset TS_AUTHKEY TAILSCALE_AUTH_KEY || true
+
+  if ! tailscale_is_running; then
+    echo "setup.sh: Tailscale did not reach Running. Approve the login URL, then re-run setup.sh." >&2
+    exit 1
+  fi
+
+  port="$(app_listen_port)"
+  echo "==> Publishing http://127.0.0.1:${port} on the tailnet (not the public internet)"
+  serve_help="$(tailscale serve --help 2>&1 || true)"
+  local -a serve_args=(serve --bg)
+  if [[ "${serve_help}" == *"--yes"* ]]; then
+    serve_args+=(--yes)
+  fi
+  if [[ "${serve_help}" == *"--https"* ]]; then
+    serve_args+=(--https=443)
+  fi
+  # Port form proxies to 127.0.0.1 only. Never use `tailscale funnel` (that is public).
+  serve_args+=("${port}")
+  if ! tailscale "${serve_args[@]}"; then
+    echo "setup.sh: tailscale serve failed." >&2
+    echo "One-time: enable MagicDNS and HTTPS Certificates at" >&2
+    echo "  https://login.tailscale.com/admin/dns" >&2
+    echo "Then re-run: sudo SKIP_APT=1 SKIP_INSTALL=1 SKIP_CADDY=1 ./deploy/setup.sh" >&2
+    exit 1
+  fi
+
+  local status_out
+  status_out="$(tailscale serve status 2>&1 || true)"
+  printf '%s\n' "${status_out}"
+  TAILSCALE_URL="$(printf '%s\n' "${status_out}" | grep -oE 'https://[A-Za-z0-9.-]+\.ts\.net' | head -n 1 || true)"
+  TAILSCALE_IP="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"
 }
 
 verify_setup() {
@@ -305,6 +457,19 @@ print_summary() {
   else
     echo "  Backups: ${APP_ROOT}/deploy/backup.sh (cron skipped)"
   fi
+  if [[ "${SKIP_TAILSCALE}" != "1" ]]; then
+    echo
+    echo "  From anywhere (phone/laptop with Tailscale, same account):"
+    echo "  App URL: ${TAILSCALE_URL:-run: tailscale serve status}"
+    if [[ -n "${TAILSCALE_IP}" ]]; then
+      echo "  SSH:     ssh ${APP_USER}@${TAILSCALE_IP}"
+      echo "           (or ssh ${APP_USER}@${TAILSCALE_HOSTNAME} once MagicDNS is on)"
+    else
+      echo "  SSH:     ssh ${APP_USER}@${TAILSCALE_HOSTNAME}"
+    fi
+    echo "  Open the App URL in the browser, not the 100.x IP (the certificate is for the name)."
+    echo "  Home LAN URL above is unchanged and still asks for the Caddy password."
+  fi
   echo "  Docs:    ${APP_ROOT}/deploy/README.md"
   echo
 }
@@ -314,6 +479,7 @@ echo "  Paisa Kidhar Gaya?! — full setup"
 echo "=========================================="
 echo "  APP_ROOT:      ${APP_ROOT}"
 echo "  EXPENSES_HOST: ${EXPENSES_HOST}"
+echo "  TAILSCALE:     ${TAILSCALE_HOSTNAME} (skip=${SKIP_TAILSCALE})"
 echo "  DRY_RUN:       ${DRY_RUN}"
 echo
 
@@ -349,4 +515,5 @@ fi
 configure_firewall
 configure_cron
 verify_setup
+configure_tailscale
 print_summary

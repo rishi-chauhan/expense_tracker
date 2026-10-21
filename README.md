@@ -23,7 +23,7 @@ Pick the path that matches how you want to run the app.
 |-------|----------|---------|
 | **Local development** | Laptop / desktop, coding | `bun install && bun run dev` |
 | **Production on one machine** | Same machine, no Pi | See [Option C](#option-c--production-on-your-laptop-no-pi) |
-| **Raspberry Pi (LAN server)** | Always-on home server | `sudo ./deploy/setup.sh` |
+| **Raspberry Pi** | Always-on home server, also reachable from your own phone and laptop anywhere | `sudo ./deploy/setup.sh` |
 
 ### Prerequisites
 
@@ -59,7 +59,7 @@ cp .env.example .env
 
 ### Option B — Raspberry Pi (one command)
 
-Run the app as an always-on service on your home LAN: Bun on localhost, **Caddy** for HTTPS + basic auth, **systemd** for boot, nightly **SQLite backups**.
+Run the app as an always-on service: Bun on localhost, **Caddy** for HTTPS + basic auth on the home LAN, **Tailscale** so your own phone and laptop can open it from anywhere, **systemd** for boot, nightly **SQLite backups**. Tailscale does not put the app on the public internet. You do not need a public IP or a router port-forward.
 
 **On the Pi** (clone or rsync the repo first):
 
@@ -84,12 +84,14 @@ sudo EXPENSES_ADMIN_PASSWORD='your-secret-password' ./deploy/setup.sh
 6. Applies **firewall** rules (LAN → SSH, 80, 443 only — never exposes `:3000`)
 7. Schedules nightly **backup** cron
 8. Verifies `GET /api/health`
+9. Installs **Tailscale**, waits for you to approve the Pi, and publishes the app on your tailnet (`tailscale serve` → `127.0.0.1:3000`)
 
 After setup:
 
 1. Point **`expenses.home.lan`** at your Pi (router DNS or `/etc/hosts` on clients)
 2. Open **https://expenses.home.lan** and sign in with the username `admin` (or `EXPENSES_ADMIN_USER`) and your password
-3. Trust Caddy’s local TLS certificate once on each device (or see [deploy/README.md](deploy/README.md) for HTTP-only testing)
+3. Trust Caddy’s local TLS certificate once per device on the home LAN (or see [deploy/README.md](deploy/README.md))
+4. On your phone and laptop, install Tailscale, sign in with the **same account** you used to approve the Pi, and open the `https://….ts.net` URL the script prints. Use that name in the browser. The `100.x.x.x` address is for SSH.
 
 **Tip for weak Pis:** build on your laptop first, then rsync — see [deploy/README.md](deploy/README.md#pre-build-on-a-laptop-optional).
 
@@ -109,6 +111,9 @@ sudo DRY_RUN=1 ./deploy/setup.sh
 | `EXPENSES_ADMIN_PASSWORD` | (prompt) | Basic-auth password |
 | `APP_ROOT` | `/opt/expense_tracker` | Install directory |
 | `LAN_SUBNET` | auto-detect | ufw allow source |
+| `SKIP_TAILSCALE` | `0` | Set `1` to skip Tailscale |
+| `TAILSCALE_HOSTNAME` | `expenses` | Name of the Pi on your tailnet |
+| `TAILSCALE_AUTH_KEY` | (unset) | Optional. Interactive login is the default |
 
 Full Pi guide, restore steps, and troubleshooting: **[deploy/README.md](deploy/README.md)**
 
