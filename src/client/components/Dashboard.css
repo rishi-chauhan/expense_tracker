@@ -99,15 +99,15 @@
 }
 
 .stat-card.debits:hover {
-  box-shadow: var(--shadow-glow-debit);
+  box-shadow: none;
 }
 
 .stat-card.credits:hover {
-  box-shadow: var(--shadow-glow-credit);
+  box-shadow: none;
 }
 
 .stat-card.net:hover {
-  box-shadow: var(--shadow-glow-accent);
+  box-shadow: none;
 }
 
 /* 2px colored top accent borders */

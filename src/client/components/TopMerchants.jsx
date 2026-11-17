@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { Chart as ChartJS, BarElement } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import {
   getTooltipConfig,
   sharedAnimation,
+  chartDevicePixelRatio,
 } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
 import { groupByDescription } from '../utils/dataProcessing.js';
@@ -13,17 +14,12 @@ ChartJS.register(BarElement);
 
 function TopMerchants({ data }) {
   const chartColors = useChartTheme();
+  const merchants = useMemo(
+    () => (data && data.length ? groupByDescription(data).slice(0, 10) : []),
+    [data]
+  );
 
-  if (!data || data.length === 0) {
-    return <p className="chart-empty">No data available for top merchants.</p>;
-  }
-
-  const merchants = groupByDescription(data).slice(0, 10);
-
-  if (merchants.length === 0) {
-    return <p className="chart-empty">No debit transactions found.</p>;
-  }
-
+  const { chartData, chartOptions } = useMemo(() => {
   // Truncate long labels
   const labels = merchants.map(m =>
     m.description.length > 30 ? m.description.slice(0, 27) + '...' : m.description
@@ -45,6 +41,7 @@ function TopMerchants({ data }) {
     responsive: true,
     maintainAspectRatio: true,
     aspectRatio: 1.4,
+    devicePixelRatio: chartDevicePixelRatio,
     indexAxis: 'y',
     plugins: {
       legend: { display: false },
@@ -91,6 +88,15 @@ function TopMerchants({ data }) {
     },
     animation: sharedAnimation,
   };
+  return { chartData, chartOptions };
+  }, [merchants, chartColors]);
+
+  if (!data || data.length === 0) {
+    return <p className="chart-empty">No data available for top merchants.</p>;
+  }
+  if (merchants.length === 0) {
+    return <p className="chart-empty">No debit transactions found.</p>;
+  }
 
   return (
     <div className="top-merchants chart-section">
@@ -107,4 +113,4 @@ function TopMerchants({ data }) {
   );
 }
 
-export default TopMerchants;
+export default memo(TopMerchants);

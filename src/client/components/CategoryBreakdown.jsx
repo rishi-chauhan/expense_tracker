@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { ArcElement, Chart as ChartJS } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
-import { getTooltipConfig, sharedAnimation } from '../utils/chartConfig.js';
+import { getTooltipConfig, sharedAnimation, chartDevicePixelRatio } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
 import { groupByCategory, formatINR } from '../utils/dataProcessing.js';
 import './CategoryBreakdown.css';
@@ -12,19 +12,7 @@ function CategoryBreakdown({ data }) {
   const chartColors = useChartTheme();
   const grouped = useMemo(() => groupByCategory(data), [data]);
 
-  if (!grouped.length) {
-    return (
-      <div className="category-breakdown chart-section">
-        <div className="chart-header">
-          <div className="chart-title-group">
-            <h3>Spending by Category</h3>
-            <p className="chart-section-subtitle">No categorized spending in this range</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  const { chartData, options } = useMemo(() => {
   const chartData = {
     labels: grouped.map(g => g.name),
     datasets: [{
@@ -39,6 +27,7 @@ function CategoryBreakdown({ data }) {
     responsive: true,
     maintainAspectRatio: true,
     aspectRatio: 1.4,
+    devicePixelRatio: chartDevicePixelRatio,
     plugins: {
       legend: {
         position: 'right',
@@ -57,6 +46,21 @@ function CategoryBreakdown({ data }) {
     },
     animation: sharedAnimation,
   };
+  return { chartData, options };
+  }, [grouped, chartColors]);
+
+  if (!grouped.length) {
+    return (
+      <div className="category-breakdown chart-section">
+        <div className="chart-header">
+          <div className="chart-title-group">
+            <h3>Spending by Category</h3>
+            <p className="chart-section-subtitle">No categorized spending in this range</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="category-breakdown chart-section">
@@ -75,4 +79,4 @@ function CategoryBreakdown({ data }) {
   );
 }
 
-export default CategoryBreakdown;
+export default memo(CategoryBreakdown);

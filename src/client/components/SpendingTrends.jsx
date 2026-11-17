@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import '../utils/chartConfig.js';
 import {
@@ -6,6 +6,7 @@ import {
   getXScale,
   getYScale,
   sharedAnimation,
+  chartDevicePixelRatio,
 } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
 import { useSettings } from '../contexts/SettingsContext';
@@ -17,7 +18,82 @@ function SpendingTrends({ data, granularity }) {
   const chartColors = useChartTheme();
   const { showCredits } = useSettings();
 
-  if (!data || data.length === 0) {
+  const isWeekly = granularity === 'weekly';
+
+  // Aggregate once per data/granularity change, not on every render.
+  const { labels, groupedData } = useMemo(() => {
+    if (!data || data.length === 0) return { labels: [], groupedData: {} };
+    if (isWeekly) {
+      const { weeklyData, sortedWeeks } = groupByWeek(data);
+      return { labels: sortedWeeks, groupedData: weeklyData };
+    }
+    const { monthlyData, sortedMonths } = groupByMonth(data);
+    return { labels: sortedMonths, groupedData: monthlyData };
+  }, [data, isWeekly]);
+
+  const chartData = useMemo(() => {
+    const dense = labels.length > 30;
+    const pointStyle = (color) => ({
+      pointRadius: dense ? 0 : 4,
+      pointHoverRadius: dense ? 4 : 6,
+      pointBackgroundColor: color,
+      pointBorderColor: chartColors.pointBorderColor,
+      pointBorderWidth: 2,
+    });
+    const datasets = [
+      {
+        key: 'debits',
+        label: 'Debits',
+        data: labels.map(key => groupedData[key].debits),
+        borderColor: chartColors.debitSolid,
+        backgroundColor: chartColors.debitFill,
+        fill: true,
+        tension: 0.3,
+        ...pointStyle(chartColors.debitSolid),
+      },
+      ...(showCredits ? [{
+        key: 'credits',
+        label: 'Credits',
+        data: labels.map(key => groupedData[key].credits),
+        borderColor: chartColors.creditSolid,
+        backgroundColor: chartColors.creditFill,
+        fill: true,
+        tension: 0.3,
+        ...pointStyle(chartColors.creditSolid),
+      }] : []),
+    ];
+    return { labels, datasets: datasets.filter(ds => activeDatasets[ds.key]) };
+  }, [labels, groupedData, chartColors, showCredits, activeDatasets]);
+
+  const chartOptions = useMemo(() => {
+    const xScale = getXScale(chartColors);
+    return {
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 2.2,
+      devicePixelRatio: chartDevicePixelRatio,
+      plugins: {
+        legend: { display: false },
+        title: { display: false },
+        tooltip: {
+          ...getTooltipConfig(chartColors),
+          callbacks: {
+            label: (context) => context.dataset.label + ': ₹' + context.parsed.y.toLocaleString('en-IN'),
+          },
+        },
+      },
+      scales: {
+        x: {
+          ...xScale,
+          ticks: { ...xScale.ticks, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 },
+        },
+        y: getYScale(chartColors),
+      },
+      animation: sharedAnimation,
+    };
+  }, [chartColors]);
+
+  if (labels.length === 0) {
     return <p className="chart-empty">No data available for spending trends.</p>;
   }
 
@@ -27,86 +103,6 @@ function SpendingTrends({ data, granularity }) {
       if (!next.debits && !next.credits) return prev;
       return next;
     });
-  };
-
-  const isWeekly = granularity === 'weekly';
-  const { weeklyData, sortedWeeks } = isWeekly ? groupByWeek(data) : { weeklyData: {}, sortedWeeks: [] };
-  const { monthlyData, sortedMonths } = !isWeekly ? groupByMonth(data) : { monthlyData: {}, sortedMonths: [] };
-
-  const labels = isWeekly ? sortedWeeks : sortedMonths;
-  const groupedData = isWeekly ? weeklyData : monthlyData;
-
-  if (labels.length === 0) {
-    return <p className="chart-empty">No data available for spending trends.</p>;
-  }
-
-  const allDatasets = [
-    {
-      key: 'debits',
-      label: 'Debits',
-      data: labels.map(key => groupedData[key].debits),
-      borderColor: chartColors.debitSolid,
-      backgroundColor: chartColors.debitFill,
-      fill: true,
-      tension: 0.3,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-      pointBackgroundColor: chartColors.debitSolid,
-      pointBorderColor: chartColors.pointBorderColor,
-      pointBorderWidth: 2,
-    },
-    ...(showCredits ? [{
-      key: 'credits',
-      label: 'Credits',
-      data: labels.map(key => groupedData[key].credits),
-      borderColor: chartColors.creditSolid,
-      backgroundColor: chartColors.creditFill,
-      fill: true,
-      tension: 0.3,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-      pointBackgroundColor: chartColors.creditSolid,
-      pointBorderColor: chartColors.pointBorderColor,
-      pointBorderWidth: 2,
-    }] : []),
-  ];
-
-  const xScale = getXScale(chartColors);
-
-  const chartData = {
-    labels,
-    datasets: allDatasets.filter(ds => activeDatasets[ds.key]),
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: true,
-    aspectRatio: 2.2,
-    plugins: {
-      legend: { display: false },
-      title: { display: false },
-      tooltip: {
-        ...getTooltipConfig(chartColors),
-        callbacks: {
-          label: function(context) {
-            return context.dataset.label + ': ₹' + context.parsed.y.toLocaleString('en-IN');
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        ...xScale,
-        ticks: {
-          ...xScale.ticks,
-          maxRotation: 45,
-          autoSkip: true,
-          maxTicksLimit: 12,
-        }
-      },
-      y: getYScale(chartColors),
-    },
-    animation: sharedAnimation,
   };
 
   return (
@@ -148,4 +144,4 @@ function SpendingTrends({ data, granularity }) {
   );
 }
 
-export default SpendingTrends;
+export default memo(SpendingTrends);

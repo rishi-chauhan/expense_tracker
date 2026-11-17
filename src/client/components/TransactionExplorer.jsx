@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useCategories } from '../hooks/useCategories';
 import { useSettings } from '../contexts/SettingsContext';
 import { formatINR } from '../utils/dataProcessing.js';
-import { getCategories, setTransactionCategory } from '../utils/api.js';
+import { setTransactionCategory } from '../utils/api.js';
 import './TransactionExplorer.css';
 
 const PAGE_SIZE = 25;
@@ -10,19 +11,14 @@ function TransactionExplorer({ data, onCategoryChange }) {
   const [sortField, setSortField] = useState('Date');
   const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(0);
-  const [categories, setCategories] = useState([]);
   const [savingId, setSavingId] = useState(null);
   const [actionError, setActionError] = useState('');
   const { showCredits } = useSettings();
 
+  const { categories, error: categoriesError } = useCategories();
   useEffect(() => {
-    getCategories()
-      .then((res) => setCategories(res.categories || []))
-      .catch(() => {
-        setCategories([]);
-        setActionError('Could not load transaction categories');
-      });
-  }, []);
+    if (categoriesError) setActionError('Could not load transaction categories');
+  }, [categoriesError]);
 
   const displayData = useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -41,7 +37,7 @@ function TransactionExplorer({ data, onCategoryChange }) {
     return [...displayData].sort((a, b) => {
       let cmp;
       if (sortField === 'Date') {
-        cmp = new Date(a.Date) - new Date(b.Date);
+        cmp = (a.Ts ?? new Date(a.Date).getTime()) - (b.Ts ?? new Date(b.Date).getTime());
       } else if (sortField === 'Card') {
         cmp = (a.CardLabel || '').localeCompare(b.CardLabel || '');
       } else if (sortField === 'Category') {

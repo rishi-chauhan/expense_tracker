@@ -1,12 +1,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getTransactions, getCards } from '../utils/api.js';
+import { isoMondayString } from '../utils/dataProcessing.js';
 
+const CC_PAYMENT_RE = /CC PAYMENT|BPPY/i;
+
+/**
+ * API rows → component shape. Derived fields are computed once here so the
+ * hot filtering/grouping paths never parse dates or lower-case strings again.
+ */
 export function transformTransactions(transactions) {
-  return transactions.map(tx => ({
+  return transactions.map(tx => {
+    const dateStr = String(tx.date).slice(0, 10);
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const local = new Date(y, m - 1, d); // local midnight (not UTC)
+    const description = tx.description || '';
+    return {
     Id: tx.id,
-    Date: new Date(tx.date),
+    Date: local,
+    DateStr: dateStr,
+    Ts: local.getTime(),
+    MonthKey: dateStr.slice(0, 7),
+    WeekKey: isoMondayString(local),
+    DescLower: description.toLowerCase(),
+    IsCCPayment: CC_PAYMENT_RE.test(description),
     Amount: tx.amount,
-    Description: tx.description,
+    Description: description,
     IsCredit: Boolean(tx.is_credit),
     Type: tx.type,
     CardId: tx.card_id,
@@ -16,7 +34,8 @@ export function transformTransactions(transactions) {
     CategoryName: tx.category_name,
     CategoryColor: tx.category_color,
     CategoryManual: Boolean(tx.category_manual),
-  }));
+    };
+  });
 }
 
 /**

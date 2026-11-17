@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { ArcElement, Chart as ChartJS } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
-import { getTooltipConfig } from '../utils/chartConfig.js';
+import { getTooltipConfig, sharedAnimation, chartDevicePixelRatio } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
 import { calculateSummaryStats, formatINR } from '../utils/dataProcessing.js';
 import './DebitCreditRatio.css';
@@ -10,17 +10,12 @@ ChartJS.register(ArcElement);
 
 function DebitCreditRatio({ data }) {
   const chartColors = useChartTheme();
+  const { totalDebits, totalCredits } = useMemo(
+    () => calculateSummaryStats(data || []),
+    [data]
+  );
 
-  if (!data || data.length === 0) {
-    return <p className="chart-empty">No data available.</p>;
-  }
-
-  const { totalDebits, totalCredits } = calculateSummaryStats(data);
-
-  if (totalDebits === 0 && totalCredits === 0) {
-    return <p className="chart-empty">No transactions found.</p>;
-  }
-
+  const { chartData, chartOptions } = useMemo(() => {
   const chartData = {
     labels: ['Debits (Expenses)', 'Credits (Payments)'],
     datasets: [{
@@ -36,6 +31,7 @@ function DebitCreditRatio({ data }) {
     responsive: true,
     maintainAspectRatio: true,
     aspectRatio: 1.4,
+    devicePixelRatio: chartDevicePixelRatio,
     cutout: '65%',
     plugins: {
       legend: { display: false },
@@ -50,11 +46,17 @@ function DebitCreditRatio({ data }) {
         }
       }
     },
-    animation: {
-      duration: 750,
-      easing: 'easeOutCubic',
-    }
+    animation: sharedAnimation,
   };
+  return { chartData, chartOptions };
+  }, [totalDebits, totalCredits, chartColors]);
+
+  if (!data || data.length === 0) {
+    return <p className="chart-empty">No data available.</p>;
+  }
+  if (totalDebits === 0 && totalCredits === 0) {
+    return <p className="chart-empty">No transactions found.</p>;
+  }
 
   return (
     <div className="debit-credit-ratio chart-section">
@@ -89,4 +91,4 @@ function DebitCreditRatio({ data }) {
   );
 }
 
-export default DebitCreditRatio;
+export default memo(DebitCreditRatio);

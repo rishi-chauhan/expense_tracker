@@ -7,7 +7,6 @@
   z-index: 1000;
   padding: var(--space-4);
   background: rgba(2, 5, 10, 0.72);
-  backdrop-filter: blur(8px);
 }
 
 .modal-content {

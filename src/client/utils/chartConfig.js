@@ -96,8 +96,16 @@ export function getYScale(colors) {
   };
 }
 
-/** Shared animation config */
-export const sharedAnimation = {
-  duration: 750,
-  easing: 'easeOutCubic',
-};
+const prefersReducedMotion = typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Shared animation config — off entirely under prefers-reduced-motion */
+export const sharedAnimation = prefersReducedMotion
+  ? false
+  : { duration: 300, easing: 'easeOutCubic' };
+
+/** Cap canvas resolution at 2x: 3x phone screens cost 2.25x the pixels for no visible gain. */
+export const chartDevicePixelRatio = typeof window !== 'undefined'
+  ? Math.min(window.devicePixelRatio || 1, 2)
+  : 1;

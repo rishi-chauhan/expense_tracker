@@ -35,7 +35,7 @@ function Dashboard({ csvData }) {
   const chartColors = useChartTheme();
   const { showCredits } = useSettings();
 
-  const analyticsData = filterAnalyticsData(csvData);
+  const analyticsData = useMemo(() => filterAnalyticsData(csvData), [csvData]);
 
   const filteredData = useMemo(() => {
     if (analyticsData.length === 0) return analyticsData;
@@ -47,15 +47,18 @@ function Dashboard({ csvData }) {
     const selected = RANGES.find(r => r.label === range);
     if (!selected || selected.months === null) return analyticsData;
 
-    const latestDate = analyticsData.reduce((max, t) => {
-      const d = new Date(t.Date);
-      return d > max ? d : max;
-    }, new Date(0));
+    let latestTs = 0;
+    for (const t of analyticsData) {
+      const ts = t.Ts ?? new Date(t.Date).getTime();
+      if (ts > latestTs) latestTs = ts;
+    }
+    const latestDate = new Date(latestTs);
 
     const cutoff = new Date(latestDate);
     cutoff.setMonth(cutoff.getMonth() - selected.months);
 
-    return analyticsData.filter(t => new Date(t.Date) >= cutoff);
+    const cutoffTs = cutoff.getTime();
+    return analyticsData.filter(t => (t.Ts ?? new Date(t.Date).getTime()) >= cutoffTs);
   }, [analyticsData, range, customStart, customEnd]);
 
   if (!csvData || csvData.length === 0) {

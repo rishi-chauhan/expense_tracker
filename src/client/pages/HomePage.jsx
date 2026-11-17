@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useState, useMemo } from 'react';
 import FileUpload from '../components/FileUpload';
 import { filterByCard } from '../utils/dataProcessing.js';
 import './HomePage.css';
@@ -8,7 +8,7 @@ const Dashboard = lazy(() => import('../components/Dashboard'));
 function HomePage({ csvData, loading, error, notification, onFileUpload, onErrorDismiss, onNotificationDismiss, onError, cards }) {
   const [selectedCardId, setSelectedCardId] = useState('all');
 
-  const filteredData = filterByCard(csvData, selectedCardId);
+  const filteredData = useMemo(() => filterByCard(csvData, selectedCardId), [csvData, selectedCardId]);
 
   return (
     <div className="home-page">

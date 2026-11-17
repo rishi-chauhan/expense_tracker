@@ -63,7 +63,7 @@
   border-color: var(--color-accent);
   border-style: solid;
   background: var(--color-accent-dim);
-  box-shadow: var(--shadow-glow-accent);
+  box-shadow: none;
 }
 
 .upload-zone.has-file {

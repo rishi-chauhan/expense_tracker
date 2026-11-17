@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { Link } from 'react-router-dom';
 import SpendingTrends from '../components/SpendingTrends';
 import TopMerchants from '../components/TopMerchants';
@@ -17,6 +17,8 @@ import './AnalyticsDashboard.css';
 
 function AnalyticsDashboard({ csvData, cards, onCategoryChange }) {
   const [searchQuery, setSearchQuery] = useState('');
+  // Typing stays responsive; filtering + chart updates run at lower priority.
+  const deferredQuery = useDeferredValue(searchQuery);
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
   const [granularity, setGranularity] = useState('monthly');
@@ -51,9 +53,9 @@ function AnalyticsDashboard({ csvData, cards, onCategoryChange }) {
   const filteredData = useMemo(() => {
     let result = analyticsData;
     result = filterByDateRange(result, dateStart, dateEnd);
-    result = searchByDescription(result, searchQuery);
+    result = searchByDescription(result, deferredQuery);
     return result;
-  }, [analyticsData, dateStart, dateEnd, searchQuery]);
+  }, [analyticsData, dateStart, dateEnd, deferredQuery]);
 
   if (!csvData || csvData.length === 0) {
     return (
