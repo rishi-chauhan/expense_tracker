@@ -25,7 +25,17 @@ bun run test -- --run            # vitest: client + pure server tests (do NOT us
 bun run test:bun                 # bun:sqlite server tests (db, routes, security, auth, perf, …)
 bun run test:all
 bun run lint
+
+# Single test file / single test
+bun run test -- --run src/client/__tests__/OverviewPage.test.jsx
+bun run test -- --run -t "privacy mode"
+bun test src/server/__tests__/routes.test.js          # bun:sqlite files only
+bun test src/server/__tests__/security.test.js -t "CSRF"
 ```
+
+`bunfig.toml` scopes `bun test` to `src/server/__tests__` and preloads `preload.js` (throwaway `DB_PATH`), so server tests never touch `data/expenses.db`.
+
+Demo data (no real statements): `bun scripts/generate-demo-csvs.js [outDir]` writes 12 months of synthetic statements for two fake cards (HDFC, ICICI) to `demo-data/` (gitignored). Run against a separate DB (`DB_PATH=/some/tmp/demo.db bun run dev`) and upload them via the UI or `curl -H 'X-Requested-With: paisa' -F "file=@x.csv;type=text/csv" localhost:3000/api/upload`. README screenshots in `docs/screenshots/` were made from this data.
 
 Dev password (optional): `printf '%s' 'pw' | bun scripts/hash-password.js`, then start the backend with `AUTH_PASSWORD_HASH='<hash>'`.
 
@@ -115,48 +125,18 @@ Tokens live in `index.css` (`--bg`, `--surface`, `--surface-2`, `--border`, `--t
 - Don't add heavy dependencies (Pi 4). Allowed runtime deps: React, react-router-dom, Chart.js/react-chartjs-2, PapaParse (server), `@fontsource-variable/inter`. No Tailwind, component/icon/auth libraries or state managers.
 - Don't build on the Pi; build on a laptop and rsync `dist/` (it includes the `.br`/`.gz` files).
 - systemd runs `bun --smol src/server/index.js` directly (one process).
-- Never commit real CSVs, databases, `.env`, or screenshots with real data; use `tests/fixtures/sample_valid.csv`.
+- Never commit real CSVs, databases, `.env`, or screenshots with real data; use `scripts/generate-demo-csvs.js` or `tests/fixtures/sample_valid.csv`.
 - No service worker caching of `/api/*` (financial data must not persist on the phone).
 
 ## File Organization
 
 ```
-src/
-├── client/
-│   ├── main.jsx, App.jsx, App.css, index.html, index.css, fonts.css
-│   ├── public/            theme-init.js, favicon.svg, manifest.webmanifest, icons/
-│   ├── contexts/          ThemeContext, SettingsContext, AuthContext, FilterContext
-│   ├── hooks/             useTransactions, useUpload, useStatements, useCategories,
-│   │                      useApiData, useMediaQuery, useChartTheme
-│   ├── pages/             OverviewPage, TransactionsPage, AnalyticsDashboard (Insights),
-│   │                      StatementsPage, CategoriesPage, LoginPage (+ .css each)
-│   ├── components/        MoneyStrip, TransactionRow, ChartCard, SpendingBarChart,
-│   │                      SpendingTrends, TopMerchants, CategoryBreakdown, DebitCreditRatio,
-│   │                      WeekdayChart, FileUpload, UploadDialog, CardInfoModal, AskAI (+ .css)
-│   │   ├── layout/        AppShell, Sidebar, TopBar, BottomNav, FilterBar, SettingsControls, navItems.js
-│   │   └── ui/            Button, IconButton, Card, StatTile, SegmentedControl, Select, Input, Chip,
-│   │                      Dialog, ConfirmDialog, Sheet, Toast, Skeleton, EmptyState, Amount, Icon
-│   ├── utils/             api.js, chartConfig.js, dataProcessing.js, periods.js
-│   └── __tests__/         setup.js, testUtils.jsx, *.test.jsx
-└── server/
-    ├── index.js           Bun.serve bootstrap
-    ├── app.js             request pipeline (host, CSRF, auth, ETag/gzip, static)
-    ├── security.js        CSRF / body size / host allow-list
-    ├── auth.js            optional login, sessions, rate limit
-    ├── static.js          precompressed static files + caching
-    ├── dataVersion.js     mutation counter + startedAt
-    ├── routes.js          API handlers + validation
-    ├── db.js              SQLite schema + queries
-    ├── sqlGuard.js        AI SQL validator
-    ├── queryRunner.js     worker manager (timeout/respawn)
-    ├── queryWorker.js     read-only query worker
-    ├── ollama.js          LLM calls
-    ├── parser.js, utils.js, config.js
-    └── __tests__/         preload.js, security, auth, perf, routes, db, integration,
-                           executeReadOnlyQuery, ollama (bun test); utils, parser (vitest)
-scripts/
-├── compress-dist.js       build step: .br/.gz
-├── hash-password.js       argon2id hash for AUTH_PASSWORD_HASH (reads stdin)
-└── check-credits.js
-deploy/                    setup.sh, install.sh, backup.sh, expense-tracker.service, Caddy, README.md
+src/client/   main.jsx, App.jsx, index.html (Vite root), index.css (tokens), fonts.css, public/ (theme-init.js, PWA manifest)
+              contexts/ · hooks/ · pages/ · components/{,layout/,ui/} · utils/ · __tests__/
+src/server/   index.js (bootstrap) → app.js (pipeline) · security.js · auth.js · static.js · routes.js · db.js
+              parser.js · utils.js · config.js (env config; Ollama vars live in ollama.js) · dataVersion.js · ollama.js · sqlGuard.js
+              queryRunner.js / queryWorker.js · __tests__/
+scripts/      compress-dist.js (build step) · hash-password.js · generate-demo-csvs.js · check-credits.js
+deploy/       setup.sh (one-shot Pi install) · install.sh · backup.sh · systemd unit · Caddy · README.md
+docs/         screenshots/ (synthetic data only)
 ```
