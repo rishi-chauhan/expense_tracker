@@ -240,7 +240,7 @@ export function groupByCategory(data) {
   const grouped = new Map();
   for (const item of data || []) {
     if (!item.Amount || item.IsCredit) continue;
-    const name = item.CategoryName || 'Uncategorized';
+    const name = item.CategoryName || 'Uncategorised';
     let g = grouped.get(name);
     if (!g) {
       g = { name, total: 0, count: 0, color: item.CategoryColor || '#8b90a0', categoryId: item.CategoryId ?? null };

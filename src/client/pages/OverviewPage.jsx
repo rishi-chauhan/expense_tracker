@@ -29,6 +29,11 @@ const SpendingBarChart = lazy(() => import('../components/SpendingBarChart'));
 const DAY_MS = 86_400_000;
 const UNCATEGORISED = '#8b90a0';
 
+function pctLabel(fraction) {
+  const pct = fraction * 100;
+  return pct > 0 && pct < 1 ? '<1%' : `${Math.round(pct)}%`;
+}
+
 function daysInRange(range, firstDate, latestDate) {
   const from = range.from || firstDate;
   const to = range.to || latestDate;
@@ -187,7 +192,7 @@ export default function OverviewPage({ csvData, loading, dataKey, onFileUpload, 
                       name={c.name}
                       to={categoryLink(c)}
                       pct={(c.total / categoryTotal) * 100}
-                      value={<><Amount value={c.total} whole /> <span className="pr-pct num">{Math.round((c.total / categoryTotal) * 100)}%</span></>}
+                      value={<><Amount value={c.total} whole /> <span className="pr-pct num">{pctLabel(c.total / categoryTotal)}</span></>}
                     />
                   ))}
                 </ul>

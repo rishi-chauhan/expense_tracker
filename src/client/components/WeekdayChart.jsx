@@ -8,7 +8,7 @@ import {
   chartDevicePixelRatio,
   money,
 } from '../utils/chartConfig.js';
-import { useChartTheme } from '../hooks/useChartTheme';
+import { useChartTheme, withAlpha } from '../hooks/useChartTheme';
 import { spendByWeekday } from '../utils/dataProcessing.js';
 import ChartCard from './ChartCard';
 import './WeekdayChart.css';
@@ -27,7 +27,7 @@ function WeekdayChart({ data }) {
       datasets: [{
         label: 'Average spend',
         data: days.map(d => d.average),
-        backgroundColor: days.map(d => (d.day === peak.day ? chartColors.accent : chartColors.accentFill)),
+        backgroundColor: days.map(d => (d.day === peak.day ? chartColors.accent : withAlpha(chartColors.accent, 0.35))),
         hoverBackgroundColor: chartColors.accent,
         borderRadius: 4,
         maxBarThickness: 28,
