@@ -14,12 +14,13 @@
     "test:coverage": "vitest --coverage",
     "test:backend": "vitest src/server",
     "test:frontend": "vitest src/client",
-    "test:bun": "bun test src/server/__tests__/db.test.js src/server/__tests__/routes.test.js src/server/__tests__/integration.test.js src/server/__tests__/ollama.test.js src/server/__tests__/executeReadOnlyQuery.test.js",
+    "test:bun": "bun test src/server/__tests__/db.test.js src/server/__tests__/routes.test.js src/server/__tests__/integration.test.js src/server/__tests__/ollama.test.js src/server/__tests__/executeReadOnlyQuery.test.js src/server/__tests__/security.test.js src/server/__tests__/auth.test.js",
     "test:all": "bun run test -- --run && bun run test:bun",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "chart.js": "^4.5.1",
     "papaparse": "^5.5.3",
     "react": "^19.0.0",

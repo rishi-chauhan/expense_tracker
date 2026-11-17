@@ -68,7 +68,7 @@ function TopMerchants({ data }) {
         border: { color: chartColors.borderColor },
         ticks: {
           font: {
-            family: chartColors.fontMono,
+            family: chartColors.font,
             size: 11,
           },
           color: chartColors.tickColorSecondary,
@@ -82,7 +82,7 @@ function TopMerchants({ data }) {
         border: { color: chartColors.borderColor },
         ticks: {
           font: {
-            family: chartColors.fontBody,
+            family: chartColors.font,
             size: 11,
           },
           color: chartColors.tickColorPrimary,

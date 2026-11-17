@@ -2,3 +2,5 @@
 # Only run server tests with bun test (they use bun:sqlite)
 # Client tests must use `bun run test` (vitest with happy-dom)
 root = "src/server/__tests__"
+# Use a throwaway DB for every bun test run
+preload = ["./src/server/__tests__/preload.js"]

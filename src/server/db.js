@@ -118,6 +118,18 @@ export function initializeDatabase() {
   db.run('CREATE INDEX IF NOT EXISTS idx_statements_card ON statements(card_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_category_rules_priority ON category_rules(priority DESC)');
 
+  // Optional login sessions (S1)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      token_hash TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL,
+      last_seen_at INTEGER NOT NULL,
+      user_agent TEXT
+    )
+  `);
+  db.run('CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)');
+
   // Seed default categories if empty
   const catCount = db.prepare('SELECT COUNT(*) as count FROM categories').get().count;
   if (catCount === 0) {
@@ -351,6 +363,10 @@ export function getAllCategories() {
   `).all();
 }
 
+export function getCategoryById(id) {
+  return db.query('SELECT id, name, color, icon FROM categories WHERE id = ?').get(id);
+}
+
 export function createCategory(name, color = null, icon = null) {
   const createdAt = new Date().toISOString();
   const result = db.query(
@@ -579,64 +595,55 @@ export function getTransactionsForExport({ cardId, startDate, endDate, categoryI
 }
 
 /**
- * Execute a read-only SQL query (for AI chat feature)
- * Uses a separate readonly connection when available.
+ * Sessions (optional app login, S1). Only the SHA-256 of the token is stored.
  */
-const DANGEROUS_KEYWORDS = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|ATTACH|DETACH|PRAGMA|REPLACE|VACUUM|REINDEX)\b/i;
-const BLOCKED_OBJECTS = /\b(sqlite_master|sqlite_schema|sqlite_temp_master)\b/i;
+const SESSION_TOUCH_INTERVAL_MS = 10 * 60 * 1000;
 
-let readonlyDb = null;
-function getReadonlyDb() {
-  if (!readonlyDb) {
-    try {
-      readonlyDb = new Database(DB_PATH, { readonly: true });
-    } catch {
-      readonlyDb = db;
-    }
-  }
-  return readonlyDb;
+export function createSession(tokenHash, ttlMs, userAgent = null) {
+  const now = Date.now();
+  db.query(
+    'INSERT INTO sessions (token_hash, created_at, expires_at, last_seen_at, user_agent) VALUES (?, ?, ?, ?, ?)'
+  ).run(tokenHash, now, now + ttlMs, now, userAgent ? String(userAgent).slice(0, 200) : null);
 }
 
-export function executeReadOnlyQuery(sql) {
-  const trimmed = sql.trim();
-
-  if (!/^\s*SELECT/i.test(trimmed)) {
-    throw new Error('Only SELECT queries are allowed');
+export function getSession(tokenHash) {
+  const row = db.query('SELECT * FROM sessions WHERE token_hash = ?').get(tokenHash);
+  if (!row) return null;
+  if (row.expires_at <= Date.now()) {
+    deleteSession(tokenHash);
+    return null;
   }
+  return row;
+}
 
-  if (DANGEROUS_KEYWORDS.test(trimmed)) {
-    throw new Error('Query contains disallowed keywords');
-  }
+/** Update last_seen_at at most every 10 minutes (avoid SD-card writes). */
+export function touchSession(tokenHash) {
+  const now = Date.now();
+  db.query(
+    'UPDATE sessions SET last_seen_at = ? WHERE token_hash = ? AND last_seen_at < ?'
+  ).run(now, tokenHash, now - SESSION_TOUCH_INTERVAL_MS);
+}
 
-  if (BLOCKED_OBJECTS.test(trimmed)) {
-    throw new Error('Query references disallowed system tables');
-  }
+export function deleteSession(tokenHash) {
+  return db.query('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash).changes;
+}
 
-  const withoutStrings = trimmed.replace(/'[^']*'/g, '');
-  if (withoutStrings.indexOf(';') !== -1) {
-    throw new Error('Multiple statements are not allowed');
-  }
+export function deleteExpiredSessions() {
+  return db.query('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now()).changes;
+}
 
-  let query = trimmed;
-  if (!/\bLIMIT\b/i.test(query)) {
-    query = `${query} LIMIT 100`;
-  }
-
-  const rows = getReadonlyDb().query(query).all();
-  const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-  return { rows, columns };
+/** Let SQLite refresh planner statistics (cheap; run after bulk writes / on close). */
+export function optimizeDatabase() {
+  try {
+    db.run('PRAGMA optimize');
+  } catch { /* ignore */ }
 }
 
 /**
  * Close DB connections (graceful shutdown)
  */
 export function closeDatabase() {
-  try {
-    if (readonlyDb && readonlyDb !== db) {
-      readonlyDb.close();
-      readonlyDb = null;
-    }
-  } catch { /* ignore */ }
+  optimizeDatabase();
   try {
     db.close();
   } catch { /* ignore */ }

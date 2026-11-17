@@ -24,6 +24,9 @@
 #   TAILSCALE_HOSTNAME    default expenses
 #   TAILSCALE_AUTH_KEY    optional; reusable, non-ephemeral. Or set TS_AUTHKEY.
 #   TAILSCALE_SSH=1       enable Tailscale SSH (default 1)
+#   APP_AUTH=0            1 = also turn on the optional in-app password (reuses the
+#                         Caddy password; writes AUTH_PASSWORD_HASH to .env).
+#                         Default 0 leaves .env auth settings untouched.
 #   SKIP_APT=1 SKIP_INSTALL=1 SKIP_CADDY=1 SKIP_FIREWALL=1 SKIP_CRON=1 SKIP_TAILSCALE=1
 
 set -euo pipefail
@@ -48,6 +51,7 @@ SKIP_TAILSCALE="${SKIP_TAILSCALE:-0}"
 TAILSCALE_HOSTNAME="${TAILSCALE_HOSTNAME:-expenses}"
 TAILSCALE_SSH="${TAILSCALE_SSH:-1}"
 DRY_RUN="${DRY_RUN:-0}"
+APP_AUTH="${APP_AUTH:-0}"
 TAILSCALE_URL=""
 TAILSCALE_IP=""
 
@@ -131,6 +135,7 @@ install_bun() {
       echo "[dry-run] copy bun -> ${SYSTEM_BUN} (mode 0755, not a symlink into /root)"
       return 0
     fi
+    echo "    Running vendor installer: https://bun.sh/install"
     curl -fsSL https://bun.sh/install | bash
   fi
   if ! promote_bun_to_system; then
@@ -152,6 +157,68 @@ install_apt_packages() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq
   apt-get install -y sqlite3 caddy ufw rsync curl ca-certificates
+}
+
+# Set KEY=VALUE in ${APP_ROOT}/.env idempotently (replaces an existing line).
+# VALUE is written verbatim — callers quote it as needed.
+set_env_var() {
+  local key="$1" value="$2" env_file="${APP_ROOT}/.env" tmp
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[dry-run] set ${key}=… in ${env_file}"
+    return 0
+  fi
+  touch "${env_file}"
+  tmp="$(mktemp)"
+  grep -v -E "^[[:space:]]*${key}=" "${env_file}" > "${tmp}" || true
+  printf '%s=%s\n' "${key}" "${value}" >> "${tmp}"
+  cat "${tmp}" > "${env_file}"
+  rm -f "${tmp}"
+  chmod 600 "${env_file}"
+  if [[ -n "${APP_USER}" ]]; then
+    chown "${APP_USER}:${APP_GROUP:-${APP_USER}}" "${env_file}" || true
+  fi
+}
+
+# Optional in-app password (S1). Only with APP_AUTH=1; must run before
+# configure_caddy unsets EXPENSES_ADMIN_PASSWORD.
+configure_app_auth() {
+  if [[ "${APP_AUTH}" != "1" ]]; then
+    echo "==> In-app password: off (set APP_AUTH=1 to enable)"
+    return 0
+  fi
+  prompt_password
+  echo "==> Enabling in-app password (AUTH_PASSWORD_HASH in .env)"
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    echo "[dry-run] hash password via scripts/hash-password.js"
+    return 0
+  fi
+  local bun_bin="${SYSTEM_BUN:-/usr/local/bin/bun}" app_hash
+  # Password goes through stdin, never argv.
+  app_hash="$(printf '%s' "${EXPENSES_ADMIN_PASSWORD}" | "${bun_bin}" "${APP_ROOT}/scripts/hash-password.js")"
+  if [[ "${app_hash}" != \$argon2id\$* ]]; then
+    echo "setup.sh: could not generate the app password hash" >&2
+    exit 1
+  fi
+  # Single quotes: the hash contains '$' and backup.sh sources .env with bash.
+  set_env_var AUTH_PASSWORD_HASH "'${app_hash}'"
+  unset app_hash
+}
+
+# Host allow-list (DNS-rebinding defence): localhost + LAN name + tailnet name.
+configure_allowed_hosts() {
+  local hosts="localhost,127.0.0.1" ts_host=""
+  if [[ "${SKIP_CADDY}" != "1" ]]; then
+    hosts="${hosts},${EXPENSES_HOST}"
+  fi
+  if [[ -n "${TAILSCALE_URL}" && "${TAILSCALE_URL}" != *"<tailnet>"* ]]; then
+    ts_host="${TAILSCALE_URL#https://}"
+    ts_host="${ts_host%%/*}"
+    ts_host="${ts_host%%:*}"
+    hosts="${hosts},${ts_host}"
+  fi
+  echo "==> ALLOWED_HOSTS=${hosts}"
+  set_env_var ALLOWED_HOSTS "${hosts}"
+  run systemctl restart expense-tracker.service || true
 }
 
 configure_caddy() {
@@ -320,6 +387,7 @@ install_tailscale() {
       echo "[dry-run] curl -fsSL https://tailscale.com/install.sh | sh"
       return 0
     fi
+    echo "    Running vendor installer: https://tailscale.com/install.sh"
     curl -fsSL https://tailscale.com/install.sh | sh
   fi
   if [[ "${DRY_RUN}" == "1" ]]; then
@@ -470,6 +538,11 @@ print_summary() {
     echo "  Open the App URL in the browser, not the 100.x IP (the certificate is for the name)."
     echo "  Home LAN URL above is unchanged and still asks for the Caddy password."
   fi
+  if [[ "${APP_AUTH}" == "1" ]]; then
+    echo "  App password: on (same password as Caddy). LAN users see two prompts."
+  else
+    echo "  App password: off — keep the tailnet single-user (see deploy/README.md)."
+  fi
   echo "  Docs:    ${APP_ROOT}/deploy/README.md"
   echo
 }
@@ -490,7 +563,7 @@ resolve_app_user
 echo "  APP_USER:      ${APP_USER}"
 
 # Ask before apt/build so prompts are not buried in Vite output.
-if [[ "${SKIP_CADDY}" != "1" ]]; then
+if [[ "${SKIP_CADDY}" != "1" || "${APP_AUTH}" == "1" ]]; then
   prompt_password
 fi
 
@@ -508,12 +581,16 @@ else
   echo "==> Skipping app install (SKIP_INSTALL=1)"
 fi
 
+configure_app_auth
+
 if [[ "${SKIP_CADDY}" != "1" ]]; then
   configure_caddy
 fi
+unset EXPENSES_ADMIN_PASSWORD || true
 
 configure_firewall
 configure_cron
 verify_setup
 configure_tailscale
+configure_allowed_hosts
 print_summary

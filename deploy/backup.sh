@@ -6,6 +6,12 @@
 #   ./deploy/backup.sh
 #   DB_PATH=/path/to/expenses.db BACKUP_DIR=/path/to/backups RETENTION_DAYS=14 ./deploy/backup.sh
 #
+# Optional off-device copy (both opt-in, set in .env or the environment):
+#   BACKUP_REMOTE=/mnt/usb/expenses-backups     # or user@nas:/volume1/backups (rsync target)
+#   BACKUP_AGE_RECIPIENT=age1...                # encrypt the remote copy with `age`
+# With BACKUP_AGE_RECIPIENT set (and `age` installed) only the encrypted
+# expenses-*.db.age file is sent; the local plaintext backup is kept as usual.
+#
 # Cron example (as the app login user):
 #   15 3 * * * /opt/expense_tracker/deploy/backup.sh >> /opt/expense_tracker/backups/backup.log 2>&1
 
@@ -52,6 +58,39 @@ sqlite3 "${DB_PATH}" ".backup '${DEST}'"
 if [[ ! -s "${DEST}" ]]; then
   echo "backup.sh: backup file missing or empty: ${DEST}" >&2
   exit 1
+fi
+
+INTEGRITY="$(sqlite3 "${DEST}" 'PRAGMA integrity_check;' 2>&1 || true)"
+if [[ "${INTEGRITY}" != "ok" ]]; then
+  echo "backup.sh: integrity check FAILED for ${DEST}:" >&2
+  printf '%s\n' "${INTEGRITY}" >&2
+  mv "${DEST}" "${DEST}.corrupt" || true
+  exit 1
+fi
+chmod 600 "${DEST}"
+
+# Optional off-device copy
+if [[ -n "${BACKUP_REMOTE:-}" ]]; then
+  if ! command -v rsync >/dev/null 2>&1; then
+    echo "backup.sh: BACKUP_REMOTE set but rsync is not installed" >&2
+    exit 1
+  fi
+  SEND="${DEST}"
+  CLEANUP=""
+  if [[ -n "${BACKUP_AGE_RECIPIENT:-}" ]]; then
+    if ! command -v age >/dev/null 2>&1; then
+      echo "backup.sh: BACKUP_AGE_RECIPIENT set but age is not installed (apt install age)" >&2
+      exit 1
+    fi
+    SEND="${DEST}.age"
+    age -r "${BACKUP_AGE_RECIPIENT}" -o "${SEND}" "${DEST}"
+    CLEANUP="${SEND}"
+  fi
+  echo "backup.sh: copying $(basename "${SEND}") -> ${BACKUP_REMOTE}"
+  rsync -a --chmod=F600 "${SEND}" "${BACKUP_REMOTE%/}/"
+  if [[ -n "${CLEANUP}" ]]; then
+    rm -f "${CLEANUP}"
+  fi
 fi
 
 # Drop backups older than retention window

@@ -5,7 +5,14 @@ const API_BASE = '/api';
  * Upload special cases (needsCardInfo, isDuplicate) are exposed via err.data.
  */
 async function api(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, options);
+  // Custom header required by the server's CSRF check on every mutation.
+  // Never set Content-Type for FormData — the browser adds the boundary.
+  const headers = { 'X-Requested-With': 'paisa', ...(options.headers || {}) };
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+
+  if (res.status === 401 && !path.startsWith('/auth/') && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('pkg:unauthorized'));
+  }
 
   // CSV export returns text, not JSON
   const contentType = res.headers.get('content-type') || '';
@@ -48,6 +55,34 @@ async function api(path, options = {}) {
 }
 
 export const health = () => api('/health');
+
+/**
+ * Auth status. A 404 (auth routes absent) means no login is required.
+ * Resolves to { authenticated, authRequired }.
+ */
+export async function getAuthStatus() {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: { 'X-Requested-With': 'paisa' },
+  });
+  if (res.status === 404) return { authenticated: true, authRequired: false };
+  let data = {};
+  try { data = await res.json(); } catch { /* ignore */ }
+  if (res.status === 401) return { authenticated: false, authRequired: true };
+  if (!res.ok) throw new Error('Could not check login status');
+  return {
+    authenticated: Boolean(data.authenticated),
+    authRequired: Boolean(data.authRequired),
+  };
+}
+
+export const login = (password) =>
+  api('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+
+export const logout = () => api('/auth/logout', { method: 'POST' });
 
 export const getTransactions = (cardId) =>
   api(`/transactions${cardId ? `?cardId=${cardId}` : ''}`);

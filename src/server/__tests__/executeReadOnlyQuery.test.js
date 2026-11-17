@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
 
-// Replicate the executeReadOnlyQuery logic with a test database
-const DANGEROUS_KEYWORDS = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|ATTACH|DETACH|PRAGMA|REPLACE|VACUUM|REINDEX)\b/i;
-const BLOCKED_OBJECTS = /\b(sqlite_master|sqlite_schema|sqlite_temp_master)\b/i;
+import { prepareReadOnlySql, MAX_SQL_LENGTH } from '../sqlGuard.js';
 
 let testDb;
 let executeReadOnlyQuery;
@@ -31,33 +29,9 @@ beforeEach(() => {
   insert.run('2025-01-15', 200, 'Amazon', 0, 'Debit');
   insert.run('2025-01-20', 50, 'Refund', 1, 'Credit');
 
-  // Mirror the real executeReadOnlyQuery using testDb
+  // Same contract as the worker: validate + wrap, then run on the test DB
   executeReadOnlyQuery = (sql) => {
-    const trimmed = sql.trim();
-
-    if (!/^\s*SELECT/i.test(trimmed)) {
-      throw new Error('Only SELECT queries are allowed');
-    }
-
-    if (DANGEROUS_KEYWORDS.test(trimmed)) {
-      throw new Error('Query contains disallowed keywords');
-    }
-
-    if (BLOCKED_OBJECTS.test(trimmed)) {
-      throw new Error('Query references disallowed system tables');
-    }
-
-    const withoutStrings = trimmed.replace(/'[^']*'/g, '');
-    if (withoutStrings.indexOf(';') !== -1) {
-      throw new Error('Multiple statements are not allowed');
-    }
-
-    let query = trimmed;
-    if (!/\bLIMIT\b/i.test(query)) {
-      query = `${query} LIMIT 100`;
-    }
-
-    const rows = testDb.query(query).all();
+    const rows = testDb.query(prepareReadOnlySql(sql)).all();
     const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
     return { rows, columns };
   };
@@ -180,5 +154,43 @@ describe('executeReadOnlyQuery', () => {
     expect(() => {
       executeReadOnlyQuery('SELECT * FROM sqlite_master');
     }).toThrow('Query references disallowed system tables');
+  });
+
+  it('should reject the recursive CTE event-loop freeze repro', () => {
+    expect(() => executeReadOnlyQuery(
+      'SELECT x FROM (WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM c WHERE x < 30000000) SELECT max(x) AS x FROM c)'
+    )).toThrow('Query contains disallowed keywords');
+  });
+
+  it.each(['randomblob(1000000)', 'zeroblob(1000000)', "load_extension('x')", "readfile('/etc/passwd')", "writefile('x','y')", "edit('a')", "fts3_tokenizer('x')"])(
+    'should reject dangerous function %s',
+    (fn) => {
+      expect(() => executeReadOnlyQuery(`SELECT ${fn} AS v`)).toThrow('disallowed');
+    }
+  );
+
+  it('should reject sqlite_ prefixed objects and the sessions table', () => {
+    expect(() => executeReadOnlyQuery('SELECT * FROM sqlite_sequence')).toThrow('disallowed system tables');
+    expect(() => executeReadOnlyQuery('SELECT * FROM sessions')).toThrow('disallowed system tables');
+  });
+
+  it('should always wrap with an outer LIMIT (inner LIMIT no longer bypasses it)', () => {
+    const wrapped = prepareReadOnlySql('SELECT * FROM (SELECT * FROM transactions LIMIT 1000000)');
+    expect(wrapped).toBe('SELECT * FROM (SELECT * FROM (SELECT * FROM transactions LIMIT 1000000)) LIMIT 100');
+  });
+
+  it('should strip comments before checking', () => {
+    expect(() => executeReadOnlyQuery('SELECT 1 /* hidden */; DELETE FROM transactions')).toThrow();
+    expect(() => executeReadOnlyQuery('-- comment\nSELECT 1 AS one')).not.toThrow();
+    expect(() => executeReadOnlyQuery('SELECT 1 AS one -- trailing; nothing')).not.toThrow();
+    expect(() => executeReadOnlyQuery('/* x */ UPDATE transactions SET amount = 0')).toThrow('Only SELECT');
+  });
+
+  it('should allow a trailing semicolon but not a second statement', () => {
+    expect(executeReadOnlyQuery('SELECT COUNT(*) AS n FROM transactions;').rows[0].n).toBe(3);
+  });
+
+  it('should reject over-long SQL', () => {
+    expect(() => executeReadOnlyQuery('SELECT ' + '1,'.repeat(MAX_SQL_LENGTH) + '1')).toThrow('too long');
   });
 });

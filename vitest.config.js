@@ -21,7 +21,10 @@ export default defineConfig({
       'src/server/__tests__/integration.test.js',
       'src/server/__tests__/routes.test.js',
       'src/server/__tests__/ollama.test.js',
-      'src/server/__tests__/executeReadOnlyQuery.test.js'
+      'src/server/__tests__/executeReadOnlyQuery.test.js',
+      'src/server/__tests__/security.test.js',
+      'src/server/__tests__/auth.test.js',
+      'src/server/__tests__/preload.js'
     ],
     coverage: {
       provider: 'v8',

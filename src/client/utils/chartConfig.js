@@ -22,6 +22,17 @@ ChartJS.register(
   Filler,
 );
 
+/** Same Inter stack as the UI (canvas text doesn't inherit CSS). */
+export const CHART_FONT = "'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+if (ChartJS.defaults?.font) ChartJS.defaults.font.family = CHART_FONT;
+
+// Canvas text doesn't trigger font loading: redraw charts once Inter is ready.
+if (typeof document !== 'undefined' && document.fonts?.ready) {
+  document.fonts.ready.then(() => {
+    Object.values(ChartJS.instances || {}).forEach(c => c.update('none'));
+  }).catch(() => {});
+}
+
 /** Tooltip config factory — accepts a chart colors object */
 export function getTooltipConfig(colors) {
   return {
@@ -31,12 +42,12 @@ export function getTooltipConfig(colors) {
     padding: 16,
     cornerRadius: 8,
     titleFont: {
-      family: colors.fontHeading,
+      family: colors.font,
       size: 13,
       weight: '600',
     },
     bodyFont: {
-      family: colors.fontBody,
+      family: colors.font,
       size: 13,
     },
     titleColor: colors.tooltipTitleColor,
@@ -58,7 +69,7 @@ export function getXScale(colors) {
     border: { color: colors.borderColor },
     ticks: {
       font: {
-        family: colors.fontBody,
+        family: colors.font,
         size: 12,
       },
       color: colors.tickColorPrimary,
@@ -74,7 +85,7 @@ export function getYScale(colors) {
     border: { color: colors.borderColor },
     ticks: {
       font: {
-        family: colors.fontMono,
+        family: colors.font,
         size: 11,
       },
       color: colors.tickColorSecondary,

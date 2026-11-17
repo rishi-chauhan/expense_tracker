@@ -9,12 +9,14 @@ export default defineConfig({
     outDir: '../../dist',
     emptyOutDir: true
   },
+  // Dev binds to localhost only. For phone testing on the LAN run
+  // `bun run dev:vite -- --host` (and HOST/ALLOWED_HOSTS for the backend).
   server: {
-    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
-        changeOrigin: true,
+        // Keep the browser's Host so the backend's Origin == Host CSRF check passes.
+        changeOrigin: false,
         secure: false
       }
     }

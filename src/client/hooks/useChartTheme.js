@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { CHART_FONT } from '../utils/chartConfig';
 
 function readCssVar(name, fallback) {
   if (typeof window === 'undefined' || !document.documentElement) return fallback;
@@ -27,9 +28,7 @@ function buildChartColors(theme) {
     pointBorderColor: readCssVar('--color-bg-card', isLight ? '#ffffff' : '#111722'),
     doughnutBorder: readCssVar('--color-bg-card', isLight ? '#ffffff' : '#111722'),
     accent: readCssVar('--color-accent', isLight ? '#b8751a' : '#d4952e'),
-    fontHeading: "'Plus Jakarta Sans', sans-serif",
-    fontBody: "'DM Sans', sans-serif",
-    fontMono: "'JetBrains Mono', monospace",
+    font: CHART_FONT,
   };
 }
 

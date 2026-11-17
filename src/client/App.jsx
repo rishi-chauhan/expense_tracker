@@ -6,14 +6,16 @@ import { useTransactions } from './hooks/useTransactions';
 import { useUpload } from './hooks/useUpload';
 import HomePage from './pages/HomePage';
 import CardInfoModal from './components/CardInfoModal';
+import { useAuth } from './contexts/AuthContext';
 import './App.css';
 
 const AnalyticsDashboard = lazy(() => import('./pages/AnalyticsDashboard'));
 const StatementsPage = lazy(() => import('./pages/StatementsPage'));
 const CategoriesPage = lazy(() => import('./pages/CategoriesPage'));
 const AskAI = lazy(() => import('./components/AskAI'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
 
-function App() {
+function AuthedApp() {
   const {
     csvData,
     cards,
@@ -211,6 +213,21 @@ function App() {
       )}
     </div>
   );
+}
+
+function App() {
+  const { status } = useAuth();
+  if (status === 'loading') {
+    return <div className="auth-loading" role="status" aria-label="Loading" />;
+  }
+  if (status === 'anon') {
+    return (
+      <Suspense fallback={<div className="auth-loading" role="status" aria-label="Loading" />}>
+        <LoginPage />
+      </Suspense>
+    );
+  }
+  return <AuthedApp />;
 }
 
 export default App;

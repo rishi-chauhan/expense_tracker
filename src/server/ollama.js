@@ -1,15 +1,24 @@
 const OLLAMA_BASE_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:1.5b';
+const NUM_THREAD = Number(process.env.OLLAMA_NUM_THREAD) || undefined;
+const KEEP_ALIVE = '10m';
+
+/** Ollama `options`, adding num_thread only when configured. */
+function modelOptions(extra) {
+  return NUM_THREAD ? { ...extra, num_thread: NUM_THREAD } : extra;
+}
 
 const SCHEMA_PROMPT = `You are a SQL expert for an expense tracking app using SQLite. Given the user's question, generate a single SELECT query to answer it.
 
-Database schema (3 tables):
+Database schema (4 tables):
 
 CREATE TABLE cards (id INTEGER PRIMARY KEY, bank_name TEXT, card_last4 TEXT, card_label TEXT, created_at TEXT);
-CREATE TABLE statements (id INTEGER PRIMARY KEY, card_id INTEGER REFERENCES cards(id), file_name TEXT, file_hash TEXT, period_start TEXT, period_end TEXT, row_count INTEGER, uploaded_at TEXT);
-CREATE TABLE transactions (id INTEGER PRIMARY KEY, statement_id INTEGER REFERENCES statements(id), tx_hash TEXT, date TEXT, amount REAL, description TEXT, is_credit INTEGER, type TEXT, uploaded_at TEXT);
+CREATE TABLE statements (id INTEGER PRIMARY KEY, card_id INTEGER REFERENCES cards(id), file_name TEXT, period_start TEXT, period_end TEXT, row_count INTEGER, uploaded_at TEXT);
+CREATE TABLE transactions (id INTEGER PRIMARY KEY, statement_id INTEGER REFERENCES statements(id), date TEXT, amount REAL, description TEXT, is_credit INTEGER, type TEXT, category_id INTEGER REFERENCES categories(id));
+CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT);
 
 Joins: transactions.statement_id → statements.id → statements.card_id → cards.id
+Category: transactions.category_id → categories.id (category_id may be NULL = uncategorised). Category names include Groceries, Dining, Transport, Utilities, Shopping, Entertainment, Health, Transfer, Other.
 The "description" column (merchant name) is ONLY in the transactions table.
 The "card_label" column is ONLY in the cards table.
 The "date" column is ONLY in the transactions table (format: YYYY-MM-DD).
@@ -32,6 +41,9 @@ SELECT t.description, SUM(t.amount) AS total FROM transactions t WHERE t.is_cred
 
 All transactions at a merchant:
 SELECT t.date, t.description, t.amount, t.type FROM transactions t WHERE LOWER(t.description) LIKE '%merchant name%' ORDER BY t.date DESC
+
+Spending by category:
+SELECT cat.name AS category, SUM(t.amount) AS total FROM transactions t LEFT JOIN categories cat ON t.category_id = cat.id WHERE t.is_credit = 0 GROUP BY cat.name ORDER BY total DESC
 
 Monthly spending trend:
 SELECT strftime('%Y-%m', t.date) AS month, SUM(t.amount) AS total FROM transactions t WHERE t.is_credit = 0 AND LOWER(t.description) NOT LIKE '%cc payment%' AND LOWER(t.description) NOT LIKE '%bppy%' GROUP BY month ORDER BY month`;
@@ -79,7 +91,8 @@ export async function generateSQL(question) {
       system: SCHEMA_PROMPT,
       prompt: question,
       stream: false,
-      options: { temperature: 0, num_predict: 256 },
+      keep_alive: KEEP_ALIVE,
+      options: modelOptions({ temperature: 0, num_predict: 256 }),
     }),
     signal: AbortSignal.timeout(60000),
   });
@@ -162,7 +175,8 @@ ${JSON.stringify(formatted, null, 2)}`;
       system: SUMMARY_PROMPT,
       prompt,
       stream: false,
-      options: { temperature: 0.3, num_predict: 512 },
+      keep_alive: KEEP_ALIVE,
+      options: modelOptions({ temperature: 0.3, num_predict: 512 }),
     }),
     signal: AbortSignal.timeout(60000),
   });

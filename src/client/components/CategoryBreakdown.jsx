@@ -44,7 +44,7 @@ function CategoryBreakdown({ data }) {
         position: 'right',
         labels: {
           color: chartColors.tickColorPrimary,
-          font: { family: chartColors.fontBody, size: 11 },
+          font: { family: chartColors.font, size: 11 },
           boxWidth: 12,
         },
       },
