@@ -58,3 +58,6 @@ assets/*
 *.sw?
 .playwright-mcp/
 expense-*.png
+
+# Synthetic demo statements (scripts/generate-demo-csvs.js)
+demo-data/

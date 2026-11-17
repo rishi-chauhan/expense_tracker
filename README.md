@@ -4,6 +4,23 @@
 
 A personal expense analyzer for Indian credit card statements. Upload CSVs, get dashboards and charts — no cloud, no signup, everything stays on your machine.
 
+## Screenshots
+
+![Overview in dark mode: total spent this period, a category strip, comparison with the previous period and weekly spending bars](docs/screenshots/overview-dark.png)
+
+<table>
+  <tr>
+    <td width="68%"><img src="docs/screenshots/insights-light.png" alt="Insights page in light mode: 12-month spending trend, category split doughnut and top merchants"></td>
+    <td width="32%"><img src="docs/screenshots/mobile-dark.png" alt="Overview on a phone with the bottom tab bar"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Insights — trends, category split, top merchants (light theme)</sub></td>
+    <td align="center"><sub>On your phone</sub></td>
+  </tr>
+</table>
+
+<sub>All screenshots use synthetic data from <code>scripts/generate-demo-csvs.js</code>.</sub>
+
 ## Highlights
 
 - **Instant visual analytics** — upload credit card CSVs and get interactive charts in seconds
@@ -53,6 +70,13 @@ bun run dev
 | API | http://localhost:3000 |
 
 Both dev servers listen on **localhost only**, so your real data isn't exposed on café or office Wi-Fi. To test on your phone over the LAN on purpose, run `bun run dev:vite -- --host` and start the backend with `HOST=0.0.0.0 ALLOWED_HOSTS=localhost,127.0.0.1,<laptop-ip>`.
+
+**Try it with demo data** — no real statement needed. Generate 12 months of fake statements for two cards, then drag them into **Upload statement**:
+
+```bash
+bun scripts/generate-demo-csvs.js          # writes demo-data/*.csv (gitignored)
+DB_PATH=data/demo.db bun run dev           # optional: keep demo data out of your real database
+```
 
 Optional: copy environment defaults if you need custom ports or DB path:
 
@@ -154,7 +178,7 @@ On a Pi, bind Ollama to localhost only (`OLLAMA_HOST=127.0.0.1:11434`) — see [
 
 The AI translates questions into SQL, runs it on a read-only connection in a separate worker (killed after 3 seconds), and summarises the result. Set `OLLAMA_SUMMARIZE=0` to skip the summary step and just show the result table — about twice as fast on a Pi. If Ollama is not running, the chat panel says so.
 
-Screenshots in issues or docs must only use the synthetic fixture (`tests/fixtures/sample_valid.csv`), never real statements.
+Screenshots in issues or docs must only use synthetic data (`bun scripts/generate-demo-csvs.js` or `tests/fixtures/sample_valid.csv`), never real statements.
 
 ---
 
@@ -205,6 +229,7 @@ bun run test         # vitest (watch mode)
 bun run test:bun     # bun:sqlite server tests (security, auth, routes, …)
 bun run test:all     # vitest --run + bun sqlite server tests
 bun run lint         # ESLint
+bun scripts/generate-demo-csvs.js   # synthetic statements for demos/screenshots
 ```
 
 See [TESTING.md](TESTING.md) for the full test suite.
