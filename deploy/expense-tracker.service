@@ -10,12 +10,20 @@ User=expenses
 Group=expenses
 WorkingDirectory=/opt/expense_tracker
 
-# Optional env overrides (HOST, PORT, DB_PATH, MAX_UPLOAD_SIZE, OLLAMA_*)
+# Optional env overrides (HOST, PORT, DB_PATH, ALLOWED_HOSTS, AUTH_PASSWORD_HASH,
+# MAX_UPLOAD_SIZE, OLLAMA_*)
+Environment=NODE_ENV=production
 EnvironmentFile=-/opt/expense_tracker/.env
 
 # Must be a real 0755 binary under /usr/local/bin — a symlink into /root/.bun
 # is not executable by User=expenses (and ProtectHome=true would block it).
-ExecStart=/usr/local/bin/bun run start
+# One Bun process (not `bun run start`, which spawns a second runtime);
+# --smol trades a little throughput for a smaller heap on the Pi.
+ExecStart=/usr/local/bin/bun --smol src/server/index.js
+
+# Guard rails: throttle at 200 MB, kill (then restart) at 300 MB.
+MemoryHigh=200M
+MemoryMax=300M
 
 Restart=on-failure
 RestartSec=5

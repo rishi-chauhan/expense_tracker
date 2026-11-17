@@ -162,7 +162,7 @@ else
   echo "    Safer: build on a laptop and copy dist/ into ${APP_ROOT}/dist/"
   if confirm_tty "Build on this device now? [y/N] "; then
     echo "==> Running production build (this can take a while)"
-    run_bun ./node_modules/vite/bin/vite.js build \
+    { run_bun ./node_modules/vite/bin/vite.js build && run_bun scripts/compress-dist.js; } \
       || echo "WARNING: build failed — copy a prebuilt dist/ from your laptop" >&2
   else
     echo "==> Skipping build — copy dist/ later, then: sudo systemctl restart ${SERVICE_NAME}"

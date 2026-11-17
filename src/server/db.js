@@ -1,6 +1,7 @@
 import { Database } from 'bun:sqlite';
 import path from 'path';
 import { DB_PATH } from './config.js';
+import { getDataVersion, bumpDataVersion } from './dataVersion.js';
 
 // Ensure parent directory exists for custom DB_PATH
 import { mkdirSync } from 'fs';
@@ -13,6 +14,27 @@ db.run('PRAGMA foreign_keys = ON');
 db.run('PRAGMA journal_mode = WAL');
 db.run('PRAGMA synchronous = NORMAL');
 db.run('PRAGMA busy_timeout = 5000');
+// Pi tuning: temp tables in RAM, ~16 MB page cache, 64 MB mmap (fewer syscalls)
+db.run('PRAGMA temp_store = MEMORY');
+db.run('PRAGMA cache_size = -16000');
+db.run('PRAGMA mmap_size = 67108864');
+
+/**
+ * Memoise a read-only query result until the next mutation (data version
+ * bump). Saves rescans when pages are revisited.
+ */
+function memoByDataVersion(fn) {
+  let version = -1;
+  let value;
+  return () => {
+    const v = getDataVersion();
+    if (v !== version) {
+      value = fn();
+      version = v;
+    }
+    return value;
+  };
+}
 
 /**
  * Initialize database schema
@@ -224,6 +246,7 @@ export function findCard(bankName, cardLast4) {
  * Insert a new card
  */
 export function insertCard(bankName, cardLast4, cardLabel) {
+  bumpDataVersion();
   const createdAt = new Date().toISOString();
   const result = db.query(
     'INSERT INTO cards (bank_name, card_last4, card_label, created_at) VALUES (?, ?, ?, ?)'
@@ -255,30 +278,26 @@ export function getAllCards() {
 }
 
 /**
- * Get all transactions sorted by date descending, with card info and category
+ * Get all transactions sorted by date descending, with card info and category.
+ * Only the columns the client uses (no tx_hash / uploaded_at / statement_id).
  */
+let txQuery = null;
 export function getAllTransactions(cardId) {
-  if (cardId) {
-    return db.query(`
-      SELECT t.*, c.id as card_id, c.bank_name, c.card_last4, c.card_label,
-             cat.name as category_name, cat.color as category_color
+  if (!txQuery) {
+    txQuery = db.prepare(`
+      SELECT t.id, t.date, t.amount, t.description, t.is_credit, t.type,
+             t.category_id, t.category_manual,
+             c.id AS card_id, c.bank_name, c.card_last4, c.card_label,
+             cat.name AS category_name, cat.color AS category_color
       FROM transactions t
       LEFT JOIN statements s ON t.statement_id = s.id
       LEFT JOIN cards c ON s.card_id = c.id
       LEFT JOIN categories cat ON t.category_id = cat.id
-      WHERE c.id = ?
-      ORDER BY t.date DESC
-    `).all(cardId);
+      WHERE (?1 IS NULL OR c.id = ?1)
+      ORDER BY t.date DESC, t.id DESC
+    `);
   }
-  return db.query(`
-    SELECT t.*, c.id as card_id, c.bank_name, c.card_last4, c.card_label,
-           cat.name as category_name, cat.color as category_color
-    FROM transactions t
-    LEFT JOIN statements s ON t.statement_id = s.id
-    LEFT JOIN cards c ON s.card_id = c.id
-    LEFT JOIN categories cat ON t.category_id = cat.id
-    ORDER BY t.date DESC
-  `).all();
+  return txQuery.all(cardId ?? null);
 }
 
 /**
@@ -313,6 +332,7 @@ export function checkDuplicateStatement(fileHash) {
  * Returns the new statement ID
  */
 export function insertStatement(fileName, fileHash, periodStart, periodEnd, rowCount, cardId) {
+  bumpDataVersion();
   const uploadedAt = new Date().toISOString();
   const query = db.query(`
     INSERT INTO statements (file_name, file_hash, period_start, period_end, row_count, card_id, uploaded_at)
@@ -328,6 +348,7 @@ export function insertStatement(fileName, fileHash, periodStart, periodEnd, rowC
  * Returns the number of rows inserted (0 if duplicate, 1 if new)
  */
 export function insertTransaction(txHash, date, amount, description, isCredit, type, statementId, categoryId = null) {
+  bumpDataVersion();
   const uploadedAt = new Date().toISOString();
   const query = db.query(`
     INSERT OR IGNORE INTO transactions
@@ -345,6 +366,7 @@ export function insertTransaction(txHash, date, amount, description, isCredit, t
  * Delete a statement and all its transactions (CASCADE)
  */
 export function deleteStatement(statementId) {
+  bumpDataVersion();
   const query = db.query('DELETE FROM statements WHERE id = ?');
   const result = query.run(statementId);
   return result.changes;
@@ -353,7 +375,7 @@ export function deleteStatement(statementId) {
 /**
  * Categories CRUD
  */
-export function getAllCategories() {
+export const getAllCategories = memoByDataVersion(() => {
   return db.query(`
     SELECT c.*,
       (SELECT COUNT(*) FROM transactions t WHERE t.category_id = c.id) as transaction_count,
@@ -361,13 +383,14 @@ export function getAllCategories() {
     FROM categories c
     ORDER BY c.name ASC
   `).all();
-}
+});
 
 export function getCategoryById(id) {
   return db.query('SELECT id, name, color, icon FROM categories WHERE id = ?').get(id);
 }
 
 export function createCategory(name, color = null, icon = null) {
+  bumpDataVersion();
   const createdAt = new Date().toISOString();
   const result = db.query(
     'INSERT INTO categories (name, color, icon, created_at) VALUES (?, ?, ?, ?)'
@@ -376,6 +399,7 @@ export function createCategory(name, color = null, icon = null) {
 }
 
 export function updateCategory(id, { name, color, icon }) {
+  bumpDataVersion();
   const existing = db.query('SELECT * FROM categories WHERE id = ?').get(id);
   if (!existing) return 0;
   const result = db.query(
@@ -390,6 +414,7 @@ export function updateCategory(id, { name, color, icon }) {
 }
 
 export function deleteCategory(id) {
+  bumpDataVersion();
   const result = db.query('DELETE FROM categories WHERE id = ?').run(id);
   return result.changes;
 }
@@ -404,6 +429,7 @@ export function getAllCategoryRules() {
 }
 
 export function createCategoryRule(categoryId, pattern, priority = 0) {
+  bumpDataVersion();
   const result = db.query(
     'INSERT INTO category_rules (category_id, pattern, priority) VALUES (?, ?, ?)'
   ).run(categoryId, pattern, priority);
@@ -411,6 +437,7 @@ export function createCategoryRule(categoryId, pattern, priority = 0) {
 }
 
 export function deleteCategoryRule(id) {
+  bumpDataVersion();
   const result = db.query('DELETE FROM category_rules WHERE id = ?').run(id);
   return result.changes;
 }
@@ -435,6 +462,7 @@ export function createCategoryMatcher() {
 }
 
 export function setTransactionCategory(txId, categoryId, manual = true) {
+  bumpDataVersion();
   const result = db.query(
     'UPDATE transactions SET category_id = ?, category_manual = ? WHERE id = ?'
   ).run(categoryId, manual ? 1 : 0, txId);
@@ -446,6 +474,7 @@ export function setTransactionCategory(txId, categoryId, manual = true) {
  * Returns number of updated rows.
  */
 export function applyCategoryRules() {
+  bumpDataVersion();
   const txs = db.query(
     'SELECT id, description FROM transactions WHERE category_manual = 0 OR category_manual IS NULL'
   ).all();
@@ -476,6 +505,7 @@ export function getAllBudgets() {
 }
 
 export function upsertBudget(categoryId, amount, period = 'monthly') {
+  bumpDataVersion();
   const createdAt = new Date().toISOString();
   const existing = db.query('SELECT id FROM budgets WHERE category_id = ?').get(categoryId);
   if (existing) {
@@ -490,6 +520,7 @@ export function upsertBudget(categoryId, amount, period = 'monthly') {
 }
 
 export function deleteBudget(categoryId) {
+  bumpDataVersion();
   return db.query('DELETE FROM budgets WHERE category_id = ?').run(categoryId).changes;
 }
 
@@ -518,7 +549,7 @@ export function getCategorySpendForMonth(yearMonth) {
  * Detect recurring merchants: same description (normalized) appearing 3+ months
  * with similar amounts (within 10%).
  */
-export function detectRecurring() {
+export const detectRecurring = memoByDataVersion(() => {
   const rows = db.query(`
     SELECT description, amount, date, is_credit
     FROM transactions
@@ -556,7 +587,7 @@ export function detectRecurring() {
   }
 
   return recurring.sort((a, b) => b.avgAmount - a.avgAmount);
-}
+});
 
 /**
  * Export transactions with optional filters
@@ -647,25 +678,4 @@ export function closeDatabase() {
   try {
     db.close();
   } catch { /* ignore */ }
-}
-
-/**
- * Get statistics about stored data
- */
-export function getStatistics() {
-  const stats = db.query(`
-    SELECT
-      COUNT(*) as total_transactions,
-      (SELECT COUNT(*) FROM statements) as total_statements,
-      COALESCE(SUM(CASE WHEN is_credit = 0 THEN amount ELSE 0 END), 0) as total_debits,
-      COALESCE(SUM(CASE WHEN is_credit = 1 THEN amount ELSE 0 END), 0) as total_credits
-    FROM transactions
-  `).get();
-
-  return {
-    totalTransactions: stats.total_transactions,
-    totalStatements: stats.total_statements,
-    totalDebits: stats.total_debits,
-    totalCredits: stats.total_credits,
-  };
 }

@@ -24,6 +24,7 @@ export default defineConfig({
       'src/server/__tests__/executeReadOnlyQuery.test.js',
       'src/server/__tests__/security.test.js',
       'src/server/__tests__/auth.test.js',
+      'src/server/__tests__/perf.test.js',
       'src/server/__tests__/preload.js'
     ],
     coverage: {

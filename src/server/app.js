@@ -4,15 +4,67 @@
  * Order: host allow-list → (OPTIONS) → /api: body size → CSRF → auth → router
  *        → data-version bump → security headers. Non-API: static files.
  */
-import path from 'path';
 import { handleApiRequest } from './routes.js';
 import { ALLOWED_HOSTS, isDev, SECURITY_HEADERS } from './config.js';
 import { checkCsrf, checkBodySize, checkHost, parseAllowedHosts } from './security.js';
 import { getAuth } from './auth.js';
-import { bumpDataVersion } from './dataVersion.js';
+import { bumpDataVersion, getDataVersion, startedAt } from './dataVersion.js';
+import { createStaticHandler } from './static.js';
 
 const allowedHosts = parseAllowedHosts(ALLOWED_HOSTS);
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+/** GET endpoints whose output depends only on DB contents (+ month for budgets). */
+const CACHEABLE = new Set([
+  '/api/transactions',
+  '/api/cards',
+  '/api/statements',
+  '/api/categories',
+  '/api/budgets',
+  '/api/recurring',
+]);
+const GZIP_MIN_BYTES = 1024;
+
+function yearMonthNow() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Weak ETag from server start, data version and the exact URL. */
+export function apiEtag(url) {
+  const key = url.pathname + url.search + (url.pathname === '/api/budgets' ? `@${yearMonthNow()}` : '');
+  return `W/"${startedAt.toString(36)}-${getDataVersion()}-${Bun.hash(key).toString(36)}"`;
+}
+
+function etagMatches(req, etag) {
+  const inm = req.headers.get('if-none-match');
+  return Boolean(inm) && inm.split(',').some(t => t.trim() === etag);
+}
+
+function acceptsGzip(req) {
+  return /\bgzip\b/i.test(req.headers.get('accept-encoding') || '');
+}
+
+/** Gzip a JSON/CSV API response when it's worth it. */
+async function maybeGzip(req, response) {
+  if (!acceptsGzip(req) || response.status === 204 || response.status === 304) return response;
+  if (response.headers.has('content-encoding')) return response;
+  const type = response.headers.get('content-type') || '';
+  if (!/json|csv/.test(type)) return response;
+  const body = new Uint8Array(await response.arrayBuffer());
+  const headers = new Headers(response.headers);
+  headers.append('Vary', 'Accept-Encoding');
+  if (body.length < GZIP_MIN_BYTES) {
+    return new Response(body, { status: response.status, statusText: response.statusText, headers });
+  }
+  headers.set('Content-Encoding', 'gzip');
+  headers.delete('Content-Length');
+  return new Response(Bun.gzipSync(body, { level: 6 }), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
 
 export function withSecurityHeaders(response) {
   const headers = new Headers(response.headers);
@@ -26,13 +78,6 @@ export function withSecurityHeaders(response) {
   });
 }
 
-function resolveDistPath(distRoot, urlPathname) {
-  const relative = urlPathname === '/' ? 'index.html' : urlPathname.replace(/^\//, '');
-  const resolved = path.resolve(distRoot, relative);
-  if (!resolved.startsWith(distRoot + path.sep) && resolved !== distRoot) return null;
-  return resolved;
-}
-
 /**
  * Create the fetch handler. Options exist for tests.
  */
@@ -42,23 +87,35 @@ export function createApp({
   distDir = './dist',
   serveStatic = !isDev,
 } = {}) {
-  const distRoot = path.resolve(distDir);
+  const handleStatic = createStaticHandler(distDir);
 
   async function handleApi(req, url) {
     const blocked = checkBodySize(req, url) || checkCsrf(req, url) || await auth.handle(req, url);
     if (blocked) return blocked;
 
-    const response = await handleApiRequest(req, url);
-    if (MUTATING.has(req.method) && response.status < 400) bumpDataVersion();
-    return response;
-  }
+    // Conditional GET: answer 304 before running any SQL (after auth!).
+    const cacheable = req.method === 'GET' && CACHEABLE.has(url.pathname);
+    const etag = cacheable ? apiEtag(url) : null;
+    if (etag && etagMatches(req, etag)) {
+      return new Response(null, {
+        status: 304,
+        headers: { ETag: etag, 'Cache-Control': 'private, no-cache' },
+      });
+    }
 
-  async function handleStatic(req, url) {
-    const filePath = resolveDistPath(distRoot, url.pathname);
-    if (!filePath) return new Response('Forbidden', { status: 403 });
-    const file = Bun.file(filePath);
-    if (await file.exists()) return new Response(file);
-    return new Response(Bun.file(path.join(distRoot, 'index.html')));
+    let response = await handleApiRequest(req, url);
+    if (MUTATING.has(req.method) && response.status < 400) bumpDataVersion();
+
+    const headers = new Headers(response.headers);
+    if (etag && response.status === 200) {
+      headers.set('ETag', etag);
+      headers.set('Cache-Control', 'private, no-cache');
+    } else if (!headers.has('Cache-Control')) {
+      // Financial data: never store other API responses.
+      headers.set('Cache-Control', 'no-store');
+    }
+    response = new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    return maybeGzip(req, response);
   }
 
   return async function handleRequest(req) {
@@ -79,7 +136,7 @@ export function createApp({
 
     if (serveStatic) {
       try {
-        return withSecurityHeaders(await handleStatic(req, url));
+        return withSecurityHeaders(handleStatic(req, url));
       } catch (error) {
         console.error('Error serving static file:', error);
         return withSecurityHeaders(new Response('Internal Server Error', { status: 500 }));
