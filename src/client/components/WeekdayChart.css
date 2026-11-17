@@ -1,0 +1,4 @@
+/* Layout lives in ChartCard.css. */
+.weekday-chart .card-subtitle {
+  color: var(--text-2);
+}

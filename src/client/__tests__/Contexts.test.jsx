@@ -111,4 +111,15 @@ describe('SettingsContext', () => {
     expect(screen.getByTestId('credits')).toHaveTextContent('true');
     expect(JSON.parse(localStorage.getItem('expense-tracker-settings')).showCredits).toBe(true);
   });
+
+  it('reads settings stored by older versions (showCredits only)', () => {
+    localStorage.setItem('expense-tracker-settings', JSON.stringify({ showCredits: true }));
+    function Probe() {
+      const { showCredits, hideAmounts } = useSettings();
+      return <span data-testid="s">{`${showCredits}-${hideAmounts}`}</span>;
+    }
+    render(<SettingsProvider><Probe /></SettingsProvider>);
+    expect(screen.getByTestId('s').textContent).toBe('true-false');
+    expect(JSON.parse(localStorage.getItem('expense-tracker-settings'))).toEqual({ showCredits: true, hideAmounts: false });
+  });
 });

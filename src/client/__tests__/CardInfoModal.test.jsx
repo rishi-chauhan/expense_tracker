@@ -21,7 +21,7 @@ describe('CardInfoModal', () => {
       />
     );
 
-    expect(screen.getByText('Card Information Needed')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Which card is this?' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('HDFC')).toBeInTheDocument();
     expect(screen.getByDisplayValue('1234')).toBeInTheDocument();
     expect(screen.getByText(/42 transactions found/)).toBeInTheDocument();
@@ -40,8 +40,8 @@ describe('CardInfoModal', () => {
       />
     );
 
-    await user.type(screen.getByLabelText(/Bank Name/), 'ICICI');
-    await user.type(screen.getByLabelText(/Last 4 Digits/), '9876');
+    await user.type(screen.getByLabelText(/Bank name/), 'ICICI');
+    await user.type(screen.getByLabelText(/Last 4 digits/), '9876');
     await user.click(screen.getByRole('button', { name: 'Upload' }));
 
     expect(onConfirm).toHaveBeenCalledWith({
@@ -51,7 +51,7 @@ describe('CardInfoModal', () => {
     });
   });
 
-  it('calls onCancel when overlay is clicked', async () => {
+  it('calls onCancel when the backdrop is clicked', async () => {
     const onCancel = vi.fn();
     const user = userEvent.setup();
 
@@ -63,7 +63,8 @@ describe('CardInfoModal', () => {
       />
     );
 
-    await user.click(container.querySelector('.modal-overlay'));
+    // A click whose target is the <dialog> element itself is a backdrop click
+    await user.click(container.ownerDocument.querySelector('dialog'));
     expect(onCancel).toHaveBeenCalled();
   });
 

@@ -1,5 +1,7 @@
 /**
  * Centralized Chart.js configuration and registration.
+ * Only the pieces the line/bar/doughnut charts need are registered; Chart.js
+ * is only loaded by routes that render a canvas.
  */
 import {
   Chart as ChartJS,
@@ -9,8 +11,11 @@ import {
   LinearScale,
   LineElement,
   PointElement,
+  BarElement,
+  ArcElement,
   Filler,
 } from 'chart.js';
+import { formatINR, formatINRCompact } from './dataProcessing.js';
 
 ChartJS.register(
   Tooltip,
@@ -19,6 +24,8 @@ ChartJS.register(
   LinearScale,
   LineElement,
   PointElement,
+  BarElement,
+  ArcElement,
   Filler,
 );
 
@@ -33,34 +40,29 @@ if (typeof document !== 'undefined' && document.fonts?.ready) {
   }).catch(() => {});
 }
 
+export const HIDDEN = '•••';
+
+/** Money text for tooltips/ticks that respects privacy mode. */
+export function money(colors, value, { compact = false } = {}) {
+  if (colors?.hideAmounts) return HIDDEN;
+  return compact ? formatINRCompact(value) : formatINR(value);
+}
+
 /** Tooltip config factory — accepts a chart colors object */
 export function getTooltipConfig(colors) {
   return {
     backgroundColor: colors.tooltipBg,
     borderColor: colors.tooltipBorder,
     borderWidth: 1,
-    padding: 16,
+    padding: 12,
     cornerRadius: 8,
-    titleFont: {
-      family: colors.font,
-      size: 13,
-      weight: '600',
-    },
-    bodyFont: {
-      family: colors.font,
-      size: 13,
-    },
+    displayColors: false,
+    titleFont: { family: colors.font, size: 12, weight: '600' },
+    bodyFont: { family: colors.font, size: 13 },
     titleColor: colors.tooltipTitleColor,
     bodyColor: colors.tooltipBodyColor,
   };
 }
-
-/** Shared INR tooltip callback */
-export const inrTooltipCallback = {
-  label: function(context) {
-    return context.dataset.label + ': ₹' + context.parsed.y.toLocaleString('en-IN');
-  }
-};
 
 /** X-axis scale factory */
 export function getXScale(colors) {
@@ -68,31 +70,24 @@ export function getXScale(colors) {
     grid: { display: false },
     border: { color: colors.borderColor },
     ticks: {
-      font: {
-        family: colors.font,
-        size: 12,
-      },
-      color: colors.tickColorPrimary,
-    }
+      font: { family: colors.font, size: 12 },
+      color: colors.tickColorSecondary,
+    },
   };
 }
 
-/** Y-axis scale factory */
+/** Y-axis scale factory (compact ₹ ticks, hidden in privacy mode) */
 export function getYScale(colors) {
   return {
     beginAtZero: true,
     grid: { color: colors.gridColor },
-    border: { color: colors.borderColor },
+    border: { display: false },
     ticks: {
-      font: {
-        family: colors.font,
-        size: 11,
-      },
+      font: { family: colors.font, size: 11 },
       color: colors.tickColorSecondary,
-      callback: function(value) {
-        return '₹' + value.toLocaleString('en-IN');
-      }
-    }
+      maxTicksLimit: 5,
+      callback: (value) => money(colors, value, { compact: true }),
+    },
   };
 }
 

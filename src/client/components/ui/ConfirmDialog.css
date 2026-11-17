@@ -1,0 +1,5 @@
+.confirm-message {
+  font-size: var(--fs-14);
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}

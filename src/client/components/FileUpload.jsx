@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import Icon from './ui/Icon';
 import './FileUpload.css';
 
 function FileUpload({ onFileUpload, onError }) {
@@ -89,29 +90,23 @@ function FileUpload({ onFileUpload, onError }) {
           onChange={handleFileChange}
           className="file-input"
           id="csv-file-upload"
-          aria-label="Upload Credit Card Statement"
+          aria-label="Upload credit card statement"
         />
 
         {!selectedFile ? (
           <label htmlFor="csv-file-upload" className="upload-prompt">
-            <div className="upload-icon">↑</div>
-            <div>
-              <p className="upload-prompt-text">
-                Drop CSV here or <strong>browse files</strong>
-              </p>
-              <span className="upload-prompt-hint">Credit card statement CSV files only</span>
-            </div>
+            <span className="upload-icon"><Icon name="upload" size={22} /></span>
+            <span className="upload-prompt-text">
+              Drop a CSV statement here or <strong>browse files</strong>
+            </span>
+            <span className="upload-prompt-hint">Bank credit card statements in CSV format, up to 5 MB</span>
           </label>
         ) : (
           <div className="file-preview">
-            <div className="file-preview-icon">✓</div>
+            <span className="file-preview-icon"><Icon name="check" size={18} /></span>
             <label htmlFor="csv-file-upload" className="file-info">
-              <div className="file-name">{selectedFile.name}</div>
-              <div className="file-meta">
-                {formatFileSize(selectedFile.size)}
-                <span className="file-meta-divider">•</span>
-                CSV File
-              </div>
+              <span className="file-name">{selectedFile.name}</span>
+              <span className="file-meta">{formatFileSize(selectedFile.size)}, CSV file</span>
             </label>
             <button
               type="button"
@@ -119,7 +114,7 @@ function FileUpload({ onFileUpload, onError }) {
               onClick={handleRemoveFile}
               aria-label="Remove file"
             >
-              ×
+              <Icon name="close" size={16} />
             </button>
           </div>
         )}

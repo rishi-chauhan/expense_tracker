@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useSettings } from '../contexts/SettingsContext';
 import { CHART_FONT } from '../utils/chartConfig';
 
 function readCssVar(name, fallback) {
@@ -8,31 +9,56 @@ function readCssVar(name, fallback) {
   return value || fallback;
 }
 
-function buildChartColors(theme) {
-  const isLight = theme === 'light';
+/** '#rrggbb' + alpha → rgba() (falls back to the input for non-hex values). */
+export function withAlpha(hex, alpha) {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+// Fallbacks mirror the token table in index.css.
+const FALLBACK = {
+  light: { surface: '#ffffff', border: '#e3e5ea', text: '#0f1115', text2: '#5a5f6b', text3: '#8a8f9a', accent: '#4f46e5', debit: '#e11d48', credit: '#059669' },
+  dark: { surface: '#131418', border: '#25272e', text: '#ededf0', text2: '#a2a6b0', text3: '#6c707a', accent: '#8b8cf8', debit: '#fb7185', credit: '#34d399' },
+};
+
+function buildChartColors(theme, hideAmounts) {
+  const f = FALLBACK[theme === 'light' ? 'light' : 'dark'];
+  const surface = readCssVar('--surface', f.surface);
+  const border = readCssVar('--border', f.border);
+  const text = readCssVar('--text', f.text);
+  const text2 = readCssVar('--text-2', f.text2);
+  const text3 = readCssVar('--text-3', f.text3);
+  const accent = readCssVar('--accent', f.accent);
+  const debit = readCssVar('--debit', f.debit);
+  const credit = readCssVar('--credit', f.credit);
   return {
-    tooltipBg: readCssVar('--color-bg-surface', isLight ? '#ffffff' : '#1a1f35'),
-    tooltipBorder: readCssVar('--color-accent', isLight ? '#b8751a' : '#d4952e'),
-    tooltipTitleColor: readCssVar('--color-text-primary', isLight ? '#1a1d2e' : '#eaecf0'),
-    tooltipBodyColor: readCssVar('--color-text-secondary', isLight ? '#5c6070' : '#8b8fa6'),
-    gridColor: isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.04)',
-    borderColor: isLight ? 'rgba(0, 0, 0, 0.10)' : 'rgba(255, 255, 255, 0.06)',
-    tickColorPrimary: readCssVar('--color-text-secondary', isLight ? '#5c6070' : '#8b8fa6'),
-    tickColorSecondary: readCssVar('--color-text-muted', isLight ? '#8a8e9e' : '#5a5e76'),
-    debit: isLight ? 'rgba(212, 66, 90, 0.75)' : 'rgba(232, 84, 110, 0.75)',
-    debitSolid: readCssVar('--color-debit', isLight ? '#d4425a' : '#e8546e'),
-    debitFill: isLight ? 'rgba(212, 66, 90, 0.10)' : 'rgba(232, 84, 110, 0.08)',
-    credit: isLight ? 'rgba(30, 165, 110, 0.75)' : 'rgba(54, 201, 145, 0.75)',
-    creditSolid: readCssVar('--color-credit', isLight ? '#1ea56e' : '#36c991'),
-    creditFill: isLight ? 'rgba(30, 165, 110, 0.10)' : 'rgba(54, 201, 145, 0.08)',
-    pointBorderColor: readCssVar('--color-bg-card', isLight ? '#ffffff' : '#111722'),
-    doughnutBorder: readCssVar('--color-bg-card', isLight ? '#ffffff' : '#111722'),
-    accent: readCssVar('--color-accent', isLight ? '#b8751a' : '#d4952e'),
+    tooltipBg: surface,
+    tooltipBorder: border,
+    tooltipTitleColor: text,
+    tooltipBodyColor: text2,
+    gridColor: withAlpha(border, 0.7),
+    borderColor: border,
+    tickColorPrimary: text2,
+    tickColorSecondary: text3,
+    accent,
+    accentFill: withAlpha(accent, 0.12),
+    debit: withAlpha(debit, 0.8),
+    debitSolid: debit,
+    debitFill: withAlpha(debit, 0.1),
+    credit: withAlpha(credit, 0.8),
+    creditSolid: credit,
+    creditFill: withAlpha(credit, 0.1),
+    pointBorderColor: surface,
+    doughnutBorder: surface,
     font: CHART_FONT,
+    hideAmounts: Boolean(hideAmounts),
   };
 }
 
 export function useChartTheme() {
   const { theme } = useTheme();
-  return useMemo(() => buildChartColors(theme), [theme]);
+  const { hideAmounts } = useSettings();
+  return useMemo(() => buildChartColors(theme, hideAmounts), [theme, hideAmounts]);
 }

@@ -111,7 +111,7 @@ describe('DebitCreditRatio', () => {
 
     render(<DebitCreditRatio data={data} />);
 
-    expect(screen.getByText('Debit / Credit Ratio')).toBeInTheDocument();
+    expect(screen.getByText('Debit vs credit')).toBeInTheDocument();
     expect(screen.getByText('Overall spending breakdown')).toBeInTheDocument();
   });
 });

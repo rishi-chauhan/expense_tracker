@@ -1,0 +1,209 @@
+/* Secondary figures: quiet, separated by hairlines, not boxed as cards. */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-4);
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.kpi-row.has-credits {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.kpi-row .stat-tile + .stat-tile {
+  padding-left: var(--s-4);
+  border-left: 1px solid var(--border);
+}
+
+@media (max-width: 899px) {
+  .kpi-row,
+  .kpi-row.has-credits {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kpi-row .stat-tile + .stat-tile {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .kpi-row .stat-tile:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.overview-hero-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-2) 0;
+}
+
+.card-link {
+  font-size: var(--fs-13);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.muted {
+  font-size: var(--fs-13);
+  color: var(--text-3);
+}
+
+.stack-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* Progress rows (categories, budgets) */
+.pr-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.pr-link {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 calc(-1 * var(--s-2));
+  padding: var(--s-2);
+  border-radius: var(--r-sm);
+  color: inherit;
+}
+
+a.pr-link:hover {
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+.pr-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: var(--fs-14);
+}
+
+.pr-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.pr-value {
+  flex: none;
+  font-weight: 500;
+}
+
+.pr-pct,
+.pr-of {
+  margin-left: var(--s-1);
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+.pr-bar {
+  display: block;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.pr-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.pr-fill.is-warning { background: var(--warning); }
+.pr-fill.is-danger { background: var(--danger); }
+
+/* Ranked lists (merchants, recurring) */
+.rank-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 44px;
+  font-size: var(--fs-14);
+}
+
+.rank-row + .rank-row {
+  border-top: 1px solid var(--border);
+}
+
+.rank-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-count {
+  flex: none;
+  font-size: var(--fs-12);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-amount {
+  flex: none;
+  min-width: 84px;
+  text-align: right;
+  font-weight: 500;
+}
+
+/* First run */
+.welcome-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  max-width: 560px;
+  margin: var(--s-8) auto 0;
+  padding: var(--s-8);
+}
+
+.welcome-title {
+  font-size: var(--fs-24);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.welcome-text {
+  color: var(--text-2);
+}
+
+.welcome-privacy {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-13);
+  color: var(--text-2);
+}
+
+@media (max-width: 767px) {
+  .welcome-card {
+    margin-top: var(--s-2);
+    padding: var(--s-5);
+  }
+}

@@ -1,0 +1,26 @@
+.chart-box {
+  position: relative;
+  width: 100%;
+}
+
+.chart-box > canvas {
+  max-width: 100%;
+}
+
+.chart-box-sm { height: 180px; }
+.chart-box-md { height: 240px; }
+.chart-box-lg { height: 300px; }
+
+@media (max-width: 767px) {
+  .chart-box-md { height: 200px; }
+  .chart-box-lg { height: 260px; }
+}
+
+.chart-legend {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.legend-item.inactive {
+  opacity: 0.55;
+}

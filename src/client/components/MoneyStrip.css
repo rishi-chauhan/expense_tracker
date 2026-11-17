@@ -1,0 +1,121 @@
+/*
+ * The one loud element on the page. Sits straight on the page background
+ * (no card) so it reads as the answer, not as another widget.
+ */
+.money-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-2) 0 var(--s-1);
+}
+
+.money-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--s-3);
+  row-gap: 2px;
+  font-weight: 400;
+  margin: 0;
+}
+
+.money-total {
+  font-size: clamp(36px, 7vw, 56px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+.money-total.is-hidden {
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.money-phrase {
+  font-size: var(--fs-20);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text-2);
+}
+
+.strip {
+  display: flex;
+  gap: 3px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.strip-seg {
+  flex-basis: 0;
+  min-width: 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  transition: transform 120ms ease;
+}
+
+.strip-seg:first-child {
+  border-top-left-radius: var(--r-full);
+  border-bottom-left-radius: var(--r-full);
+}
+
+.strip-seg:last-child {
+  border-top-right-radius: var(--r-full);
+  border-bottom-right-radius: var(--r-full);
+}
+
+.strip-seg:not(.is-other):hover {
+  transform: scaleY(1.25);
+}
+
+.strip-hit {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.strip-hit:focus-visible {
+  outline-offset: 3px;
+}
+
+.strip-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  font-size: var(--fs-13);
+}
+
+.strip-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+}
+
+.strip-legend-item:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.strip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.strip-legend-pct {
+  color: var(--text);
+  font-weight: 500;
+}
+
+@media (max-width: 767px) {
+  .money-phrase {
+    font-size: var(--fs-16);
+  }
+
+  .strip {
+    height: 16px;
+  }
+}

@@ -46,6 +46,7 @@ export function useTransactions() {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [version, setVersion] = useState(0);
 
   const refetch = useCallback(async () => {
     setLoading(true);
@@ -62,6 +63,7 @@ export function useTransactions() {
         setCsvData(null);
       }
       setCards(cardsData.cards || []);
+      setVersion(v => v + 1);
     } catch (err) {
       console.error('Failed to load data:', err);
       setError(err.message || 'Failed to load data from the server');
@@ -74,5 +76,5 @@ export function useTransactions() {
     refetch();
   }, [refetch]);
 
-  return { csvData, cards, loading, error, refetch, setError };
+  return { csvData, cards, loading, error, refetch, setError, version };
 }

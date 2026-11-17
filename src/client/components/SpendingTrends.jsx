@@ -1,26 +1,26 @@
 import React, { memo, useMemo, useState } from 'react';
 import { Line } from 'react-chartjs-2';
-import '../utils/chartConfig.js';
 import {
   getTooltipConfig,
   getXScale,
   getYScale,
   sharedAnimation,
   chartDevicePixelRatio,
+  money,
 } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
 import { useSettings } from '../contexts/SettingsContext';
 import { groupByMonth, groupByWeek } from '../utils/dataProcessing.js';
+import ChartCard from './ChartCard';
+import Chip from './ui/Chip';
 import './SpendingTrends.css';
 
 function SpendingTrends({ data, granularity }) {
   const [activeDatasets, setActiveDatasets] = useState({ debits: true, credits: false });
   const chartColors = useChartTheme();
   const { showCredits } = useSettings();
-
   const isWeekly = granularity === 'weekly';
 
-  // Aggregate once per data/granularity change, not on every render.
   const { labels, groupedData } = useMemo(() => {
     if (!data || data.length === 0) return { labels: [], groupedData: {} };
     if (isWeekly) {
@@ -33,34 +33,24 @@ function SpendingTrends({ data, granularity }) {
 
   const chartData = useMemo(() => {
     const dense = labels.length > 30;
-    const pointStyle = (color) => ({
-      pointRadius: dense ? 0 : 4,
-      pointHoverRadius: dense ? 4 : 6,
-      pointBackgroundColor: color,
+    const series = (key, label, solid, fill) => ({
+      key,
+      label,
+      data: labels.map(l => groupedData[l][key]),
+      borderColor: solid,
+      backgroundColor: fill,
+      borderWidth: 2,
+      fill: true,
+      tension: 0.3,
+      pointRadius: dense ? 0 : 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: solid,
       pointBorderColor: chartColors.pointBorderColor,
       pointBorderWidth: 2,
     });
     const datasets = [
-      {
-        key: 'debits',
-        label: 'Debits',
-        data: labels.map(key => groupedData[key].debits),
-        borderColor: chartColors.debitSolid,
-        backgroundColor: chartColors.debitFill,
-        fill: true,
-        tension: 0.3,
-        ...pointStyle(chartColors.debitSolid),
-      },
-      ...(showCredits ? [{
-        key: 'credits',
-        label: 'Credits',
-        data: labels.map(key => groupedData[key].credits),
-        borderColor: chartColors.creditSolid,
-        backgroundColor: chartColors.creditFill,
-        fill: true,
-        tension: 0.3,
-        ...pointStyle(chartColors.creditSolid),
-      }] : []),
+      series('debits', 'Debits', chartColors.accent, chartColors.accentFill),
+      ...(showCredits ? [series('credits', 'Credits', chartColors.creditSolid, chartColors.creditFill)] : []),
     ];
     return { labels, datasets: datasets.filter(ds => activeDatasets[ds.key]) };
   }, [labels, groupedData, chartColors, showCredits, activeDatasets]);
@@ -69,24 +59,20 @@ function SpendingTrends({ data, granularity }) {
     const xScale = getXScale(chartColors);
     return {
       responsive: true,
-      maintainAspectRatio: true,
-      aspectRatio: 2.2,
+      maintainAspectRatio: false,
       devicePixelRatio: chartDevicePixelRatio,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        title: { display: false },
         tooltip: {
           ...getTooltipConfig(chartColors),
           callbacks: {
-            label: (context) => context.dataset.label + ': ₹' + context.parsed.y.toLocaleString('en-IN'),
+            label: (ctx) => `${ctx.dataset.label}: ${money(chartColors, ctx.parsed.y)}`,
           },
         },
       },
       scales: {
-        x: {
-          ...xScale,
-          ticks: { ...xScale.ticks, maxRotation: 45, autoSkip: true, maxTicksLimit: 12 },
-        },
+        x: { ...xScale, ticks: { ...xScale.ticks, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
         y: getYScale(chartColors),
       },
       animation: sharedAnimation,
@@ -105,42 +91,33 @@ function SpendingTrends({ data, granularity }) {
     });
   };
 
+  const peak = labels.reduce((best, l) => (groupedData[l].debits > (groupedData[best]?.debits ?? -1) ? l : best), labels[0]);
+
   return (
-    <div className="spending-trends chart-section">
-      <div className="chart-header">
-        <div className="chart-title-group">
-          <h3>Spending Trends</h3>
-          <p className="chart-section-subtitle">
-            {isWeekly ? 'Weekly' : 'Monthly'} spending over time
-          </p>
-        </div>
+    <ChartCard
+      className="spending-trends"
+      title="Spending trends"
+      subtitle={`${isWeekly ? 'Weekly' : 'Monthly'} spending over time`}
+      summary={`${labels.length} ${isWeekly ? 'weeks' : 'months'} shown. Highest spending: ${peak}.`}
+      height="lg"
+      actions={showCredits && (
         <div className="chart-legend">
-          <button
-            type="button"
-            className={`legend-item${activeDatasets.debits ? '' : ' inactive'}`}
-            aria-pressed={activeDatasets.debits}
-            onClick={() => toggleDataset('debits')}
-          >
-            <div className="legend-dot debits"></div>
-            <span className="legend-label">Debits</span>
-          </button>
-          {showCredits && (
-            <button
-              type="button"
-              className={`legend-item${activeDatasets.credits ? '' : ' inactive'}`}
-              aria-pressed={activeDatasets.credits}
-              onClick={() => toggleDataset('credits')}
+          {['debits', 'credits'].map(key => (
+            <Chip
+              key={key}
+              className={`legend-item${activeDatasets[key] ? '' : ' inactive'}`}
+              selected={activeDatasets[key]}
+              color={key === 'debits' ? chartColors.accent : chartColors.creditSolid}
+              onClick={() => toggleDataset(key)}
             >
-              <div className="legend-dot credits"></div>
-              <span className="legend-label">Credits</span>
-            </button>
-          )}
+              {key === 'debits' ? 'Debits' : 'Credits'}
+            </Chip>
+          ))}
         </div>
-      </div>
-      <div className="chart-wrapper">
-        <Line data={chartData} options={chartOptions} />
-      </div>
-    </div>
+      )}
+    >
+      <Line data={chartData} options={chartOptions} />
+    </ChartCard>
   );
 }
 

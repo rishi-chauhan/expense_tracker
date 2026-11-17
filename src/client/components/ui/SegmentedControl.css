@@ -1,0 +1,39 @@
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+.segment {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.segmented-md .segment {
+  height: 32px;
+  padding: 0 var(--s-3);
+  font-size: var(--fs-13);
+}
+
+.segmented-sm .segment {
+  height: 26px;
+  padding: 0 10px;
+  font-size: var(--fs-12);
+}
+
+.segment:hover {
+  color: var(--text);
+}
+
+.segment.is-checked {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border);
+}

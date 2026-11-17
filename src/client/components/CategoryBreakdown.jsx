@@ -1,81 +1,84 @@
 import React, { memo, useMemo } from 'react';
-import { ArcElement, Chart as ChartJS } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
-import { getTooltipConfig, sharedAnimation, chartDevicePixelRatio } from '../utils/chartConfig.js';
+import { getTooltipConfig, sharedAnimation, chartDevicePixelRatio, money } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
-import { groupByCategory, formatINR } from '../utils/dataProcessing.js';
+import { groupByCategory } from '../utils/dataProcessing.js';
+import ChartCard from './ChartCard';
+import Amount from './ui/Amount';
 import './CategoryBreakdown.css';
 
-ChartJS.register(ArcElement);
+const UNCATEGORISED = '#8b90a0';
 
+/** Category split doughnut with the period total in the centre. */
 function CategoryBreakdown({ data }) {
   const chartColors = useChartTheme();
   const grouped = useMemo(() => groupByCategory(data), [data]);
+  const total = useMemo(() => grouped.reduce((s, g) => s + g.total, 0), [grouped]);
 
-  const { chartData, options } = useMemo(() => {
-  const chartData = {
-    labels: grouped.map(g => g.name),
-    datasets: [{
-      data: grouped.map(g => g.total),
-      backgroundColor: grouped.map(g => g.color || chartColors.accent),
-      borderColor: chartColors.doughnutBorder,
-      borderWidth: 2,
-    }],
-  };
-
-  const options = {
-    responsive: true,
-    maintainAspectRatio: true,
-    aspectRatio: 1.4,
-    devicePixelRatio: chartDevicePixelRatio,
-    plugins: {
-      legend: {
-        position: 'right',
-        labels: {
-          color: chartColors.tickColorPrimary,
-          font: { family: chartColors.font, size: 11 },
-          boxWidth: 12,
-        },
-      },
-      tooltip: {
-        ...getTooltipConfig(chartColors),
-        callbacks: {
-          label: (ctx) => `${ctx.label}: ${formatINR(ctx.raw)}`,
-        },
-      },
+  const { chartData, options } = useMemo(() => ({
+    chartData: {
+      labels: grouped.map(g => g.name),
+      datasets: [{
+        data: grouped.map(g => g.total),
+        backgroundColor: grouped.map(g => g.color || UNCATEGORISED),
+        borderColor: chartColors.doughnutBorder,
+        borderWidth: 2,
+        hoverOffset: 4,
+      }],
     },
-    animation: sharedAnimation,
-  };
-  return { chartData, options };
-  }, [grouped, chartColors]);
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      devicePixelRatio: chartDevicePixelRatio,
+      cutout: '72%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...getTooltipConfig(chartColors),
+          callbacks: {
+            label: (ctx) => `${ctx.label}: ${money(chartColors, ctx.raw)} (${Math.round((ctx.raw / total) * 100)}%)`,
+          },
+        },
+      },
+      animation: sharedAnimation,
+    },
+  }), [grouped, total, chartColors]);
 
   if (!grouped.length) {
     return (
-      <div className="category-breakdown chart-section">
-        <div className="chart-header">
-          <div className="chart-title-group">
-            <h3>Spending by Category</h3>
-            <p className="chart-section-subtitle">No categorized spending in this range</p>
-          </div>
-        </div>
-      </div>
+      <ChartCard className="category-breakdown" title="Category split" subtitle="No categorised spending in this period" height="sm">
+        <p className="chart-empty">Add rules on the Categories page to tag merchants automatically.</p>
+      </ChartCard>
     );
   }
 
   return (
-    <div className="category-breakdown chart-section">
-      <div className="chart-header">
-        <div className="chart-title-group">
-          <h3>Spending by Category</h3>
-          <p className="chart-section-subtitle">
-            {grouped.length} categor{grouped.length === 1 ? 'y' : 'ies'}
-          </p>
+    <ChartCard
+      className="category-breakdown"
+      title="Category split"
+      subtitle={`${grouped.length} categor${grouped.length === 1 ? 'y' : 'ies'}`}
+      summary={`Largest category: ${grouped[0].name}, ${Math.round((grouped[0].total / total) * 100)}% of spending.`}
+      height="lg"
+    >
+      <div className="cat-layout">
+        <div className="cat-chart">
+          <Doughnut data={chartData} options={options} />
+          <div className="cat-center" aria-hidden="true">
+            <span className="cat-center-label">Total</span>
+            <Amount value={total} compact className="cat-center-value" />
+          </div>
         </div>
+        <ul className="cat-legend">
+          {grouped.slice(0, 6).map(g => (
+            <li key={g.name}>
+              <span className="cat-dot" style={{ background: g.color || UNCATEGORISED }} aria-hidden="true" />
+              <span className="cat-legend-name">{g.name}</span>
+              <span className="cat-legend-pct num">{Math.round((g.total / total) * 100)}%</span>
+            </li>
+          ))}
+        </ul>
       </div>
-      <div className="chart-wrapper category-chart-wrap">
-        <Doughnut data={chartData} options={options} />
-      </div>
-    </div>
+    </ChartCard>
   );
 }
 

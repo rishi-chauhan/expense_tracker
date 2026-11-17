@@ -1,22 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useRef, useState } from 'react';
+import Dialog from './ui/Dialog';
+import Button from './ui/Button';
+import Input from './ui/Input';
 import './CardInfoModal.css';
 
+/** Asked when the bank / last 4 digits can't be read from the CSV. */
 function CardInfoModal({ detected, transactionCount, onConfirm, onCancel }) {
   const [bankName, setBankName] = useState(detected?.bankName || '');
   const [cardLast4, setCardLast4] = useState(detected?.cardLast4 || '');
   const [cardLabel, setCardLabel] = useState('');
+  const bankRef = useRef(null);
 
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') onCancel();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel]);
+  const isValid = bankName.trim() && cardLast4.length === 4;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!bankName.trim() || !cardLast4.trim() || cardLast4.length !== 4) return;
+    if (!isValid) return;
     onConfirm({
       bankName: bankName.trim(),
       cardLast4: cardLast4.trim(),
@@ -24,78 +23,48 @@ function CardInfoModal({ detected, transactionCount, onConfirm, onCancel }) {
     });
   };
 
-  const handleLast4Change = (e) => {
-    const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-    setCardLast4(value);
-  };
-
-  const isValid = bankName.trim() && cardLast4.length === 4;
-
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div
-        className="modal-content"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="card-info-title"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h3 id="card-info-title">Card Information Needed</h3>
-          <p className="modal-subtitle">
-            We couldn't fully detect your card details from the CSV.
-            {transactionCount > 0 && ` (${transactionCount} transactions found)`}
-          </p>
+    <Dialog
+      open
+      onClose={onCancel}
+      title="Which card is this?"
+      description={`The bank or card number couldn't be read from this file.${transactionCount > 0 ? ` ${transactionCount} transactions found.` : ''}`}
+      variant="sheet"
+      initialFocusRef={bankRef}
+    >
+      <form onSubmit={handleSubmit} className="card-info-form">
+        <Input
+          ref={bankRef}
+          label="Bank name"
+          value={bankName}
+          onChange={e => setBankName(e.target.value)}
+          placeholder="HDFC, ICICI, SBI…"
+          maxLength={40}
+          required
+        />
+        <Input
+          label="Last 4 digits"
+          inputMode="numeric"
+          autoComplete="off"
+          value={cardLast4}
+          onChange={e => setCardLast4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+          placeholder="1234"
+          maxLength={4}
+          required
+        />
+        <Input
+          label="Nickname (optional)"
+          value={cardLabel}
+          onChange={e => setCardLabel(e.target.value)}
+          placeholder="Travel card"
+          maxLength={40}
+        />
+        <div className="card-info-actions">
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={!isValid}>Upload</Button>
         </div>
-
-        <form onSubmit={handleSubmit} className="modal-form">
-          <div className="modal-field">
-            <label htmlFor="bank-name">Bank Name *</label>
-            <input
-              id="bank-name"
-              type="text"
-              value={bankName}
-              onChange={e => setBankName(e.target.value)}
-              placeholder="e.g. HDFC, ICICI, SBI"
-              autoFocus
-            />
-          </div>
-
-          <div className="modal-field">
-            <label htmlFor="card-last4">Last 4 Digits *</label>
-            <input
-              id="card-last4"
-              type="text"
-              inputMode="numeric"
-              value={cardLast4}
-              onChange={handleLast4Change}
-              placeholder="e.g. 1234"
-              maxLength={4}
-            />
-          </div>
-
-          <div className="modal-field">
-            <label htmlFor="card-label">Nickname (optional)</label>
-            <input
-              id="card-label"
-              type="text"
-              value={cardLabel}
-              onChange={e => setCardLabel(e.target.value)}
-              placeholder="e.g. Personal Card, Travel Card"
-            />
-          </div>
-
-          <div className="modal-actions">
-            <button type="button" className="modal-btn cancel" onClick={onCancel}>
-              Cancel
-            </button>
-            <button type="submit" className="modal-btn confirm" disabled={!isValid}>
-              Upload
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Dialog>
   );
 }
 

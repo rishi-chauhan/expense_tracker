@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  getCategories,
   createCategory,
   deleteCategory,
   createCategoryRule,
@@ -9,308 +8,248 @@ import {
   getBudgets,
   upsertBudget,
   deleteBudget,
-  getRecurring,
 } from '../utils/api.js';
-import { formatINR } from '../utils/dataProcessing.js';
+import { useCategories, invalidateCategories } from '../hooks/useCategories';
+import { useToast } from '../components/ui/Toast';
+import { Card, CardHeader } from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import IconButton from '../components/ui/IconButton';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import Amount from '../components/ui/Amount';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import EmptyState from '../components/ui/EmptyState';
+import Skeleton from '../components/ui/Skeleton';
 import './CategoriesPage.css';
 
+const UNCATEGORISED = '#8b90a0';
+
 function CategoriesPage({ onChanged }) {
-  const [categories, setCategories] = useState([]);
-  const [rules, setRules] = useState([]);
+  const { categories, rules, loading, error } = useCategories();
+  const toast = useToast();
   const [budgets, setBudgets] = useState([]);
-  const [recurring, setRecurring] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [budgetsLoading, setBudgetsLoading] = useState(true);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#60a5fa');
   const [ruleCategoryId, setRuleCategoryId] = useState('');
   const [rulePattern, setRulePattern] = useState('');
   const [budgetCategoryId, setBudgetCategoryId] = useState('');
   const [budgetAmount, setBudgetAmount] = useState('');
-  const [message, setMessage] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [busy, setBusy] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const loadBudgets = useCallback(async () => {
     try {
-      const [catData, budgetData, recurringData] = await Promise.all([
-        getCategories(),
-        getBudgets(),
-        getRecurring(),
-      ]);
-      setCategories(catData.categories || []);
-      setRules(catData.rules || []);
-      setBudgets(budgetData.budgets || []);
-      setRecurring(recurringData.recurring || []);
-      if (!ruleCategoryId && catData.categories?.length) {
-        setRuleCategoryId(String(catData.categories[0].id));
-      }
-      if (!budgetCategoryId && catData.categories?.length) {
-        setBudgetCategoryId(String(catData.categories[0].id));
-      }
+      const data = await getBudgets();
+      setBudgets(data.budgets || []);
     } catch (err) {
-      setError(err.message || 'Failed to load categories');
+      toast.show({ type: 'error', title: 'Budgets not loaded', message: err.message });
     } finally {
-      setLoading(false);
+      setBudgetsLoading(false);
     }
-  }, [ruleCategoryId, budgetCategoryId]);
+  }, [toast]);
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { loadBudgets(); }, [loadBudgets]);
 
-  const handleCreateCategory = async (e) => {
-    e.preventDefault();
-    if (!newName.trim()) return;
+  // Default the selects to the first category once loaded.
+  const firstId = categories[0] ? String(categories[0].id) : '';
+  const ruleCat = ruleCategoryId || firstId;
+  const budgetCat = budgetCategoryId || firstId;
+
+  const run = async (key, fn, success) => {
+    setBusy(key);
     try {
-      await createCategory({ name: newName.trim(), color: newColor });
-      setNewName('');
-      setMessage('Category created');
-      await load();
+      const result = await fn();
+      if (success) toast.show({ type: 'success', ...(typeof success === 'function' ? success(result) : success) });
+      return result;
     } catch (err) {
-      setError(err.message);
+      toast.show({ type: 'error', title: 'That didn’t work', message: err.message || 'Try again.' });
+      return undefined;
+    } finally {
+      setBusy(null);
     }
   };
 
-  const handleDeleteCategory = async (id, name) => {
-    if (!window.confirm(`Delete category "${name}"?`)) return;
-    try {
-      await deleteCategory(id);
-      await load();
-      if (onChanged) onChanged();
-    } catch (err) {
-      setError(err.message);
-    }
+  const handleCreateCategory = async (e) => {
+    e.preventDefault();
+    const name = newName.trim();
+    if (!name) return;
+    const ok = await run('create', async () => {
+      await createCategory({ name, color: newColor });
+      await invalidateCategories();
+      return true;
+    }, { title: 'Category added', message: `${name} is ready to use.` });
+    if (ok) setNewName('');
+  };
+
+  const handleDeleteCategory = async () => {
+    const cat = pendingDelete;
+    if (!cat) return;
+    await run('delete', async () => {
+      await deleteCategory(cat.id);
+      await invalidateCategories();
+      await loadBudgets();
+      if (onChanged) await onChanged();
+    }, { title: 'Category deleted', message: `${cat.name} was removed. Its transactions are now uncategorised.` });
+    setPendingDelete(null);
   };
 
   const handleAddRule = async (e) => {
     e.preventDefault();
-    if (!ruleCategoryId || !rulePattern.trim()) return;
-    try {
-      await createCategoryRule({
-        categoryId: Number(ruleCategoryId),
-        pattern: rulePattern.trim(),
-        priority: 10,
-      });
-      setRulePattern('');
-      setMessage('Rule added');
-      await load();
-    } catch (err) {
-      setError(err.message);
-    }
+    const pattern = rulePattern.trim();
+    if (!ruleCat || !pattern) return;
+    const ok = await run('rule', async () => {
+      await createCategoryRule({ categoryId: Number(ruleCat), pattern, priority: 10 });
+      await invalidateCategories();
+      return true;
+    }, { title: 'Rule added', message: `Descriptions containing “${pattern}” will be tagged automatically.` });
+    if (ok) setRulePattern('');
   };
 
-  const handleDeleteRule = async (id) => {
-    try {
-      await deleteCategoryRule(id);
-      await load();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  const handleDeleteRule = (rule) => run(`rule-${rule.id}`, async () => {
+    await deleteCategoryRule(rule.id);
+    await invalidateCategories();
+  });
 
-  const handleApplyRules = async () => {
-    try {
-      const result = await applyCategoryRules();
-      setMessage(`Applied rules to ${result.updated} transaction(s)`);
-      if (onChanged) await onChanged();
-      await load();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  const handleApplyRules = () => run('apply', async () => {
+    const result = await applyCategoryRules();
+    await invalidateCategories();
+    if (onChanged) await onChanged();
+    return result;
+  }, (result) => ({ title: 'Rules applied', message: `${result.updated} transaction${result.updated === 1 ? '' : 's'} re-tagged.` }));
 
   const handleSaveBudget = async (e) => {
     e.preventDefault();
     const amount = Number(budgetAmount);
-    if (!budgetCategoryId || !Number.isFinite(amount) || amount <= 0) return;
-    try {
-      await upsertBudget({ categoryId: Number(budgetCategoryId), amount });
-      setBudgetAmount('');
-      setMessage('Budget saved');
-      await load();
-    } catch (err) {
-      setError(err.message);
-    }
+    if (!budgetCat || !Number.isFinite(amount) || amount <= 0) return;
+    const ok = await run('budget', async () => {
+      await upsertBudget({ categoryId: Number(budgetCat), amount });
+      await loadBudgets();
+      return true;
+    }, { title: 'Budget saved' });
+    if (ok) setBudgetAmount('');
   };
 
-  const handleDeleteBudget = async (categoryId) => {
-    try {
-      await deleteBudget(categoryId);
-      await load();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  const handleDeleteBudget = (b) => run(`budget-${b.category_id}`, async () => {
+    await deleteBudget(b.category_id);
+    await loadBudgets();
+  });
 
   if (loading) {
     return (
-      <div className="categories-page">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <div className="loading-text">Loading categories...</div>
-        </div>
+      <div className="page categories-page" aria-busy="true" aria-label="Loading categories">
+        {[0, 1].map(i => <Card key={i}><Skeleton height={20} width="30%" /><div style={{ height: 16 }} /><Skeleton height={120} /></Card>)}
       </div>
     );
   }
 
   return (
-    <div className="categories-page">
-      <div className="categories-header">
-        <h2>Categories &amp; Budgets</h2>
-        <p className="categories-subtitle">Tag merchants, set rules, and track monthly budgets</p>
-      </div>
+    <div className="page categories-page">
+      {error && (
+        <Card className="inline-error" role="alert"><span className="inline-error-text">{error}</span></Card>
+      )}
 
-      {error && <div className="categories-alert error" role="alert">{error}</div>}
-      {message && <div className="categories-alert info">{message}</div>}
-
-      <section className="categories-section">
-        <div className="section-heading-row">
-          <h3>Categories</h3>
-          <button type="button" className="secondary-btn" onClick={handleApplyRules}>
-            Re-apply rules to all
-          </button>
-        </div>
-
+      <Card aria-labelledby="cat-heading">
+        <CardHeader
+          id="cat-heading"
+          title="Categories"
+          subtitle="Tag merchants so you can see what kind of spending it is"
+          actions={<Button size="sm" onClick={handleApplyRules} loading={busy === 'apply'}>Re-apply rules</Button>}
+        />
         <form className="inline-form" onSubmit={handleCreateCategory}>
-          <input
-            type="text"
-            aria-label="New category name"
-            placeholder="New category name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            required
-          />
-          <input
-            type="color"
-            value={newColor}
-            onChange={(e) => setNewColor(e.target.value)}
-            aria-label="Category color"
-          />
-          <button type="submit" className="primary-btn">Add</button>
+          <Input label="New category name" hideLabel placeholder="New category name" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={40} required className="grow" />
+          <label className="color-field" title="Category colour">
+            <span className="sr-only">Category color</span>
+            <input type="color" value={newColor} onChange={(e) => setNewColor(e.target.value)} />
+          </label>
+          <Button type="submit" variant="primary" icon="plus" loading={busy === 'create'}>Add</Button>
         </form>
-
-        <ul className="category-list">
-          {categories.map((cat) => (
-            <li key={cat.id} className="category-item">
-              <span className="cat-swatch" style={{ background: cat.color || '#8b90a0' }} />
+        <ul className="cat-list">
+          {categories.map(cat => (
+            <li key={cat.id} className="cat-item">
+              <span className="cat-swatch" style={{ background: cat.color || UNCATEGORISED }} aria-hidden="true" />
               <span className="cat-name">{cat.name}</span>
-              <span className="cat-meta">{cat.transaction_count || 0} tx · {cat.rule_count || 0} rules</span>
-              <button
-                type="button"
-                className="link-danger"
-                onClick={() => handleDeleteCategory(cat.id, cat.name)}
-              >
-                Delete
-              </button>
+              <span className="cat-meta num">
+                {cat.transaction_count || 0} transaction{cat.transaction_count === 1 ? '' : 's'}, {cat.rule_count || 0} rule{cat.rule_count === 1 ? '' : 's'}
+              </span>
+              <IconButton icon="trash" label={`Delete ${cat.name}`} size={18} onClick={() => setPendingDelete(cat)} />
             </li>
           ))}
         </ul>
-      </section>
+      </Card>
 
-      <section className="categories-section">
-        <h3>Auto-tag Rules</h3>
-        <p className="section-hint">If a description contains the pattern (case-insensitive), it gets that category.</p>
+      <Card aria-labelledby="rules-heading">
+        <CardHeader id="rules-heading" title="Auto-tag rules" subtitle="If a description contains the keyword (any case), it gets that category." />
         <form className="inline-form" onSubmit={handleAddRule}>
-          <select aria-label="Rule category" value={ruleCategoryId} onChange={(e) => setRuleCategoryId(e.target.value)}>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <input
-            type="text"
-            aria-label="Rule keyword"
-            placeholder="Keyword e.g. SWIGGY"
-            value={rulePattern}
-            onChange={(e) => setRulePattern(e.target.value)}
-            required
-          />
-          <button type="submit" className="primary-btn">Add rule</button>
+          <Select label="Rule category" hideLabel value={ruleCat} onChange={(e) => setRuleCategoryId(e.target.value)}>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+          <Input label="Rule keyword" hideLabel placeholder="Keyword, e.g. SWIGGY" value={rulePattern} onChange={(e) => setRulePattern(e.target.value)} maxLength={60} required className="grow" />
+          <Button type="submit" variant="primary" loading={busy === 'rule'}>Add rule</Button>
         </form>
-        <ul className="rule-list">
-          {rules.map((rule) => (
-            <li key={rule.id}>
-              <code>{rule.pattern}</code>
-              <span>→ {rule.category_name}</span>
-              <span className="rule-priority">prio {rule.priority}</span>
-              <button type="button" className="link-danger" onClick={() => handleDeleteRule(rule.id)}>
-                Remove
-              </button>
-            </li>
-          ))}
-          {rules.length === 0 && <li className="empty-row">No rules yet</li>}
-        </ul>
-      </section>
-
-      <section className="categories-section">
-        <h3>Monthly Budgets</h3>
-        <form className="inline-form" onSubmit={handleSaveBudget}>
-          <select aria-label="Budget category" value={budgetCategoryId} onChange={(e) => setBudgetCategoryId(e.target.value)}>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <input
-            type="number"
-            aria-label="Monthly budget amount"
-            min="1"
-            step="1"
-            placeholder="Amount (₹)"
-            value={budgetAmount}
-            onChange={(e) => setBudgetAmount(e.target.value)}
-            required
-          />
-          <button type="submit" className="primary-btn">Save budget</button>
-        </form>
-
-        <div className="budget-list">
-          {budgets.map((b) => {
-            const pct = b.amount > 0 ? Math.min(100, Math.round((b.spent / b.amount) * 100)) : 0;
-            const over = b.spent > b.amount;
-            return (
-              <div key={b.id} className="budget-card">
-                <div className="budget-card-top">
-                  <span className="cat-swatch" style={{ background: b.category_color || '#8b90a0' }} />
-                  <strong>{b.category_name}</strong>
-                  <button type="button" className="link-danger" onClick={() => handleDeleteBudget(b.category_id)}>
-                    Remove
-                  </button>
-                </div>
-                <div className="budget-amounts">
-                  {formatINR(b.spent)} / {formatINR(b.amount)}
-                  <span className={over ? 'over' : ''}>{pct}%</span>
-                </div>
-                <div className="budget-bar">
-                  <div
-                    className={`budget-bar-fill${over ? ' over' : pct >= 80 ? ' warn' : ''}`}
-                    style={{ width: `${Math.min(100, pct)}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-          {budgets.length === 0 && <p className="empty-row">No budgets set</p>}
-        </div>
-      </section>
-
-      <section className="categories-section">
-        <h3>Recurring Merchants</h3>
-        <p className="section-hint">Detected from similar amounts across 3+ months.</p>
-        {recurring.length === 0 ? (
-          <p className="empty-row">No recurring patterns detected yet</p>
+        {rules.length === 0 ? (
+          <EmptyState icon="categories" title="No rules yet">Add a keyword above to tag matching transactions automatically.</EmptyState>
         ) : (
-          <ul className="recurring-list">
-            {recurring.slice(0, 20).map((r) => (
-              <li key={r.description}>
-                <span className="recurring-desc">{r.description}</span>
-                <span>{formatINR(r.avgAmount)} avg</span>
-                <span>{r.occurrences}× / {r.months} mo</span>
+          <ul className="rule-list">
+            {rules.map(rule => (
+              <li key={rule.id} className="rule-item">
+                <span className="rule-pattern">{rule.pattern}</span>
+                <span className="rule-cat">{rule.category_name}</span>
+                <IconButton icon="close" label={`Remove rule ${rule.pattern}`} size={16} onClick={() => handleDeleteRule(rule)} disabled={busy === `rule-${rule.id}`} />
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card>
+
+      <Card aria-labelledby="budgets-heading">
+        <CardHeader id="budgets-heading" title="Monthly budgets" subtitle="Get a warning on the Overview at 80% and when you go over." />
+        <form className="inline-form" onSubmit={handleSaveBudget}>
+          <Select label="Budget category" hideLabel value={budgetCat} onChange={(e) => setBudgetCategoryId(e.target.value)}>
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+          <Input label="Monthly budget amount" hideLabel type="number" inputMode="numeric" min="1" step="1" placeholder="Amount in ₹" value={budgetAmount} onChange={(e) => setBudgetAmount(e.target.value)} required className="grow" />
+          <Button type="submit" variant="primary" loading={busy === 'budget'}>Save budget</Button>
+        </form>
+        {budgetsLoading ? (
+          <Skeleton height={60} />
+        ) : budgets.length === 0 ? (
+          <EmptyState icon="categories" title="No budgets set">Pick a category and a monthly amount above.</EmptyState>
+        ) : (
+          <ul className="budget-list">
+            {budgets.map(b => {
+              const pct = b.amount > 0 ? Math.round((b.spent / b.amount) * 100) : 0;
+              const tone = pct >= 100 ? 'danger' : pct >= 80 ? 'warning' : '';
+              return (
+                <li key={b.id} className="budget-item">
+                  <div className="budget-top">
+                    <span className="cat-swatch" style={{ background: b.category_color || UNCATEGORISED }} aria-hidden="true" />
+                    <span className="budget-name">{b.category_name}</span>
+                    <span className="budget-amounts">
+                      <Amount value={b.spent} whole /> <span className="budget-of">of <Amount value={b.amount} whole /></span>
+                    </span>
+                    <span className={`budget-pct num${tone ? ` is-${tone}` : ''}`}>{pct}%</span>
+                    <IconButton icon="close" label={`Remove budget for ${b.category_name}`} size={16} onClick={() => handleDeleteBudget(b)} />
+                  </div>
+                  <div className="budget-bar" aria-hidden="true">
+                    <div className={`budget-fill${tone ? ` is-${tone}` : ''}`} style={{ width: `${Math.min(100, pct)}%`, background: tone ? undefined : b.category_color || 'var(--accent)' }} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete category?"
+        message={pendingDelete ? `“${pendingDelete.name}” and its rules and budget will be removed. Its ${pendingDelete.transaction_count || 0} transactions become uncategorised.` : ''}
+        confirmLabel="Delete category"
+        busy={busy === 'delete'}
+        onConfirm={handleDeleteCategory}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

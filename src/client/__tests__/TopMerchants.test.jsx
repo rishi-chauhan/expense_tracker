@@ -117,7 +117,7 @@ describe('TopMerchants', () => {
 
     render(<TopMerchants data={data} />);
 
-    expect(screen.getByText('Top Merchants')).toBeInTheDocument();
+    expect(screen.getByText('Top merchants')).toBeInTheDocument();
     expect(screen.getByText('Highest spending by merchant')).toBeInTheDocument();
   });
 });

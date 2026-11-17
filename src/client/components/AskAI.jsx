@@ -1,5 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { chat, chatHealth } from '../utils/api.js';
+import Dialog from './ui/Dialog';
+import IconButton from './ui/IconButton';
+import { useSettings } from '../contexts/SettingsContext';
+import { formatINR } from '../utils/dataProcessing.js';
 import './AskAI.css';
 
 const SUGGESTIONS = [
@@ -8,6 +12,45 @@ const SUGGESTIONS = [
   'Total spending on Swiggy',
   'Monthly spending trend',
 ];
+
+const reducedMotion = () => typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const MONEY_KEY = /amount|total|sum|spent|avg|average|spend/i;
+
+/** Small table of the rows behind an answer (essential when OLLAMA_SUMMARIZE=0). */
+function ResultTable({ rows }) {
+  const { hideAmounts } = useSettings();
+  if (!rows?.length) return null;
+  const columns = Object.keys(rows[0]);
+  const shown = rows.slice(0, 20);
+  const cell = (key, value) => {
+    if (typeof value === 'number' && MONEY_KEY.test(key) && !/count|id/i.test(key)) {
+      return hideAmounts ? '₹ •••••' : formatINR(value);
+    }
+    return value == null ? '—' : String(value);
+  };
+  return (
+    <div className="askai-table-wrap">
+      <table className="askai-table">
+        <thead>
+          <tr>{columns.map(c => <th key={c} scope="col">{c.replace(/_/g, ' ')}</th>)}</tr>
+        </thead>
+        <tbody>
+          {shown.map((row, i) => (
+            <tr key={i}>
+              {columns.map(c => (
+                <td key={c} className={typeof row[c] === 'number' ? 'is-num' : undefined}>{cell(c, row[c])}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length > shown.length && <p className="askai-table-more">Showing {shown.length} of {rows.length} rows</p>}
+    </div>
+  );
+}
 
 function AskAI({ isOpen, onClose }) {
   const [question, setQuestion] = useState('');
@@ -28,23 +71,8 @@ function AskAI({ isOpen, onClose }) {
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView?.({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'end' });
   }, [messages, loading, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKey = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [isOpen, onClose]);
 
   const handleSubmit = async (text) => {
     const q = (text || question).trim();
@@ -61,12 +89,12 @@ function AskAI({ isOpen, onClose }) {
         text: data.answer,
         sql: data.sql,
         rowCount: data.rowCount,
+        data: data.data,
       }]);
     } catch (err) {
       setMessages(prev => [...prev, {
         role: 'error',
         text: err.status ? (err.message || 'Something went wrong') : 'Could not reach the server',
-        sql: err.data?.sql,
       }]);
     } finally {
       setLoading(false);
@@ -83,33 +111,25 @@ function AskAI({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="askai-panel" role="dialog" aria-label="Ask AI about your expenses">
-      <div className="askai-header">
-        <div className="askai-header-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2a8 8 0 0 1 8 8c0 3.1-1.7 5.8-4.3 7.1L12 22l-3.7-4.9C5.7 15.8 4 13.1 4 10a8 8 0 0 1 8-8z"/>
-            <circle cx="12" cy="10" r="2"/>
-          </svg>
-          Ask AI
-        </div>
-        <button type="button" className="askai-close-btn" onClick={onClose} aria-label="Close AI chat">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-
+    <Dialog
+      open
+      onClose={onClose}
+      title="Ask AI"
+      variant="panel"
+      className="askai"
+      closeLabel="Close AI chat"
+      initialFocusRef={inputRef}
+    >
       <div className="askai-messages" role="log" aria-live="polite">
         {ollamaStatus === false && (
           <div className="askai-status-msg" role="status">
-            AI assistant is not available. Make sure Ollama is running.
+            AI assistant is not available. Make sure Ollama is running on the Pi.
           </div>
         )}
 
         {messages.length === 0 && ollamaStatus !== false && (
           <div className="askai-welcome">
-            <p className="askai-welcome-text">Ask me anything about your expenses</p>
+            <p className="askai-welcome-text">Ask a question about your spending in plain words. It is answered on your Pi.</p>
             <div className="askai-suggestions">
               {SUGGESTIONS.map((s) => (
                 <button
@@ -128,7 +148,8 @@ function AskAI({ isOpen, onClose }) {
 
         {messages.map((msg, i) => (
           <div key={i} className={`askai-msg askai-msg-${msg.role}`}>
-            <div className="askai-msg-text" style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
+            <div className="askai-msg-text">{msg.text}</div>
+            {msg.role === 'assistant' && <ResultTable rows={msg.data} />}
             {msg.sql && (
               <details className="askai-sql-details">
                 <summary>SQL query{msg.rowCount != null ? ` (${msg.rowCount} rows)` : ''}</summary>
@@ -139,21 +160,19 @@ function AskAI({ isOpen, onClose }) {
         ))}
 
         {loading && (
-          <div className="askai-msg askai-msg-assistant">
-            <div className="askai-typing">
-              <span></span><span></span><span></span>
-            </div>
+          <div className="askai-msg askai-msg-assistant" role="status" aria-label="Thinking">
+            <div className="askai-typing"><span></span><span></span><span></span></div>
           </div>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="askai-input-bar">
+      <form className="askai-input-bar" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
         <input
           ref={inputRef}
           type="text"
-          className="askai-input"
+          className="input askai-input"
           aria-label="Ask a question about your expenses"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
@@ -162,20 +181,15 @@ function AskAI({ isOpen, onClose }) {
           disabled={loading || ollamaStatus === false}
           maxLength={500}
         />
-        <button
-          type="button"
+        <IconButton
+          type="submit"
+          icon="send"
+          label="Send question"
           className="askai-send-btn"
-          onClick={() => handleSubmit()}
           disabled={loading || !question.trim() || ollamaStatus === false}
-          aria-label="Send question"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-          </svg>
-        </button>
-      </div>
-    </div>
+        />
+      </form>
+    </Dialog>
   );
 }
 

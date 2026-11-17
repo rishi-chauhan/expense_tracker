@@ -89,8 +89,9 @@ export function createStaticHandler(distDir = './dist') {
     }
 
     const etag = `"${variant.stat.size}-${variant.stat.mtimeMs}"`;
+    const type = entry.file.endsWith('.webmanifest') ? 'application/manifest+json' : entry.type;
     const headers = new Headers({
-      'Content-Type': entry.type,
+      'Content-Type': type,
       'Cache-Control': isAsset ? 'public, max-age=31536000, immutable' : 'no-cache',
       ETag: etag,
     });

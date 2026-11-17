@@ -12,7 +12,7 @@ describe('FileUpload Component', () => {
     render(<FileUpload onFileUpload={mockHandler} />);
 
     expect(screen.getByLabelText(/Upload Credit Card Statement/i)).toBeInTheDocument();
-    expect(screen.getByText(/Drop CSV here or/i)).toBeInTheDocument();
+    expect(screen.getByText(/Drop a CSV statement here or/i)).toBeInTheDocument();
   });
 
   it('should render file input with correct attributes', () => {
@@ -144,7 +144,7 @@ describe('FileUpload Component', () => {
 
     await userEvent.upload(input, file);
 
-    expect(screen.getByText(/CSV File/)).toBeInTheDocument();
+    expect(screen.getByText(/CSV file/)).toBeInTheDocument();
   });
 
   it('should allow file removal', async () => {
@@ -165,7 +165,7 @@ describe('FileUpload Component', () => {
 
     // File should be removed, prompt should be shown again
     expect(screen.queryByText('test.csv')).not.toBeInTheDocument();
-    expect(screen.getByText(/Drop CSV here or/i)).toBeInTheDocument();
+    expect(screen.getByText(/Drop a CSV statement here or/i)).toBeInTheDocument();
   });
 
   it('should handle drag and drop events', async () => {
@@ -241,14 +241,14 @@ describe('FileUpload Component', () => {
     const mockHandler = vi.fn();
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    expect(screen.getByText('↑')).toBeInTheDocument();
+    expect(document.querySelector('.upload-icon svg')).toBeInTheDocument();
   });
 
   it('should display upload prompt text', () => {
     const mockHandler = vi.fn();
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    expect(screen.getByText(/Drop CSV here or/i)).toBeInTheDocument();
+    expect(screen.getByText(/Drop a CSV statement here or/i)).toBeInTheDocument();
   });
 
   it('should show checkmark icon when file is selected', async () => {
@@ -260,16 +260,16 @@ describe('FileUpload Component', () => {
 
     await userEvent.upload(input, file);
 
-    // Check for checkmark icon (✓)
-    expect(screen.getByText('✓')).toBeInTheDocument();
+    // Check for checkmark icon
+    expect(document.querySelector('.file-preview-icon svg')).toBeInTheDocument();
   });
 
   it('should show upload icon when no file is selected', () => {
     const mockHandler = vi.fn();
     render(<FileUpload onFileUpload={mockHandler} />);
 
-    // Check for upload icon (↑)
-    expect(screen.getByText('↑')).toBeInTheDocument();
+    // Check for upload icon
+    expect(document.querySelector('.upload-icon svg')).toBeInTheDocument();
   });
 
   it('should handle multiple file selection by only accepting first file', async () => {

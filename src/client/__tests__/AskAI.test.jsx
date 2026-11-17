@@ -178,7 +178,8 @@ describe('AskAI', () => {
     fetchMock.mockResolvedValue(jsonResponse({ success: true, available: true }));
     renderAskAI({ onClose });
 
-    fireEvent.keyDown(document, { key: 'Escape' });
+    // Esc is delivered to the focused element inside the dialog
+    fireEvent.keyDown(screen.getByPlaceholderText('Ask about your expenses...'), { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
 

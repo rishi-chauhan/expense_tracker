@@ -1,0 +1,28 @@
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-2);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.icon-btn.is-active {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+
+@media (max-width: 767px) {
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+}

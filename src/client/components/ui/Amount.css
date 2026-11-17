@@ -1,0 +1,7 @@
+.amount.is-debit { color: var(--debit); }
+.amount.is-credit { color: var(--credit); }
+
+.amount.is-hidden {
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}

@@ -142,7 +142,7 @@ describe('SpendingTrends with showCredits=false', () => {
     mockShowCredits = false;
   });
 
-  it('hides credits toggle button', () => {
+  it('hides the debit/credit toggle entirely', () => {
     const data = makeData([
       { Date: new Date('2025-01-15'), Amount: 100 },
       { Date: new Date('2025-01-20'), Amount: 50, IsCredit: true, Type: 'Credit' },
@@ -150,7 +150,7 @@ describe('SpendingTrends with showCredits=false', () => {
 
     render(<SpendingTrends data={data} granularity="monthly" />);
 
-    expect(screen.getByText('Debits')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Debits/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Credits')).not.toBeInTheDocument();
   });
 

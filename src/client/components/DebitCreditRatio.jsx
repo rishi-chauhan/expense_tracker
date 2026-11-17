@@ -1,55 +1,48 @@
 import React, { memo, useMemo } from 'react';
-import { ArcElement, Chart as ChartJS } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
-import { getTooltipConfig, sharedAnimation, chartDevicePixelRatio } from '../utils/chartConfig.js';
+import { getTooltipConfig, sharedAnimation, chartDevicePixelRatio, money } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
-import { calculateSummaryStats, formatINR } from '../utils/dataProcessing.js';
+import { calculateSummaryStats } from '../utils/dataProcessing.js';
+import ChartCard from './ChartCard';
+import Amount from './ui/Amount';
 import './DebitCreditRatio.css';
-
-ChartJS.register(ArcElement);
 
 function DebitCreditRatio({ data }) {
   const chartColors = useChartTheme();
-  const { totalDebits, totalCredits } = useMemo(
-    () => calculateSummaryStats(data || []),
-    [data]
-  );
+  const { totalDebits, totalCredits } = useMemo(() => calculateSummaryStats(data || []), [data]);
 
-  const { chartData, chartOptions } = useMemo(() => {
-  const chartData = {
-    labels: ['Debits (Expenses)', 'Credits (Payments)'],
-    datasets: [{
-      data: [totalDebits, totalCredits],
-      backgroundColor: [chartColors.debit, chartColors.credit],
-      borderColor: [chartColors.doughnutBorder, chartColors.doughnutBorder],
-      borderWidth: 3,
-      hoverOffset: 8,
-    }]
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: true,
-    aspectRatio: 1.4,
-    devicePixelRatio: chartDevicePixelRatio,
-    cutout: '65%',
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        ...getTooltipConfig(chartColors),
-        callbacks: {
-          label: function(context) {
-            const total = totalDebits + totalCredits;
-            const pct = ((context.parsed / total) * 100).toFixed(1);
-            return `${context.label}: ₹${context.parsed.toLocaleString('en-IN')} (${pct}%)`;
-          }
-        }
-      }
+  const { chartData, chartOptions } = useMemo(() => ({
+    chartData: {
+      labels: ['Debits (Expenses)', 'Credits (Payments)'],
+      datasets: [{
+        data: [totalDebits, totalCredits],
+        backgroundColor: [chartColors.debitSolid, chartColors.creditSolid],
+        borderColor: chartColors.doughnutBorder,
+        borderWidth: 2,
+        hoverOffset: 4,
+      }],
     },
-    animation: sharedAnimation,
-  };
-  return { chartData, chartOptions };
-  }, [totalDebits, totalCredits, chartColors]);
+    chartOptions: {
+      responsive: true,
+      maintainAspectRatio: false,
+      devicePixelRatio: chartDevicePixelRatio,
+      cutout: '70%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...getTooltipConfig(chartColors),
+          callbacks: {
+            label: (ctx) => {
+              const total = totalDebits + totalCredits;
+              const pct = total ? ((ctx.parsed / total) * 100).toFixed(1) : '0';
+              return `${ctx.label}: ${money(chartColors, ctx.parsed)} (${pct}%)`;
+            },
+          },
+        },
+      },
+      animation: sharedAnimation,
+    },
+  }), [totalDebits, totalCredits, chartColors]);
 
   if (!data || data.length === 0) {
     return <p className="chart-empty">No data available.</p>;
@@ -58,36 +51,31 @@ function DebitCreditRatio({ data }) {
     return <p className="chart-empty">No transactions found.</p>;
   }
 
+  const total = totalDebits + totalCredits;
   return (
-    <div className="debit-credit-ratio chart-section">
-      <div className="chart-header">
-        <div className="chart-title-group">
-          <h3>Debit / Credit Ratio</h3>
-          <p className="chart-section-subtitle">Overall spending breakdown</p>
-        </div>
-      </div>
-      <div className="doughnut-layout">
-        <div className="doughnut-chart-wrapper">
+    <ChartCard
+      className="debit-credit-ratio"
+      title="Debit vs credit"
+      subtitle="Overall spending breakdown"
+      summary={`Debits are ${Math.round((totalDebits / total) * 100)}% of all money moved.`}
+      height="sm"
+    >
+      <div className="ratio-layout">
+        <div className="ratio-chart">
           <Doughnut data={chartData} options={chartOptions} />
         </div>
-        <div className="ratio-legend">
-          <div className="ratio-legend-item">
-            <div className="ratio-dot" style={{ background: chartColors.debitSolid }}></div>
-            <div className="ratio-detail">
-              <span className="ratio-label">Debits</span>
-              <span className="ratio-value debit">{formatINR(totalDebits)}</span>
-            </div>
+        <dl className="ratio-legend">
+          <div className="ratio-row">
+            <dt><span className="ratio-dot is-debit" aria-hidden="true" />Debits</dt>
+            <dd className="ratio-value debit"><Amount value={totalDebits} /></dd>
           </div>
-          <div className="ratio-legend-item">
-            <div className="ratio-dot" style={{ background: chartColors.creditSolid }}></div>
-            <div className="ratio-detail">
-              <span className="ratio-label">Credits</span>
-              <span className="ratio-value credit">{formatINR(totalCredits)}</span>
-            </div>
+          <div className="ratio-row">
+            <dt><span className="ratio-dot is-credit" aria-hidden="true" />Credits</dt>
+            <dd className="ratio-value credit"><Amount value={totalCredits} /></dd>
           </div>
-        </div>
+        </dl>
       </div>
-    </div>
+    </ChartCard>
   );
 }
 

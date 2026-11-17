@@ -1,0 +1,221 @@
+.tx-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.tx-search {
+  flex: 1 1 240px;
+}
+
+.tx-cat-filter {
+  flex: 0 1 200px;
+}
+
+.tx-export {
+  margin-left: auto;
+}
+
+.tx-summary {
+  font-size: var(--fs-13);
+  color: var(--text-2);
+}
+
+@media (max-width: 767px) {
+  .tx-search {
+    flex-basis: 100%;
+  }
+
+  .tx-cat-filter {
+    flex: 1 1 auto;
+  }
+}
+
+/* Desktop table */
+.tx-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.tx-table-wrap {
+  max-height: calc(100dvh - 240px);
+  overflow: auto;
+}
+
+.tx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-14);
+}
+
+.tx-th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-weight: 500;
+}
+
+.tx-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--s-4);
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  text-align: inherit;
+}
+
+.tx-sort-btn:hover {
+  color: var(--text);
+}
+
+.tx-sort-ind {
+  width: 10px;
+  color: var(--accent);
+}
+
+.tx-table td {
+  padding: var(--s-2) var(--s-4);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.tx-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tx-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--surface-2) 50%, transparent);
+}
+
+.tx-col-date {
+  width: 120px;
+  white-space: nowrap;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.tx-col-desc {
+  max-width: 0;
+  width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.tx-col-card {
+  width: 140px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.tx-col-cat {
+  width: 200px;
+}
+
+.tx-col-amount {
+  width: 140px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.tx-th.tx-col-amount .tx-sort-btn {
+  justify-content: flex-end;
+}
+
+.tx-cat-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.tx-cat-select {
+  height: 32px;
+  padding-left: var(--s-2);
+  border-color: transparent;
+  background-color: transparent;
+  font-size: var(--fs-13);
+}
+
+.tx-cat-select:hover {
+  border-color: var(--border);
+}
+
+.tx-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+.tx-page-info {
+  font-size: var(--fs-13);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Phone list */
+.tx-list-card {
+  padding-top: var(--s-1);
+  padding-bottom: var(--s-1);
+}
+
+.tx-load-more {
+  width: 100%;
+  margin: var(--s-2) 0 var(--s-3);
+}
+
+.tx-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.tx-detail-amount {
+  font-size: var(--fs-32);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.tx-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.tx-detail-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: var(--fs-14);
+}
+
+.tx-detail-list dt {
+  color: var(--text-2);
+}
+
+.tx-detail-list dd {
+  margin: 0;
+  text-align: right;
+}
+
+.tx-detail .tx-cat-select {
+  height: 44px;
+  border-color: var(--border);
+  background-color: var(--surface);
+  font-size: var(--fs-16);
+}

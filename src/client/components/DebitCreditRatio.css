@@ -1,78 +1,44 @@
-.doughnut-layout {
+.ratio-layout {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--space-8);
+  gap: var(--s-6);
+  height: 100%;
 }
 
-.doughnut-chart-wrapper {
-  flex: 1;
-  max-width: 280px;
-  margin: 0 auto;
+.ratio-chart {
+  position: relative;
+  width: 160px;
+  height: 100%;
+  flex: none;
 }
 
 .ratio-legend {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--s-3);
+  margin: 0;
+  min-width: 0;
 }
 
-.ratio-legend-item {
+.ratio-row dt {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 6px;
+  font-size: var(--fs-13);
+  color: var(--text-2);
+}
+
+.ratio-row dd {
+  margin: 2px 0 0;
+  font-size: var(--fs-16);
+  font-weight: 600;
 }
 
 .ratio-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
-.ratio-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.ratio-label {
-  font-size: var(--text-xs);
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.ratio-value {
-  font-family: var(--font-mono);
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  font-variant-numeric: tabular-nums;
-}
-
-.ratio-value.debit {
-  color: var(--color-debit);
-}
-
-.ratio-value.credit {
-  color: var(--color-credit);
-}
-
-@media (max-width: 640px) {
-  .doughnut-layout {
-    flex-direction: column;
-  }
-
-  .doughnut-chart-wrapper {
-    max-width: 220px;
-  }
-
-  .ratio-legend {
-    flex-direction: row;
-    gap: var(--space-6);
-  }
-
-  .ratio-value {
-    font-size: var(--text-base);
-  }
-}
+.ratio-dot.is-debit { background: var(--debit); }
+.ratio-dot.is-credit { background: var(--credit); }

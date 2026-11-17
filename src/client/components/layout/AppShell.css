@@ -1,0 +1,127 @@
+.app-shell {
+  min-height: 100dvh;
+}
+
+.app-shell.is-desktop .app-column {
+  margin-left: var(--sidebar-w);
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-shell.is-desktop .app-column {
+    margin-left: var(--rail-w);
+  }
+}
+
+.app-main {
+  max-width: calc(var(--content-max) + 2 * var(--s-8));
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-8) var(--s-12);
+  outline: none;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-main {
+    padding: var(--s-6) var(--s-6) var(--s-10);
+  }
+}
+
+.app-shell.is-mobile .app-main {
+  padding: var(--s-4) var(--s-4) calc(var(--bottomnav-h) + env(safe-area-inset-bottom) + var(--s-6));
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--s-2);
+  top: -48px;
+  z-index: 100;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.skip-link:focus {
+  top: var(--s-2);
+}
+
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: var(--s-6);
+  background: var(--scrim);
+  pointer-events: none;
+}
+
+.drop-overlay-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-8) var(--s-10);
+  border: 2px dashed var(--accent);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Shared page scaffolding */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+@media (max-width: 767px) {
+  .page {
+    gap: var(--s-4);
+  }
+}
+
+.page-intro {
+  font-size: var(--fs-14);
+  color: var(--text-2);
+  max-width: 60ch;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-5);
+}
+
+@media (max-width: 899px) {
+  .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-4);
+  }
+}
+
+.inline-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  border-left: 3px solid var(--danger);
+}
+
+.inline-error-text {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--text);
+  font-size: var(--fs-14);
+}
+
+.inline-error-text .icon {
+  color: var(--danger);
+}
+
+.inline-error-actions {
+  display: flex;
+  gap: var(--s-2);
+}

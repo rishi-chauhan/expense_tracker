@@ -2,14 +2,9 @@
  * @vitest-environment happy-dom
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, fireEvent, within } from '@testing-library/react';
 import AnalyticsDashboard from '../pages/AnalyticsDashboard';
-
-let mockShowCredits = true;
-vi.mock('../contexts/SettingsContext', () => ({
-  useSettings: () => ({ showCredits: mockShowCredits, toggleShowCredits: () => {} }),
-}));
+import { makeTx, renderWithProviders, setSettings } from './testUtils';
 
 vi.mock('react-chartjs-2', () => ({
   Line: ({ data }) => (
@@ -40,179 +35,77 @@ vi.mock('chart.js', () => ({
   Filler: class {},
   Title: class {},
   Tooltip: class {},
-  Legend: class {}
+  Legend: class {},
 }));
 
-// Use dates within the same month so they all fall in the default 1-month window
-const makeData = (overrides = []) => overrides.map((o, i) => ({
-  Date: new Date(`2025-01-${String(15 + i).padStart(2, '0')}`),
-  Amount: 100 + i * 50,
-  IsCredit: false,
-  Type: 'Debit',
-  Description: `Store ${i}`,
-  ...o,
-}));
+const data = makeTx([
+  { date: '2025-01-15', amount: 100, description: 'Store A', categoryId: 1, categoryName: 'Dining', categoryColor: '#fb923c' },
+  { date: '2025-01-18', amount: 150, description: 'Store B', categoryId: 2, categoryName: 'Shopping', categoryColor: '#a78bfa' },
+  { date: '2025-01-20', amount: 40, description: 'Refund', credit: true },
+  { date: '2024-11-05', amount: 999, description: 'Old purchase' },
+]);
 
-function renderWithRouter(ui) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
-}
-
-describe('AnalyticsDashboard', () => {
+describe('Insights (AnalyticsDashboard)', () => {
   beforeEach(() => {
-    mockShowCredits = true;
+    localStorage.clear();
+    setSettings({ showCredits: true });
   });
 
-  it('shows empty state for null csvData', () => {
-    renderWithRouter(<AnalyticsDashboard csvData={null} />);
-
-    expect(screen.getByText('No Data Yet')).toBeInTheDocument();
-    expect(screen.getByText(/Home page/)).toBeInTheDocument();
+  it('shows an empty state for null / empty csvData', () => {
+    renderWithProviders(<AnalyticsDashboard csvData={null} />);
+    expect(screen.getByText('No data yet')).toBeInTheDocument();
   });
 
-  it('shows empty state for empty csvData', () => {
-    renderWithRouter(<AnalyticsDashboard csvData={[]} />);
-
-    expect(screen.getByText('No Data Yet')).toBeInTheDocument();
+  it('renders all chart sections for the default (latest) period', () => {
+    renderWithProviders(<AnalyticsDashboard csvData={data} />, { csvData: data });
+    expect(screen.getByText('Spending trends')).toBeInTheDocument();
+    expect(screen.getByText('Category split')).toBeInTheDocument();
+    expect(screen.getByText('Top merchants')).toBeInTheDocument();
+    expect(screen.getByText('Debit vs credit')).toBeInTheDocument();
+    expect(screen.getByText('Day-of-week pattern')).toBeInTheDocument();
   });
 
-  it('renders all child chart sections', () => {
-    const data = makeData([
-      { Amount: 300, Description: 'Grocery Store' },
-      { Amount: 200, Description: 'Gas Station' },
-      { Amount: 100, IsCredit: true, Type: 'Credit', Description: 'Refund' },
-    ]);
-
-    renderWithRouter(<AnalyticsDashboard csvData={data} />);
-
-    expect(screen.getByText('Spending Trends')).toBeInTheDocument();
-    expect(screen.getByText('Debit / Credit Ratio')).toBeInTheDocument();
-    expect(screen.getByText('Top Merchants')).toBeInTheDocument();
-    expect(screen.getByText('Transaction Explorer')).toBeInTheDocument();
+  it('uses only the global period: the old Nov purchase is excluded by default', () => {
+    renderWithProviders(<AnalyticsDashboard csvData={data} />, { csvData: data });
+    const merchants = screen.getAllByTestId('bar-labels').map(n => JSON.parse(n.textContent)).flat();
+    expect(merchants).toContain('Store A');
+    expect(merchants).not.toContain('Old purchase');
+    expect(screen.getByText(/3/, { selector: '.num' })).toBeInTheDocument();
   });
 
-  it('renders search input', () => {
-    const data = makeData([{ Amount: 100, Description: 'Test Store' }]);
-
-    renderWithRouter(<AnalyticsDashboard csvData={data} />);
-
-    const searchInput = screen.getByPlaceholderText('Search transactions...');
-    expect(searchInput).toBeInTheDocument();
+  it('includes everything with period=all from the URL', () => {
+    renderWithProviders(<AnalyticsDashboard csvData={data} />, { csvData: data, route: '/analytics?period=all' });
+    const merchants = screen.getAllByTestId('bar-labels').map(n => JSON.parse(n.textContent)).flat();
+    expect(merchants).toContain('Old purchase');
   });
 
-  it('filters data when searching', () => {
-    const data = makeData([
-      { Amount: 300, Description: 'Grocery Store' },
-      { Amount: 200, Description: 'Gas Station' },
-    ]);
-
-    renderWithRouter(<AnalyticsDashboard csvData={data} />);
-
-    const searchInput = screen.getByPlaceholderText('Search transactions...');
-    fireEvent.change(searchInput, { target: { value: 'Grocery' } });
-
-    // Transaction Explorer should show only the matching transaction
-    expect(screen.getByText('1 transaction')).toBeInTheDocument();
-  });
-
-  it('has Monthly active by default in granularity toggle', () => {
-    const data = makeData([{ Amount: 100, Description: 'Store' }]);
-
-    renderWithRouter(<AnalyticsDashboard csvData={data} />);
-
-    const monthlyBtn = screen.getByText('Monthly');
-    const weeklyBtn = screen.getByText('Weekly');
-
-    expect(monthlyBtn.className).toContain('active');
-    expect(weeklyBtn.className).not.toContain('active');
-  });
-
-  it('switches granularity and updates subtitle', () => {
-    const data = makeData([{ Amount: 100, Description: 'Store' }]);
-
-    renderWithRouter(<AnalyticsDashboard csvData={data} />);
-
-    // Default: monthly
+  it('has Monthly selected by default and switches to Weekly', () => {
+    renderWithProviders(<AnalyticsDashboard csvData={data} />, { csvData: data });
+    const group = screen.getByRole('radiogroup', { name: 'Granularity' });
+    expect(within(group).getByRole('radio', { name: 'Monthly' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByText('Monthly spending over time')).toBeInTheDocument();
-
-    // Click Weekly
-    fireEvent.click(screen.getByText('Weekly'));
-
-    expect(screen.getByText('Weekly').className).toContain('active');
-    expect(screen.getByText('Monthly').className).not.toContain('active');
+    fireEvent.click(within(group).getByRole('radio', { name: 'Weekly' }));
     expect(screen.getByText('Weekly spending over time')).toBeInTheDocument();
   });
 
-  it('shows clear filters button when search has text', () => {
-    const data = makeData([{ Amount: 100, Description: 'Store' }]);
-
-    renderWithRouter(<AnalyticsDashboard csvData={data} />);
-
-    // No clear button initially (no non-default filters)
-    expect(screen.queryByText('Clear filters')).not.toBeInTheDocument();
-
-    // Type in search — use a term that still matches data so only one Clear button appears
-    const searchInput = screen.getByPlaceholderText('Search transactions...');
-    fireEvent.change(searchInput, { target: { value: 'Store' } });
-
-    expect(screen.getByText('Clear filters')).toBeInTheDocument();
-  });
-
-  it('clears filters when Clear filters button is clicked', () => {
-    const data = makeData([
-      { Amount: 300, Description: 'Grocery Store' },
-      { Amount: 200, Description: 'Gas Station' },
-    ]);
-
-    renderWithRouter(<AnalyticsDashboard csvData={data} />);
-
-    // Apply a search filter
-    const searchInput = screen.getByPlaceholderText('Search transactions...');
-    fireEvent.change(searchInput, { target: { value: 'Grocery' } });
-
-    expect(screen.getByText('1 transaction')).toBeInTheDocument();
-
-    // Click Clear filters
-    fireEvent.click(screen.getByText('Clear filters'));
-
-    // Search should be cleared
-    expect(searchInput.value).toBe('');
-  });
-
-  it('shows no results message for nonexistent search', () => {
-    const data = makeData([{ Amount: 100, Description: 'Store' }]);
-
-    renderWithRouter(<AnalyticsDashboard csvData={data} />);
-
-    const searchInput = screen.getByPlaceholderText('Search transactions...');
-    fireEvent.change(searchInput, { target: { value: 'xyznonexistent' } });
-
-    expect(screen.getByText('No transactions match your filters.')).toBeInTheDocument();
+  it('shows an empty-period message when the card filter matches nothing in range', () => {
+    const cards = [{ id: 1, card_label: 'A' }, { id: 2, card_label: 'B' }];
+    renderWithProviders(<AnalyticsDashboard csvData={data} />, { csvData: data, cards, route: '/analytics?card=2' });
+    expect(screen.getByText('Nothing in this period')).toBeInTheDocument();
   });
 });
 
-describe('AnalyticsDashboard with showCredits=false', () => {
+describe('Insights with showCredits=false', () => {
   beforeEach(() => {
-    mockShowCredits = false;
+    localStorage.clear();
+    setSettings({ showCredits: false });
   });
 
-  it('hides DebitCreditRatio component', () => {
-    const data = makeData([
-      { Amount: 300, Description: 'Grocery Store' },
-      { Amount: 100, IsCredit: true, Type: 'Credit', Description: 'Refund' },
-    ]);
-
-    renderWithRouter(<AnalyticsDashboard csvData={data} />);
-
-    expect(screen.getByText('Spending Trends')).toBeInTheDocument();
-    expect(screen.queryByText('Debit / Credit Ratio')).not.toBeInTheDocument();
-  });
-
-  it('uses full-width layout for SpendingTrends', () => {
-    const data = makeData([{ Amount: 100, Description: 'Store' }]);
-
-    renderWithRouter(<AnalyticsDashboard csvData={data} />);
-
-    const grid = document.querySelector('.analytics-charts-grid');
-    expect(grid.className).toContain('full-width');
+  it('hides the debit vs credit chart and widens the weekday chart', () => {
+    const { container } = renderWithProviders(<AnalyticsDashboard csvData={data} />, { csvData: data });
+    expect(screen.queryByText('Debit vs credit')).not.toBeInTheDocument();
+    const weekday = screen.getByText('Day-of-week pattern').closest('.span-12, .span-6');
+    expect(weekday).toHaveClass('span-12');
+    expect(container.querySelector('.debit-credit-ratio')).toBeNull();
   });
 });

@@ -1,0 +1,88 @@
+.tx-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tx-row + .tx-row {
+  border-top: 1px solid var(--border);
+}
+
+.tx-row-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--s-2) 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+button.tx-row-inner:hover .tx-row-desc {
+  color: var(--accent);
+}
+
+.tx-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tx-row-desc {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-row-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  font-size: var(--fs-12);
+  color: var(--text-2);
+}
+
+.tx-row-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-row-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.tx-row-card {
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.tx-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex: none;
+}
+
+.tx-row-amount {
+  font-weight: 600;
+}
+
+.tx-row-date {
+  font-size: var(--fs-12);
+  color: var(--text-3);
+}

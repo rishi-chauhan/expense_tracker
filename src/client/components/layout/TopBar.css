@@ -1,0 +1,74 @@
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  max-width: calc(var(--content-max) + 2 * var(--s-8));
+  min-height: 64px;
+  margin: 0 auto;
+  padding: var(--s-3) var(--s-8);
+}
+
+.topbar-title {
+  font-size: var(--fs-20);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .topbar-row {
+    padding: var(--s-3) var(--s-6);
+  }
+}
+
+/* Phone */
+.topbar.is-mobile {
+  background: var(--surface);
+  border-bottom: 0;
+}
+
+.topbar.is-mobile .topbar-row {
+  min-height: var(--topbar-h);
+  gap: var(--s-2);
+  padding: 0 var(--s-1) 0 var(--s-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar.is-mobile .topbar-title {
+  flex: 1;
+  font-size: var(--fs-16);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar.is-mobile .topbar-actions {
+  flex-wrap: nowrap;
+  gap: 0;
+}
+
+.topbar-logo {
+  display: flex;
+}
+
+.topbar-logo .brand-mark {
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+}

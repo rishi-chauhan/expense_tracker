@@ -1,0 +1,6 @@
+/* The chart fills the fixed-height .chart-box it is rendered into. */
+.spending-bar-chart {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}

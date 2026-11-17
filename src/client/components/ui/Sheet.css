@@ -1,0 +1,12 @@
+/* A small grab handle signals "this slides up" on phones. */
+@media (max-width: 767px) {
+  .sheet .dialog-inner::before {
+    content: '';
+    align-self: center;
+    width: 36px;
+    height: 4px;
+    margin-top: var(--s-2);
+    border-radius: var(--r-full);
+    background: var(--border);
+  }
+}

@@ -12,6 +12,7 @@ const NUMBER_2DP = new Intl.NumberFormat('en-IN', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+const NUMBER_0DP = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 const COMPACT = new Intl.NumberFormat('en-IN', {
   notation: 'compact',
   maximumFractionDigits: 1,
@@ -23,6 +24,27 @@ const WEEK_LABEL_YEAR = new Intl.DateTimeFormat('en-US', { month: 'short', day: 
 /** Format amount in Indian Rupee format: ₹1,23,456.78 */
 export function formatINR(amount) {
   return '₹' + NUMBER_2DP.format(amount);
+}
+
+const DAY_FMT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+const DAY_YEAR_FMT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** '5 Oct' or '5 Oct 2026' for a Date or 'YYYY-MM-DD…' string (local date). */
+export function formatDay(date, withYear = false) {
+  let d = date;
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [y, m, dd] = date.split('-').map(Number);
+    d = new Date(y, m - 1, dd);
+  } else if (!(date instanceof Date)) {
+    d = new Date(date);
+  }
+  if (Number.isNaN(d.getTime())) return '';
+  return (withYear ? DAY_YEAR_FMT : DAY_FMT).format(d);
+}
+
+/** Whole rupees for headline figures: ₹1,23,457 */
+export function formatINRWhole(amount) {
+  return '₹' + NUMBER_0DP.format(amount);
 }
 
 /** Compact rupees for axis ticks / sub-labels: ₹950, ₹3.4K, ₹1.2L, ₹1.3Cr */

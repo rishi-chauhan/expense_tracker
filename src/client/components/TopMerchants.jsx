@@ -1,16 +1,10 @@
 import React, { memo, useMemo } from 'react';
-import { Chart as ChartJS, BarElement } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
-import {
-  getTooltipConfig,
-  sharedAnimation,
-  chartDevicePixelRatio,
-} from '../utils/chartConfig.js';
+import { getTooltipConfig, sharedAnimation, chartDevicePixelRatio, money } from '../utils/chartConfig.js';
 import { useChartTheme } from '../hooks/useChartTheme';
 import { groupByDescription } from '../utils/dataProcessing.js';
+import ChartCard from './ChartCard';
 import './TopMerchants.css';
-
-ChartJS.register(BarElement);
 
 function TopMerchants({ data }) {
   const chartColors = useChartTheme();
@@ -20,75 +14,64 @@ function TopMerchants({ data }) {
   );
 
   const { chartData, chartOptions } = useMemo(() => {
-  // Truncate long labels
-  const labels = merchants.map(m =>
-    m.description.length > 30 ? m.description.slice(0, 27) + '...' : m.description
-  );
-
-  const chartData = {
-    labels,
-    datasets: [{
-      label: 'Total Spent',
-      data: merchants.map(m => m.total),
-      backgroundColor: chartColors.debit,
-      borderWidth: 0,
-      borderRadius: 4,
-      borderSkipped: false,
-    }]
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: true,
-    aspectRatio: 1.4,
-    devicePixelRatio: chartDevicePixelRatio,
-    indexAxis: 'y',
-    plugins: {
-      legend: { display: false },
-      title: { display: false },
-      tooltip: {
-        ...getTooltipConfig(chartColors),
-        callbacks: {
-          label: function(context) {
-            const merchant = merchants[context.dataIndex];
-            return [
-              `Total: ₹${context.parsed.x.toLocaleString('en-IN')}`,
-              `${merchant.count} transaction${merchant.count !== 1 ? 's' : ''}`
-            ];
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        grid: { color: chartColors.gridColor },
-        border: { color: chartColors.borderColor },
-        ticks: {
-          font: {
-            family: chartColors.font,
-            size: 11,
-          },
-          color: chartColors.tickColorSecondary,
-          callback: function(value) {
-            return '₹' + value.toLocaleString('en-IN');
-          }
-        }
+    const labels = merchants.map(m =>
+      m.description.length > 30 ? m.description.slice(0, 27) + '...' : m.description
+    );
+    return {
+      chartData: {
+        labels,
+        datasets: [{
+          label: 'Total spent',
+          data: merchants.map(m => m.total),
+          backgroundColor: chartColors.accent,
+          hoverBackgroundColor: chartColors.accent,
+          borderRadius: 4,
+          borderSkipped: false,
+          barThickness: 'flex',
+          maxBarThickness: 18,
+        }],
       },
-      y: {
-        grid: { display: false },
-        border: { color: chartColors.borderColor },
-        ticks: {
-          font: {
-            family: chartColors.font,
-            size: 11,
+      chartOptions: {
+        responsive: true,
+        maintainAspectRatio: false,
+        devicePixelRatio: chartDevicePixelRatio,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            ...getTooltipConfig(chartColors),
+            callbacks: {
+              title: (items) => merchants[items[0].dataIndex]?.description,
+              label: (ctx) => {
+                const m = merchants[ctx.dataIndex];
+                return [
+                  `Total: ${money(chartColors, ctx.parsed.x)}`,
+                  `${m.count} transaction${m.count !== 1 ? 's' : ''}`,
+                ];
+              },
+            },
           },
-          color: chartColors.tickColorPrimary,
-        }
-      }
-    },
-    animation: sharedAnimation,
-  };
-  return { chartData, chartOptions };
+        },
+        scales: {
+          x: {
+            grid: { color: chartColors.gridColor },
+            border: { display: false },
+            ticks: {
+              font: { family: chartColors.font, size: 11 },
+              color: chartColors.tickColorSecondary,
+              maxTicksLimit: 5,
+              callback: (value) => money(chartColors, value, { compact: true }),
+            },
+          },
+          y: {
+            grid: { display: false },
+            border: { color: chartColors.borderColor },
+            ticks: { font: { family: chartColors.font, size: 12 }, color: chartColors.tickColorPrimary },
+          },
+        },
+        animation: sharedAnimation,
+      },
+    };
   }, [merchants, chartColors]);
 
   if (!data || data.length === 0) {
@@ -99,17 +82,15 @@ function TopMerchants({ data }) {
   }
 
   return (
-    <div className="top-merchants chart-section">
-      <div className="chart-header">
-        <div className="chart-title-group">
-          <h3>Top Merchants</h3>
-          <p className="chart-section-subtitle">Highest spending by merchant</p>
-        </div>
-      </div>
-      <div className="chart-wrapper">
-        <Bar data={chartData} options={chartOptions} />
-      </div>
-    </div>
+    <ChartCard
+      className="top-merchants"
+      title="Top merchants"
+      subtitle="Highest spending by merchant"
+      summary={`Top merchant: ${merchants[0].description}, ${merchants[0].count} transactions.`}
+      height="lg"
+    >
+      <Bar data={chartData} options={chartOptions} />
+    </ChartCard>
   );
 }
 

@@ -1,3 +1,4 @@
-.top-merchants .chart-wrapper {
-  min-height: 350px;
+/* Layout lives in ChartCard.css. */
+.top-merchants .chart-box {
+  min-height: 0;
 }
