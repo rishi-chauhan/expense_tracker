@@ -16,165 +16,45 @@ This project has comprehensive automated testing covering both backend and front
 
 ```
 src/
-├── server/
-│   └── __tests__/
-│       ├── utils.test.js              # Hash generation, date/amount parsing
-│       ├── parser.test.js             # CSV parsing logic
-│       ├── db.test.js                 # Database CRUD operations
-│       ├── routes.test.js             # API endpoint handlers
-│       └── integration.test.js        # Full upload workflow
-│
-└── client/
-    └── __tests__/
-        ├── setup.js                   # Test environment configuration
-        ├── App.test.jsx               # Main app component, routing, API calls
-        ├── Dashboard.test.jsx         # Dashboard summary stats + chart
-        ├── FileUpload.test.jsx        # File upload validation + drag-and-drop
-        ├── HomePage.test.jsx          # Home page integration
-        ├── AnalyticsDashboard.test.jsx # Analytics page filters + charts
-        ├── SpendingTrends.test.jsx    # Spending trends chart
-        ├── TopMerchants.test.jsx      # Top merchants chart
-        ├── DebitCreditRatio.test.jsx  # Debit/credit ratio chart
-        ├── TransactionExplorer.test.jsx # Transaction table + pagination
-        └── dataProcessing.test.js     # Data processing utility functions
-
-tests/
-└── fixtures/
-    ├── sample_valid.csv               # Valid test CSV
-    ├── sample_invalid.csv             # Invalid format
-    ├── sample_malformed.csv           # Malformed data
-    └── sample_invalid.csv             # Invalid / non-CSV content
-    └── sample_malformed.csv           # Malformed rows
-    └── sample_valid.csv               # Valid statement sample
+├── server/__tests__/
+│   ├── preload.js                 # bun test: throwaway DB_PATH for every run
+│   ├── utils.test.js              # (vitest) hashes, date/amount parsing
+│   ├── parser.test.js             # (vitest) CSV parsing
+│   ├── db.test.js                 # (bun) schema + CRUD
+│   ├── routes.test.js             # (bun) API handlers
+│   ├── integration.test.js        # (bun) full upload workflow
+│   ├── executeReadOnlyQuery.test.js # (bun) AI SQL validator (sqlGuard.js)
+│   ├── security.test.js           # (bun) CSRF, size, host allow-list, validation, CSV injection, query worker timeout
+│   ├── auth.test.js               # (bun) optional login, sessions, rate limit
+│   ├── perf.test.js               # (bun) static compression/caching, API ETag/gzip, lean payload
+│   └── ollama.test.js             # (bun) Ollama client
+└── client/__tests__/
+    ├── setup.js                   # jest-dom, in-memory localStorage, cache resets
+    ├── testUtils.jsx              # renderWithProviders, makeTx, makeFetchMock, setSettings
+    ├── App.test.jsx               # shell, nav, filters in URL, upload toasts, card-info retry, privacy, login
+    ├── OverviewPage.test.jsx      # hero + money strip, KPIs, budgets, recurring, empty states
+    ├── TransactionsPage.test.jsx  # sorting, pagination, URL category filter, search, export, phone list/sheet
+    ├── AnalyticsDashboard.test.jsx # Insights on global filters
+    ├── FilterContext.test.jsx     # period maths + provider/URL behaviour
+    ├── ui.test.jsx                # Amount privacy, ToastProvider, ConfirmDialog, SegmentedControl
+    ├── Contexts.test.jsx          # Theme + Settings (incl. back-compat)
+    ├── FileUpload.test.jsx, CardInfoModal.test.jsx, StatementsPage.test.jsx, AskAI.test.jsx
+    ├── SpendingTrends.test.jsx, TopMerchants.test.jsx, DebitCreditRatio.test.jsx
+    └── dataProcessing.test.js
 ```
 
 ## Running Tests
 
 ```bash
-# Run all vitest tests (client + shared server)
-bun run test
-
-# Run tests once (no watch)
-bun run test -- --run
-
-# Run backend vitest tests only
-bun run test:backend
-
-# Run frontend tests only
-bun run test:frontend
-
-# Run with coverage
+bun run test -- --run   # vitest: client + pure server tests (never bare `bun test` at the root)
+bun run test:bun        # bun:sqlite server tests (uses a throwaway DB via preload)
+bun run test:all        # both
 bun run test:coverage
-
-# Run with UI
-bun run test:ui
-
-# Run server tests that use bun:sqlite (must use bun test, not vitest)
-bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.js src/server/__tests__/routes.test.js
 ```
 
-**Important:** Use `bun run test` (vitest) for client and shared tests. Use `bun test` (Bun's native runner) only for server tests that depend on `bun:sqlite`.
+New server tests that import `bun:sqlite` must be added to `test:bun` in `package.json` **and** to the `exclude` list in `vitest.config.js`.
 
-## Test Coverage Summary
-
-### Backend Tests: **All Passing** (70 bun:test tests + vitest parser/utils tests)
-
-#### Utils Module
-- File hash generation (SHA-256)
-- Transaction hash generation with normalization
-- Date parsing (DD/MM/YYYY to ISO format)
-- Amount parsing (comma removal, validation)
-
-#### Parser Module
-- CSV parsing with `~|~` and `~` delimiters (format auto-detection)
-- Dynamic header row detection
-- Transaction validation and filtering
-- Credit/debit identification
-- Error handling for invalid formats
-
-#### Database Module
-- Schema creation and validation
-- CRUD operations (statements and transactions)
-- Unique constraint enforcement (deduplication)
-- CASCADE delete operations
-- Statistics aggregation
-- Foreign key relationships
-
-#### API Routes
-- GET /api/transactions
-- POST /api/upload
-- GET /api/statements
-- DELETE /api/statements/:id
-- Error handling (400, 404, 500 responses)
-- Response format validation
-
-#### Integration Tests
-- Full upload workflow (parse, validate, store)
-- File-level duplicate detection
-- Transaction-level deduplication
-- Data persistence verification
-- Referential integrity
-
-### Frontend Tests: Vitest (React Testing Library)
-
-Run with `bun run test -- --run`. Counts drift as tests are added — prefer `bun run test:all` in CI.
-
-#### App Component (18 tests)
-- Routing setup (Home and Analytics routes)
-- API data fetching on mount
-- File upload flow with backend integration
-- Error and notification state management
-- Duplicate statement detection
-
-#### Dashboard (26 tests)
-- Summary stat calculations (debits, credits, net)
-- Monthly spending line chart rendering
-- Range selector (1M, 3M, 6M, 12M, All)
-- INR currency formatting
-- Empty state handling
-
-#### FileUpload (21 tests)
-- CSV MIME type validation
-- Drag-and-drop file handling
-- File preview with size formatting
-- Error callback for invalid files
-
-#### HomePage (tests)
-- Component integration (FileUpload + Dashboard)
-- Loading, error, and notification states
-- Notification dismiss behavior
-
-#### AnalyticsDashboard (10 tests)
-- Filter controls (search, date range, granularity)
-- Data filtering and passing to child components
-- Empty state and no-data handling
-
-#### SpendingTrends (tests)
-- Weekly/monthly granularity toggle
-- Debit/credit dataset rendering
-- Chart configuration
-
-#### TopMerchants (tests)
-- Top 10 merchant aggregation
-- Horizontal bar chart rendering
-
-#### DebitCreditRatio (tests)
-- Doughnut chart with debit/credit split
-- Percentage calculations
-
-#### TransactionExplorer (10 tests)
-- Paginated table rendering (25 rows/page)
-- Column sorting (Date, Amount)
-- Type badges (Debit/Credit)
-- Date formatting
-
-#### Data Processing Utils (tests)
-- `filterAnalyticsData` — CC payment exclusion
-- `calculateSummaryStats` — Debit/credit/net totals
-- `groupByMonth`, `groupByWeek` — Temporal aggregation
-- `groupByDescription` — Merchant aggregation
-- `filterByDateRange`, `searchByDescription` — Filters
-- `formatINR` — Currency formatting
+Client tests query by role/label (`getByRole`, `getByLabelText`) rather than class names wherever possible, and page tests render with the real providers via `renderWithProviders`.
 
 ## What's Tested
 
@@ -189,16 +69,18 @@ Run with `bun run test -- --run`. Counts drift as tests are added — prefer `bu
 - [x] CRUD operations
 - [x] Cascade deletes
 - [x] Deduplication (file and transaction level)
-- [x] Statistics aggregation
+- [x] CSRF / CSP / host allow-list / body size limits
+- [x] AI SQL validation and worker timeout
+- [x] Static precompression, ETag/304, API gzip
 - [x] API endpoints and error handling
 
 ### Critical Frontend Features
 - [x] Component rendering
 - [x] React Router navigation
 - [x] File upload validation
-- [x] Dashboard calculations and charts
-- [x] Analytics page with filters
-- [x] All 4 chart components (SpendingTrends, DebitCreditRatio, TopMerchants, TransactionExplorer)
+- [x] Overview, Transactions and Insights pages
+- [x] Chart components (SpendingTrends, DebitCreditRatio, TopMerchants, CategoryBreakdown via Insights)
+- [x] Global URL filters, privacy mode, toasts, dialogs, optional login
 - [x] Data processing utilities
 - [x] API integration
 - [x] Error and loading states
@@ -216,7 +98,7 @@ None noted at last update.
 
 ## Best Practices
 
-- All tests use isolated in-memory SQLite databases
+- Server tests use isolated in-memory or throwaway SQLite databases (never `data/expenses.db`)
 - Tests are independent and can run in parallel
 - Fixtures are reusable across test files
 - Mocks are properly cleaned up after each test
@@ -240,11 +122,9 @@ When adding new features:
 - [x] Backend database: 90%+ coverage
 - [x] Backend routes: 85%+ coverage
 - [x] Backend integration tests working
-- [x] Frontend tests fully operational (190 tests passing)
-- [x] All components tested (6 components + 2 pages + 1 utility module)
 - [x] Test fixtures created
 - [x] All critical features have tests
 - [x] Tests run fast (<5 seconds for vitest suite)
 - [x] Tests are maintainable and readable
 
-**Overall Status**: All 287 tests passing. Full-stack test coverage across backend (server tests + vitest) and frontend (components, pages, utilities).
+**Overall Status**: run `bun run test:all` for current counts.

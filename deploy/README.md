@@ -72,7 +72,10 @@ When run with `sudo`, setup uses `SUDO_USER` as `APP_USER`. An OS login named `a
 | `TAILSCALE_HOSTNAME` | `expenses` | Machine name on the tailnet |
 | `TAILSCALE_AUTH_KEY` | (unset) | Optional login key. Prefer the interactive URL. Do not commit this |
 | `TAILSCALE_SSH` | `1` | Allow SSH from your other Tailscale devices |
+| `APP_AUTH` | `0` | `1` = also turn on the optional in-app password (same password as Caddy; writes `AUTH_PASSWORD_HASH` to `.env`). `0` leaves `.env` auth settings untouched |
 | `DRY_RUN` | `0` | Print actions only |
+
+`setup.sh` also writes `ALLOWED_HOSTS=localhost,127.0.0.1,<EXPENSES_HOST>,<tailnet name>` to `.env` after Tailscale is set up, so requests for any other hostname are refused (DNS-rebinding protection).
 
 ---
 
@@ -89,7 +92,35 @@ When run with `sudo`, setup uses `SUDO_USER` as `APP_USER`. An OS login named `a
 5. Open the `https://….ts.net` URL printed at the end of setup. That is the app. It works on mobile data, away from home.
 6. SSH to the Pi from those devices with the `ssh user@100.x.x.x` line printed at the end (the `100.x` address is a Tailscale address, not a public IP). Use that address for SSH. For the website, use the `https://….ts.net` name — the certificate does not match the raw IP.
 
-The home URL `https://expenses.home.lan` still works on your Wi-Fi and still asks for the Caddy password. The tailnet URL does not use that password. The lock is your Tailscale login. Do not turn on Tailscale Funnel. That would publish the app to the whole internet.
+The home URL `https://expenses.home.lan` still works on your Wi-Fi and still asks for the Caddy password. The tailnet URL does not use that password. The lock is your Tailscale login (plus the optional in-app password below). Do not turn on Tailscale Funnel. That would publish the app to the whole internet.
+
+---
+
+## Security checklist
+
+The app protects itself against cross-site requests (CSRF), sends a strict Content-Security-Policy, loads nothing from third parties, binds to `127.0.0.1`, and refuses unknown `Host` headers. On the tailnet path, though, **your Tailscale login is the only lock** unless you turn on the in-app password. Keep it that way deliberately:
+
+- **Keep the tailnet single-user.** Before you share the Pi node or invite anyone to your tailnet, either turn on the in-app password (below) or add a Tailscale ACL that only lets your own devices reach TCP 443 on the Pi — see [`accessible-anywhere.md` § A6. ACL (single user)](../accessible-anywhere.md#a6-acl-single-user).
+- **Device hygiene:** keep Tailscale key expiry on for phones and laptops (the default), remove a lost device from the admin console immediately, and keep screen locks on.
+- **Never deploy code you haven't read** — especially from a fork or a pull request.
+- Use **privacy mode** (eye icon or `Shift+H`) when someone can see your screen.
+
+### Optional in-app password
+
+Off by default. When `AUTH_PASSWORD_HASH` is set, every API call needs a login session (argon2id password, DB-backed sessions, `HttpOnly; SameSite=Strict; Secure` cookie, login rate limiting). Static files stay public; they contain no data.
+
+```bash
+# on the Pi, in the app folder
+printf '%s' 'your password' | bun scripts/hash-password.js
+# paste the result into /opt/expense_tracker/.env — SINGLE-QUOTED, the hash contains $
+AUTH_PASSWORD_HASH='$argon2id$v=19$m=65536,t=2,p=1$...'
+SESSION_TTL_DAYS=30
+sudo systemctl restart expense-tracker
+```
+
+Or let setup do it: `sudo APP_AUTH=1 ./deploy/setup.sh` reuses the Caddy password. On the home LAN you'll then see two prompts (Caddy basic auth, then the app). If you prefer only the app login, delete the `basicauth { … }` block from `/etc/caddy/sites/expense-tracker` and `sudo systemctl reload caddy`.
+
+To turn it off again, empty `AUTH_PASSWORD_HASH=` and restart.
 
 Already installed the app and only want to add Tailscale (skips the Caddy password prompt and the rebuild):
 
@@ -156,9 +187,25 @@ PORT=3000
 # Prefer an SSD path when available:
 # DB_PATH=/mnt/ssd/expense_tracker/expenses.db
 MAX_UPLOAD_SIZE=5242880
+ALLOWED_HOSTS=localhost,127.0.0.1,expenses.home.lan,expenses.<tailnet>.ts.net
+AUTH_PASSWORD_HASH=          # optional, see Security checklist
+SESSION_TTL_DAYS=30
 OLLAMA_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen2.5:1.5b
+OLLAMA_SUMMARIZE=0           # recommended on a Pi 4
+OLLAMA_NUM_THREAD=4
+# BACKUP_REMOTE=/mnt/usb/expenses-backups
+# BACKUP_AGE_RECIPIENT=age1...
 ```
+
+| Variable | Default | What it does |
+|----------|---------|--------------|
+| `ALLOWED_HOSTS` | empty in production (no check) | Comma list of hostnames the app answers to; anything else gets 421 |
+| `AUTH_PASSWORD_HASH` | empty (login off) | argon2id hash from `scripts/hash-password.js`, single-quoted |
+| `SESSION_TTL_DAYS` | `30` | Login session lifetime |
+| `OLLAMA_SUMMARIZE` | `1` | `0` skips the second LLM call and shows the result table instead (about half the latency on a Pi) |
+| `OLLAMA_NUM_THREAD` | Ollama default | CPU threads for inference |
+| `BACKUP_REMOTE` / `BACKUP_AGE_RECIPIENT` | unset | Off-device backup copy (see Backups) |
 
 Restart after edits:
 
@@ -219,6 +266,8 @@ ollama pull qwen2.5:1.5b
 
 The app defaults `OLLAMA_URL` to `http://127.0.0.1:11434`.
 
+On a Pi 4: keep the 1.5B model, set `OLLAMA_SUMMARIZE=0` and `OLLAMA_NUM_THREAD=4` in `.env`. The model stays loaded for 10 minutes between questions, only one question runs at a time, and the generated SQL runs read-only in a worker that is killed after 3 seconds, so a bad query can't freeze the app.
+
 ---
 
 ## Backups
@@ -235,6 +284,19 @@ sudo -u admin /opt/expense_tracker/deploy/backup.sh
 ```cron
 15 3 * * * /opt/expense_tracker/deploy/backup.sh >> /opt/expense_tracker/backups/backup.log 2>&1
 ```
+
+Each backup is checked with `PRAGMA integrity_check`; a corrupt copy is renamed to `*.corrupt` and the script fails (so cron mails / logs it).
+
+### Off-device copy (recommended)
+
+Backups on the same SD card die with the SD card. Both options are opt-in, set in `.env`:
+
+```bash
+BACKUP_REMOTE=/mnt/usb/expenses-backups        # a mounted USB drive, or user@nas:/volume1/backups (rsync)
+BACKUP_AGE_RECIPIENT=age1qyqszqgpqyqszqgpqyqszqgp...   # optional: encrypt the remote copy (sudo apt install age)
+```
+
+With `BACKUP_AGE_RECIPIENT` set, only the encrypted `expenses-*.db.age` file leaves the Pi. Decrypt with `age -d -i key.txt expenses-….db.age > expenses.db`. Keep the age private key somewhere other than the Pi.
 
 ### Restore
 
@@ -257,7 +319,19 @@ sudo journalctl -u expense-tracker -f
 sudo systemctl restart expense-tracker
 ```
 
-Unit file: [`expense-tracker.service`](expense-tracker.service)
+Unit file: [`expense-tracker.service`](expense-tracker.service). It runs a single Bun process — `bun --smol src/server/index.js` with `NODE_ENV=production` — instead of `bun run start` (which started a second Bun). `MemoryHigh=200M` / `MemoryMax=300M` keep it from starving the Pi.
+
+---
+
+## Upgrading an existing Pi
+
+1. On the laptop: `bun install && bun run build` (the build also writes precompressed `.br`/`.gz` files; never build on the Pi).
+2. Sync to the Pi (same `rsync` as in *Pre-build on a laptop*).
+3. On the Pi: `sudo ./deploy/install.sh` — re-renders the systemd unit with the new single-process `ExecStart`.
+4. Add `ALLOWED_HOSTS=localhost,127.0.0.1,expenses.home.lan,<your>.ts.net` to `/opt/expense_tracker/.env` (`tailscale serve status` shows the name).
+5. `sudo systemctl restart expense-tracker` and check `curl -s http://127.0.0.1:3000/api/health`.
+
+Optional, only to turn on the app password: `printf '%s' 'pw' | bun scripts/hash-password.js` → add `AUTH_PASSWORD_HASH='…'` (single-quoted) to `.env` → restart → log in once on each device.
 
 ---
 
@@ -273,6 +347,8 @@ Unit file: [`expense-tracker.service`](expense-tracker.service)
 | Browser warning on the `100.x` IP | Expected. Use the `https://….ts.net` name for the app |
 | TLS warning on `expenses.home.lan` | Expected with `tls internal` — trust local CA once |
 | `tailscale serve` asks to enable HTTPS | https://login.tailscale.com/admin/dns — MagicDNS and HTTPS Certificates, then re-run setup |
+| `421 Misdirected Request` | The hostname isn't in `ALLOWED_HOSTS` in `.env`; add it and restart |
+| `403` on every save/upload | A proxy is changing the `Host`/`Origin` headers, or an old cached page lacks the CSRF header — hard-refresh |
 
 ---
 
@@ -281,7 +357,9 @@ Unit file: [`expense-tracker.service`](expense-tracker.service)
 - [ ] `HOST=127.0.0.1` — Bun listens on localhost only
 - [ ] `GET /api/health` returns OK
 - [ ] Only Caddy reachable on LAN (80/443)
-- [ ] Basic auth required before data is visible
+- [ ] Basic auth required before data is visible (LAN)
+- [ ] `ALLOWED_HOSTS` set; `curl -H 'Host: evil.test' http://127.0.0.1:3000/api/health` → 421
+- [ ] Tailnet is single-user, or the app password / Tailscale ACL is on
 - [ ] `.env` and database are not readable by other Linux users
 - [ ] Service survives reboot
 - [ ] Nightly backup cron present; restore tested once

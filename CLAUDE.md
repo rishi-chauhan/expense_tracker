@@ -4,248 +4,159 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Paisa Kidhar Gaya?!** (पैसा किधर गया?! — "Where did the money go?!") is a full-stack React 19 application for analyzing credit card expenses from CSV files. Users upload CSV statements through a web interface, the backend parses and stores transactions in SQLite, and the frontend provides a multi-page dashboard with interactive Chart.js visualizations.
+**Paisa Kidhar Gaya?!** (पैसा किधर गया?! — "Where did the money go?!") is a single-user, self-hosted React 19 app for analysing credit card CSV statements. It runs 24/7 on a Raspberry Pi 4 and is mostly opened from a phone over Tailscale. The Bun backend parses uploads into SQLite; the SPA (Overview, Transactions, Insights, Statements, Categories) renders everything on the viewing device.
 
-**Runtime:** Bun (v1.1+) - NOT npm. All commands use `bun` instead of `npm`.
+**Runtime:** Bun (v1.3+) — NOT npm. All commands use `bun` / `bunx`, never npm/npx/yarn.
 
 ## Development Commands
 
 ```bash
-# Install dependencies
-bun install
+bun install --frozen-lockfile
 
-# Start both backend and frontend dev servers
-# Backend: http://localhost:3000 (API)
-# Frontend: http://localhost:5173 (React app)
+# Backend http://127.0.0.1:3000 + Vite http://localhost:5173 (both localhost-only)
 bun run dev
-
-# Start backend only (if needed separately)
 bun run dev:backend
+bun run dev:vite                 # add `-- --host` only for intentional LAN phone testing
 
-# Start frontend only (if needed separately)
-bun run dev:vite
+bun run build                    # vite build && scripts/compress-dist.js (.br/.gz next to assets)
+bun run start                    # production server (needs dist/)
 
-# Build for production
-bun run build
-
-# Start production server
-bun run start
-
-# Preview production build
-bun run preview
-
-# Run client + shared server tests (vitest — do NOT use bare `bun test`)
-bun run test
-
-# Run tests once (no watch)
-bun run test -- --run
-
-# Run server tests that use bun:sqlite (must use bun test, not vitest)
-bun test src/server/__tests__/db.test.js src/server/__tests__/integration.test.js src/server/__tests__/routes.test.js
-
-# Run linter
+bun run test -- --run            # vitest: client + pure server tests (do NOT use bare `bun test`)
+bun run test:bun                 # bun:sqlite server tests (db, routes, security, auth, perf, …)
+bun run test:all
 bun run lint
 ```
 
+Dev password (optional): `printf '%s' 'pw' | bun scripts/hash-password.js`, then start the backend with `AUTH_PASSWORD_HASH='<hash>'`.
+
 ## Architecture
 
-### Data Flow
+### Request pipeline (server)
 
-1. **FileUpload** → User selects CSV file, component validates MIME type
-2. **App.jsx** → Sends file to backend via `POST /api/upload` (FormData)
-3. **Backend** → Parses CSV (auto-detects format + card info), validates, deduplicates, stores in SQLite
-4. **Card detection** → Parser extracts bank name + last 4 digits from CSV metadata; if detection fails, backend returns `needsCardInfo: true` and frontend shows `CardInfoModal` for manual input
-5. **App.jsx** → Fetches transactions from `GET /api/transactions` and cards from `GET /api/cards`, transforms to component format
-6. **Pages** → HomePage shows summary dashboard; AnalyticsDashboard shows advanced charts with filters; both support card filtering when multiple cards exist
+`src/server/index.js` only initialises the DB and calls `Bun.serve` (`maxRequestBodySize` capped). All logic is in `src/server/app.js` → `createApp()`, so tests call it directly:
 
-### State Management
+1. **Host allow-list** (`security.js` `checkHost`, `ALLOWED_HOSTS`) → 421. Dev default `localhost,127.0.0.1`.
+2. `OPTIONS` → 204 with **no CORS headers** (the SPA is always same-origin; Vite proxies `/api` with `changeOrigin: false`).
+3. `/api/*`: `checkBodySize` (16 KB JSON, upload limit) → **`checkCsrf`** → `auth.handle` → conditional-GET ETag check → `routes.js handleApiRequest` → data-version bump → gzip.
+4. Everything else: `static.js` (precompressed `.br`/`.gz` by `Accept-Encoding`, `/assets/*` immutable, others `no-cache`, ETag/304, `.gz`/`.br` never served by URL, SPA fallback).
+5. `withSecurityHeaders` adds nosniff, frame DENY, Referrer-Policy, Permissions-Policy, COOP, CORP, and the strict **CSP** (production only; Vite HMR needs inline/eval).
 
-Global state is managed in `App.jsx` using React hooks:
-- `csvData`: Transformed transaction array (fetched from API, includes `CardId`, `CardLabel`, `BankName` per transaction)
-- `cards`: Array of card objects fetched from `/api/cards`
-- `loading`: Boolean for upload state
-- `error`: String for error messages
-- `notification`: Object for success/info messages (e.g., duplicate detection)
-- `pendingUpload`: Object when card info is needed (`{ file, detected, transactionCount }`)
+**CSRF (security.js)** — required for every non-GET `/api` request, independent of any cookie: `Sec-Fetch-Site` must be `same-origin`/`none` when present; `Origin` (when present) must match `Host` or `X-Forwarded-Host`; header **`X-Requested-With: paisa`** is mandatory; bodies must be `application/json` (or `multipart/form-data` for `/api/upload`) → 415. The client `api()` helper always sends the header — any new fetch must go through `utils/api.js`.
 
-On mount, App fetches existing transactions and cards from the API via `fetchData()`. After upload, it re-fetches to refresh.
+**Optional auth (auth.js)** — off unless `AUTH_PASSWORD_HASH` is set. argon2id via `Bun.password`; DB-backed `sessions` table storing only SHA-256 of the token; `pkg_session` cookie `HttpOnly; SameSite=Strict; Secure` (prod); in-memory login rate limit (5 free, then exponential, max 900 s, 429 + Retry-After). Routes: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` (404s for login/logout when disabled). Public: `/api/health`, login, me. `createAuth()` is a factory for tests.
 
-Data flows **one-way**: App → Pages → Components via props. Each page may have local filter state (e.g., AnalyticsDashboard manages date range, search, and card filters).
+**Data version / caching** — `dataVersion.js` counter is bumped by every mutating DB function in `db.js` (and after successful non-GET requests). Cacheable GETs (`/api/transactions|cards|statements|categories|budgets|recurring`) get weak ETags `W/"<startedAt>-<version>-<hash(url)>"` (budgets also include the current month) and 304 before any SQL; other API responses are `Cache-Control: no-store`. `getAllCategories` and `detectRecurring` are memoised per data version.
 
-### Context Providers
+**AI chat** — `ollama.js` generates SQL (`keep_alive: 10m`, optional `OLLAMA_NUM_THREAD`, schema includes categories). `sqlGuard.js prepareReadOnlySql` strips comments, requires `SELECT`, rejects `RECURSIVE`, write/DDL keywords, `sqlite_*`/`sessions`, `randomblob|zeroblob|load_extension|readfile|writefile|edit|fts3_tokenizer`, multiple statements, >2000 chars, and **always wraps** as `SELECT * FROM (<sql>) LIMIT 100`. `queryRunner.js` runs it in `queryWorker.js` (read-only connection + `PRAGMA query_only`, re-validates) with a 3 s timeout that terminates and respawns the worker; no writable fallback (503). One chat at a time (429). `OLLAMA_SUMMARIZE=0` skips the summary LLM call.
 
-Two React contexts are wrapped around the app in `main.jsx`:
+**Validation & errors (routes.js)** — tiny `v.*` validators (lengths, `#rrggbb` colours, positive ints, `YYYY-MM(-DD)` dates, budget period `monthly`, card last 4 digits); `ValidationError` → 400; every unexpected error → generic `500 Internal server error` (details only in logs); UNIQUE → friendly 409. CSV export prefixes formula-like text (`= + - @ \t \r`) with `'`.
 
-**`ThemeContext`** (`contexts/ThemeContext.jsx`):
-- Provides `theme` (`'dark'` | `'light'`) and `toggleTheme()`
-- Persists to `localStorage` key `expense-tracker-theme`
-- Defaults to system preference via `prefers-color-scheme`
+### Data flow
 
-**`SettingsContext`** (`contexts/SettingsContext.jsx`):
-- Provides `showCredits` (boolean) and `toggleShowCredits()`
-- Persists to `localStorage` key `expense-tracker-settings`
-- Defaults to `false` (credits hidden)
-- When `showCredits` is false: Dashboard hides "Total Credits" and "Net Spending" stat cards; SpendingTrends hides credits dataset and toggle; AnalyticsDashboard hides DebitCreditRatio (SpendingTrends goes full-width); TransactionExplorer filters out credit rows and hides Type column
+1. Upload (`UploadDialog` / Overview empty state / drop anywhere) → `useUpload` → `POST /api/upload` (FormData). Results are **toasts**.
+2. Server parses (`parser.js`), dedupes by file hash + per-tx hash, stores. Card not detected → 422 `needsCardInfo` → `CardInfoModal` → re-send with overrides.
+3. `useTransactions` fetches `/api/transactions` (lean columns) + `/api/cards`; `transformTransactions` precomputes `Date` (local midnight), `DateStr`, `Ts`, `MonthKey`, `WeekKey`, `DescLower`, `IsCCPayment`.
+4. `FilterProvider` computes `filtered` once (card + analytics filter + date range) for all pages.
 
-Both follow the same pattern: `createContext` → `Provider` with `useState` + `useEffect` for localStorage sync → exported `useX()` hook.
+### Client state
 
-### Routing
+Providers in `main.jsx`: `BrowserRouter` → `ThemeProvider` → `SettingsProvider` → `ToastProvider` → `AuthProvider` → `App`; `App` wraps routes in `FilterProvider`.
 
-Uses `react-router-dom` v7 with `BrowserRouter` (wrapped in `main.jsx`).
+- **ThemeContext** — `theme`, `toggleTheme`; key `expense-tracker-theme`; `public/theme-init.js` sets `data-theme` before paint (external file, CSP-safe).
+- **SettingsContext** — `showCredits`, `hideAmounts` (privacy mode), toggles; key `expense-tracker-settings` (back-compatible with `{showCredits}`); `Shift+H` toggles privacy outside text fields. When `showCredits` is false, credit rows, credit KPIs, the Type filter and the debit-vs-credit chart are hidden.
+- **AuthContext** — `status: loading|authed|anon`, `authRequired`, `login`, `logout`; listens for `pkg:unauthorized` (dispatched by `api()` on 401). Default value (no provider) is `authed`.
+- **FilterContext** — URL params `card`, `period` (`latest` default | `this-month` | `last-month` | `3m` | `6m` | `12m` | `all` | `custom`), `from`, `to`. Exposes `filtered`, `previousFiltered`, `range`, `previousRange`, `rangeLabel`, `filterSearch` (append to nav links), setters. Pure helpers in `utils/periods.js`.
+- **ToastProvider** (`components/ui/Toast.jsx`) — `useToast().show({type, title, message, details})`; success/info auto-dismiss 5 s, errors stay.
+- `hooks/useCategories.js` — shared module-level cache for `/api/categories`; call `invalidateCategories()` after category/rule mutations.
 
-Two routes defined in `App.jsx`:
-- `/` → `HomePage` — File upload, notifications, and basic monthly spending dashboard
-- `/analytics` → `AnalyticsDashboard` — Advanced analytics with filters and 4 specialized chart components
+### Routes / pages
 
-Navigation is via `NavLink` components in the app header.
+| Path | Page |
+|---|---|
+| `/` | `OverviewPage` — hero sentence + money strip (category segments link to `/transactions?category=`), KPIs vs previous period, lazy spending bar chart, where it went, budgets, top merchants, recurring, recent; welcome upload card when empty |
+| `/transactions` | `TransactionsPage` — search (deferred), category (`?category=<id>|none`), type, export; sortable sticky table (desktop) / list + detail sheet + load more (phone); 50 per page |
+| `/analytics` | `AnalyticsDashboard` (Insights) — spending trends, category split, top merchants, day-of-week, debit vs credit |
+| `/statements` | `StatementsPage` — table / cards, `ConfirmDialog` delete |
+| `/categories` | `CategoriesPage` — categories, auto-tag rules, monthly budgets |
 
-### Multi-Card Support
+Login (`LoginPage`) replaces the app when auth is required and there is no session.
 
-The app supports multiple credit cards from different banks:
+### Layout & design system
 
-**Database**: Three tables — `cards` (bank_name, card_last4, card_label, unique on bank+last4), `statements` (has `card_id` FK to cards), `transactions` (linked via statement). Migration in `initializeDatabase()` creates the cards table and links existing statements to an "Unknown Card".
+`components/layout/`: `AppShell` (sidebar ≥1024 px, 72 px icon rail 768–1023 px, `TopBar` + `BottomNav` <768 px, chosen with `useIsDesktop()`), `Sidebar`, `TopBar`, `BottomNav`, `FilterBar`, `SettingsControls`, `navItems.js`.
 
-**Card detection**: `extractCardInfo()` in `parser.js` scans CSV metadata for:
-- Card number lines (`/card\s*no/i`) → extracts last 4 digits
-- Bank name via pattern matching against 15 known Indian banks
-- Filename fallback for bank detection
+`components/ui/` primitives (each `X.jsx` + `X.css`): `Button`, `IconButton`, `Card`/`CardHeader`, `StatTile`, `SegmentedControl`, `Select`, `Input`, `Chip`, `Dialog` (native `<dialog>` + `showModal`, Esc/backdrop close; variants `center|sheet|panel`), `ConfirmDialog`, `Sheet`, `Toast`, `Skeleton`, `EmptyState`, `Amount`, `Icon` (inline SVG paths, no icon library).
 
-**Upload flow**: If auto-detection fails to find bank name or last 4, the API returns `{ needsCardInfo: true, detected, transactionCount }` (HTTP 422). The frontend shows `CardInfoModal` for manual input, then re-sends the file with overrides.
+Tokens live in `index.css` (`--bg`, `--surface`, `--surface-2`, `--border`, `--text`, `--text-2`, `--text-3`, `--accent`, `--accent-weak`, `--on-accent`, `--debit`, `--credit`, `--warning`, `--danger`, radii `--r-*`, spacing `--s-*`). Font: **Inter Variable only**, self-hosted latin + latin-ext (`fonts.css`; latin-ext carries ₹). No monospace font — money uses `.num`/`.amount` (tabular figures). **All money in the UI goes through `<Amount>`** so privacy mode works; chart ticks/tooltips use `money()` from `chartConfig.js`. No blur, glows or gradients; only floating UI gets `--shadow-pop`. Respect `prefers-reduced-motion`.
 
-**Filtering**: Both HomePage and AnalyticsDashboard show a card filter dropdown when multiple cards exist. `filterByCard()` utility in `dataProcessing.js`. TransactionExplorer shows a "Card" column when data includes multiple cards.
+### Charts
 
-### CSV Parsing (Server-Side)
+`utils/chartConfig.js` registers only the Chart.js pieces used, sets the Inter font, exports tooltip/axis factories, `money()`, `sharedAnimation` (off under reduced motion), `chartDevicePixelRatio` (≤2). `hooks/useChartTheme.js` reads the CSS tokens and `hideAmounts`. Chart components (`SpendingTrends`, `TopMerchants`, `CategoryBreakdown`, `DebitCreditRatio`, `WeekdayChart`, `SpendingBarChart`) memoise data/options, are wrapped in `React.memo`, and render inside `ChartCard` (fixed height + sr-only summary). Chart.js loads only on routes with a canvas; the Overview chart is lazy.
 
-CSV parsing is handled entirely by the backend in `src/server/parser.js`. The parser is format-agnostic and auto-detects:
-- **Delimiter**: `~|~` or `~` (searches header row)
-- **Header location**: Finds row containing `DATE` and `AMT` columns (not hardcoded)
-- **Column variations**: Handles `Debit /Credit` and `Debit / Credit`
-- **Card info**: Extracts bank name and card last 4 from metadata (returns `{ transactions, cardInfo }`)
+### Data processing (`utils/dataProcessing.js`)
 
-See `src/server/parser.js` for details. The client sends the raw file; all parsing logic is server-side.
+`filterAnalyticsData` (drops CC payments — credits whose description has `CC PAYMENT`/`BPPY`), `filterByDateRange` (string compare), `searchByDescription`, `filterByCard`, `calculateSummaryStats`, `groupByMonth`/`groupByWeek` (by precomputed keys, cached `Intl` labels), `groupByDescription`, `groupByCategory`, `spendByWeekday`, `formatINR` (`₹1,23,456.78`), `formatINRWhole`, `formatINRCompact` (`₹1.2L`), `formatDay`, date-key helpers. All fall back gracefully for old-shape rows used in tests.
 
-### Data Visualization
+### Database
 
-**Dashboard** (`components/Dashboard.jsx`) — Shown on HomePage:
-- Summary stat cards: total debits (always shown), total credits and net spending (shown when `showCredits` is true)
-- Line chart: monthly spending trends
-- Range selector buttons (1M, 3M, 6M, 12M, All)
-
-**AnalyticsDashboard** (`pages/AnalyticsDashboard.jsx`) — `/analytics` route:
-- Filter controls: text search, date range picker, granularity toggle (weekly/monthly)
-- **SpendingTrends**: Line chart with toggleable debit/credit datasets (credits toggle hidden when `showCredits` is false), weekly or monthly granularity
-- **DebitCreditRatio**: Doughnut chart showing debit vs credit percentage split (hidden when `showCredits` is false)
-- **TopMerchants**: Horizontal bar chart of top 10 merchants by spending
-- **TransactionExplorer**: Paginated, sortable transaction table (25 rows/page); credit rows and Type column hidden when `showCredits` is false
-
-CC payments (descriptions containing "CC PAYMENT" or "BPPY") are excluded from analytics calculations.
-
-### Shared Utilities
-
-**`utils/chartConfig.js`** — Centralized Chart.js configuration:
-- Registers all Chart.js components globally (Tooltip, Legend, scales, elements, etc.)
-- Exports shared configs: tooltip styling, axis formatting, animation, color constants (COLORS object)
-- INR currency formatting for tooltips and axes
-
-**`utils/dataProcessing.js`** — Data processing functions:
-- `filterAnalyticsData(csvData)` — Removes CC payments and invalid entries
-- `calculateSummaryStats(data)` — Total debits, credits, net spending
-- `groupByMonth(data)`, `groupByWeek(data)` — Temporal aggregations
-- `groupByDescription(data)` — Top merchants aggregation
-- `filterByDateRange(data, start, end)` — Date range filtering
-- `searchByDescription(data, query)` — Description search
-- `formatINR(amount)` — Currency formatting
+`db.js`: `cards`, `statements`, `transactions` (+ `category_id`, `category_manual`), `categories`, `category_rules`, `budgets`, `sessions`. WAL, `synchronous=NORMAL`, `temp_store=MEMORY`, 16 MB cache, 64 MB mmap; `PRAGMA optimize` after uploads and on close. Parameterised SQL everywhere. Stored: date, amount, description, debit/credit, type, bank, **card last 4**, card label, file name/hash, categories/rules/budgets. Never store full card numbers, names, addresses or limits.
 
 ## Code Patterns
 
-### Component Structure
-- Each component has a matching CSS file (e.g., `FileUpload.jsx` + `FileUpload.css`)
-- Pages live in `pages/` directory, reusable components in `components/`
-- Use functional components with hooks (no class components)
-- Props are validated implicitly through usage, no PropTypes defined
-
-### File Validation
-- Only `.csv` MIME type accepted (`file.type === 'text/csv'`)
-- Invalid files call the `onError` callback prop (falls back to `alert()` if not provided)
-- Upload errors from the backend are caught and displayed in App.jsx
-
-### ESLint Configuration
-- Uses **ESLint 9 flat config** (eslint.config.js, not .eslintrc)
-- Allows unused vars if they match regex `^[A-Z_]` (constants pattern)
-- React Hooks rules enforced via eslint-plugin-react-hooks
-- React Refresh rules warn if non-component exports exist
+- Functional components + hooks; component + matching CSS file side by side; pages in `pages/`, components in `components/`, primitives in `components/ui/`, layout in `components/layout/`.
+- Non-component helpers go in `utils/` (ESLint `react-refresh/only-export-components`).
+- ESLint 9 flat config; unused vars allowed if they match `^[A-Z_]`; JSX member usage isn't tracked, so avoid `const Tag = …` patterns (use `React.createElement`).
+- Tests: prefer `getByRole`/`getByLabelText`; page tests use `__tests__/testUtils.jsx` (`renderWithProviders`, `makeTx`, `makeFetchMock`, `setSettings`). Vitest setup provides an in-memory `localStorage` and resets the categories cache. Server tests that touch SQLite run under `bun test` with a throwaway `DB_PATH` (`__tests__/preload.js` via `bunfig.toml`); add new ones to `test:bun` in `package.json` and to the vitest `exclude` list.
 
 ## Important Notes
 
-- This project was migrated from npm to Bun - never use npm commands
-- `react-router-dom` v7 is used for client-side routing
-- Vite uses default port 5173 for dev server
-- Production builds go to `dist/` directory (gitignored)
-- `bun.lock` is committed to git for reproducible builds
-- PapaParse is a dependency (used server-side by the parser) but is NOT used on the client
+- Never use npm. `bun.lock` is committed; CI uses `--frozen-lockfile`, pinned Bun 1.3.14 and SHA-pinned actions.
+- Production binds to `127.0.0.1` (and dev does too). Never add `0.0.0.0` in production, `tailscale funnel`, or port forwards.
+- Don't add heavy dependencies (Pi 4). Allowed runtime deps: React, react-router-dom, Chart.js/react-chartjs-2, PapaParse (server), `@fontsource-variable/inter`. No Tailwind, component/icon/auth libraries or state managers.
+- Don't build on the Pi; build on a laptop and rsync `dist/` (it includes the `.br`/`.gz` files).
+- systemd runs `bun --smol src/server/index.js` directly (one process).
+- Never commit real CSVs, databases, `.env`, or screenshots with real data; use `tests/fixtures/sample_valid.csv`.
+- No service worker caching of `/api/*` (financial data must not persist on the phone).
 
 ## File Organization
 
 ```
 src/
 ├── client/
-│   ├── main.jsx                        # React entry point, BrowserRouter + providers
-│   ├── App.jsx                         # Root component, routing, API calls, state
-│   ├── App.css                         # Root component styles
-│   ├── index.css                       # Global styles
-│   ├── contexts/
-│   │   ├── ThemeContext.jsx             # Light/dark theme context + useTheme() hook
-│   │   └── SettingsContext.jsx          # App settings context + useSettings() hook
-│   ├── hooks/
-│   │   └── useChartTheme.js            # Chart.js color values derived from CSS vars
-│   ├── pages/
-│   │   ├── HomePage.jsx                # Upload + basic dashboard page
-│   │   ├── HomePage.css
-│   │   ├── AnalyticsDashboard.jsx      # Advanced analytics page with filters
-│   │   └── AnalyticsDashboard.css
-│   ├── components/
-│   │   ├── CardInfoModal.jsx           # Modal for manual card info entry
-│   │   ├── CardInfoModal.css
-│   │   ├── FileUpload.jsx              # CSV file upload with drag-and-drop
-│   │   ├── FileUpload.css
-│   │   ├── Dashboard.jsx               # Summary stats + monthly line chart
-│   │   ├── Dashboard.css
-│   │   ├── SpendingTrends.jsx          # Weekly/monthly spending line chart
-│   │   ├── SpendingTrends.css
-│   │   ├── TopMerchants.jsx            # Top 10 merchants bar chart
-│   │   ├── TopMerchants.css
-│   │   ├── DebitCreditRatio.jsx        # Debit/credit doughnut chart
-│   │   ├── DebitCreditRatio.css
-│   │   ├── TransactionExplorer.jsx     # Paginated transaction table
-│   │   └── TransactionExplorer.css
-│   ├── utils/
-│   │   ├── chartConfig.js              # Chart.js registration and shared config
-│   │   └── dataProcessing.js           # Data filtering, aggregation, formatting
-│   └── __tests__/
-│       ├── setup.js                    # Test environment config
-│       ├── App.test.jsx
-│       ├── Dashboard.test.jsx
-│       ├── FileUpload.test.jsx
-│       ├── HomePage.test.jsx
-│       ├── AnalyticsDashboard.test.jsx
-│       ├── SpendingTrends.test.jsx
-│       ├── TopMerchants.test.jsx
-│       ├── DebitCreditRatio.test.jsx
-│       ├── TransactionExplorer.test.jsx
-│       └── dataProcessing.test.js
-│
+│   ├── main.jsx, App.jsx, App.css, index.html, index.css, fonts.css
+│   ├── public/            theme-init.js, favicon.svg, manifest.webmanifest, icons/
+│   ├── contexts/          ThemeContext, SettingsContext, AuthContext, FilterContext
+│   ├── hooks/             useTransactions, useUpload, useStatements, useCategories,
+│   │                      useApiData, useMediaQuery, useChartTheme
+│   ├── pages/             OverviewPage, TransactionsPage, AnalyticsDashboard (Insights),
+│   │                      StatementsPage, CategoriesPage, LoginPage (+ .css each)
+│   ├── components/        MoneyStrip, TransactionRow, ChartCard, SpendingBarChart,
+│   │                      SpendingTrends, TopMerchants, CategoryBreakdown, DebitCreditRatio,
+│   │                      WeekdayChart, FileUpload, UploadDialog, CardInfoModal, AskAI (+ .css)
+│   │   ├── layout/        AppShell, Sidebar, TopBar, BottomNav, FilterBar, SettingsControls, navItems.js
+│   │   └── ui/            Button, IconButton, Card, StatTile, SegmentedControl, Select, Input, Chip,
+│   │                      Dialog, ConfirmDialog, Sheet, Toast, Skeleton, EmptyState, Amount, Icon
+│   ├── utils/             api.js, chartConfig.js, dataProcessing.js, periods.js
+│   └── __tests__/         setup.js, testUtils.jsx, *.test.jsx
 └── server/
-    ├── index.js                        # HTTP server and Vite dev integration
-    ├── db.js                           # SQLite database operations
-    ├── parser.js                       # CSV parsing with format auto-detection
-    ├── routes.js                       # API endpoint handlers
-    ├── utils.js                        # Hash generation, date/amount parsing
-    └── __tests__/
-        ├── utils.test.js
-        ├── parser.test.js
-        ├── db.test.js
-        ├── routes.test.js
-        └── integration.test.js
+    ├── index.js           Bun.serve bootstrap
+    ├── app.js             request pipeline (host, CSRF, auth, ETag/gzip, static)
+    ├── security.js        CSRF / body size / host allow-list
+    ├── auth.js            optional login, sessions, rate limit
+    ├── static.js          precompressed static files + caching
+    ├── dataVersion.js     mutation counter + startedAt
+    ├── routes.js          API handlers + validation
+    ├── db.js              SQLite schema + queries
+    ├── sqlGuard.js        AI SQL validator
+    ├── queryRunner.js     worker manager (timeout/respawn)
+    ├── queryWorker.js     read-only query worker
+    ├── ollama.js          LLM calls
+    ├── parser.js, utils.js, config.js
+    └── __tests__/         preload.js, security, auth, perf, routes, db, integration,
+                           executeReadOnlyQuery, ollama (bun test); utils, parser (vitest)
+scripts/
+├── compress-dist.js       build step: .br/.gz
+├── hash-password.js       argon2id hash for AUTH_PASSWORD_HASH (reads stdin)
+└── check-credits.js
+deploy/                    setup.sh, install.sh, backup.sh, expense-tracker.service, Caddy, README.md
 ```
-
-When adding new components, follow the pattern of component + CSS file in the `components/` directory. Pages go in `pages/`.

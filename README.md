@@ -9,8 +9,12 @@ A personal expense analyzer for Indian credit card statements. Upload CSVs, get 
 - **Instant visual analytics** — upload credit card CSVs and get interactive charts in seconds
 - **AI assistant** — ask questions about your spending in plain English (local Ollama; data never leaves your device)
 - **Multi-card support** — auto-detects bank and card number from 15 Indian banks
-- **Two dashboards** — summary home page + advanced analytics with spending trends, top merchants, and transaction explorer
-- **Light/dark theme** — plus a privacy toggle to hide credit transactions
+- **Answers the question first** — the Overview opens with how much went out and a single strip showing where it went; tap a category to see its transactions
+- **Overview, Transactions and Insights** — global card + period filters that stay in the URL, a searchable transactions page, trends, category split, top merchants and day-of-week patterns
+- **Built for your phone** — bottom tab bar, bottom sheets, installable as an app (PWA)
+- **Privacy mode** — hide every amount with one tap or `Shift+H` when someone's looking at your screen
+- **Light/dark theme** — plus a toggle to show or hide credit transactions
+- **Secure by default** — CSRF protection, strict CSP, no third-party requests, optional app password
 - **Zero config** — smart deduplication, format auto-detection, drag-and-drop upload
 
 ---
@@ -47,6 +51,8 @@ bun run dev
 |---------|-----|
 | Web UI | http://localhost:5173 |
 | API | http://localhost:3000 |
+
+Both dev servers listen on **localhost only**, so your real data isn't exposed on café or office Wi-Fi. To test on your phone over the LAN on purpose, run `bun run dev:vite -- --host` and start the backend with `HOST=0.0.0.0 ALLOWED_HOSTS=localhost,127.0.0.1,<laptop-ip>`.
 
 Optional: copy environment defaults if you need custom ports or DB path:
 
@@ -146,7 +152,9 @@ ollama serve
 
 On a Pi, bind Ollama to localhost only (`OLLAMA_HOST=127.0.0.1:11434`) — see [deploy/README.md](deploy/README.md#ollama-optional).
 
-The AI translates questions into SQL, runs them against your data, and summarizes results. If Ollama is not running, the chat UI stays hidden.
+The AI translates questions into SQL, runs it on a read-only connection in a separate worker (killed after 3 seconds), and summarises the result. Set `OLLAMA_SUMMARIZE=0` to skip the summary step and just show the result table — about twice as fast on a Pi. If Ollama is not running, the chat panel says so.
+
+Screenshots in issues or docs must only use the synthetic fixture (`tests/fixtures/sample_valid.csv`), never real statements.
 
 ---
 
@@ -183,6 +191,7 @@ Works with HDFC, ICICI, SBI, Axis, Kotak, and 10 other Indian banks. If detectio
 | Frontend | React 19 + Vite |
 | Charts | Chart.js + react-chartjs-2 |
 | Database | SQLite (Bun native driver) |
+| Font | Inter (self-hosted via `@fontsource-variable/inter`) |
 | AI | Ollama + Qwen 2.5 1.5B |
 | Testing | Vitest + React Testing Library |
 
@@ -190,9 +199,10 @@ Works with HDFC, ICICI, SBI, Axis, Kotak, and 10 other Indian banks. If detectio
 
 ```bash
 bun run dev          # full-stack dev (API :3000, Vite UI :5173)
-bun run build        # production build → dist/
+bun run build        # production build → dist/ (+ precompressed .br/.gz)
 bun run start        # production server (needs dist/)
 bun run test         # vitest (watch mode)
+bun run test:bun     # bun:sqlite server tests (security, auth, routes, …)
 bun run test:all     # vitest --run + bun sqlite server tests
 bun run lint         # ESLint
 ```
