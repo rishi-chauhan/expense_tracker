@@ -37,7 +37,7 @@ sudo DRY_RUN=1 ./deploy/setup.sh
 | 3 | Existing login user (for example `admin`), files under `/opt/expense_tracker` |
 | 4 | `bun install`, production build if `dist/` missing |
 | 5 | Hardened systemd unit `expense-tracker` (starts on boot) |
-| 6 | Caddy site with **basic auth** + internal TLS |
+| 6 | Caddy site with **basic auth** + internal TLS, bound to the LAN IP + `127.0.0.1` only |
 | 7 | ufw: LAN → SSH, 80, 443 only (port **3000** stays closed). Tailscale interface + UDP 41641 |
 | 8 | Nightly backup cron for the selected login user |
 | 9 | Health check on `http://127.0.0.1:3000/api/health` |
@@ -47,7 +47,7 @@ When run with `sudo`, setup uses `SUDO_USER` as `APP_USER`. An OS login named `a
 
 ### After setup
 
-1. Point **`expenses.home.lan`** at the Pi (router DNS or client `/etc/hosts`)
+1. Reserve the Pi's LAN IP in your router's DHCP settings (Caddy binds to it), and point **`expenses.home.lan`** at it (router DNS or client `/etc/hosts`)
 2. Open **https://expenses.home.lan**
 3. Log in with username **`admin`** (or your `EXPENSES_ADMIN_USER`) and the password you set
 4. Trust Caddy’s local certificate once per device (browser security prompt)
@@ -63,6 +63,7 @@ When run with `sudo`, setup uses `SUDO_USER` as `APP_USER`. An OS login named `a
 | `EXPENSES_ADMIN_PASSWORD` | (interactive prompt) | Required if no TTY |
 | `APP_ROOT` | `/opt/expense_tracker` | Install path |
 | `LAN_SUBNET` | auto-detect | ufw source subnet |
+| `CADDY_BIND` | detected LAN IP + `127.0.0.1` | Addresses Caddy listens on. Never all interfaces: `tailscale serve` needs `<tailscale-ip>:443` |
 | `SETUP_FIREWALL` | `1` | Apply ufw rules |
 | `SKIP_APT` | `0` | Skip apt install |
 | `SKIP_CADDY` | `0` | Skip Caddy config |
@@ -118,7 +119,7 @@ SESSION_TTL_DAYS=30
 sudo systemctl restart expense-tracker
 ```
 
-Or let setup do it: `sudo APP_AUTH=1 ./deploy/setup.sh` reuses the Caddy password. On the home LAN you'll then see two prompts (Caddy basic auth, then the app). If you prefer only the app login, delete the `basicauth { … }` block from `/etc/caddy/sites/expense-tracker` and `sudo systemctl reload caddy`.
+Or let setup do it: `sudo APP_AUTH=1 ./deploy/setup.sh` reuses the Caddy password. On the home LAN you'll then see two prompts (Caddy basic auth, then the app). If you prefer only the app login, delete the `basicauth { … }` block from `/etc/caddy/sites/expense-tracker` and `sudo systemctl restart caddy`. Keep backup copies outside `/etc/caddy/sites/`: `import sites/*` loads every file there.
 
 To turn it off again, empty `AUTH_PASSWORD_HASH=` and restart.
 
@@ -222,8 +223,10 @@ curl -s http://127.0.0.1:3000/api/health
 
 ```bash
 caddy hash-password
-sudo systemctl reload caddy
+sudo systemctl restart caddy
 ```
+
+The site has `bind <lan-ip> 127.0.0.1`. Without it Caddy listens on every interface, including the Tailscale IP, and `tailscale serve` cannot take `<tailscale-ip>:443` (its log repeats `bind: address already in use`). Use `restart`, not `reload`, after changing `bind`.
 
 ---
 
@@ -346,6 +349,7 @@ Optional, only to turn on the app password: `printf '%s' 'pw' | bun scripts/hash
 | Can’t reach the `*.ts.net` URL | Tailscale app connected on that phone, same account. `tailscale serve status` on the Pi |
 | Browser warning on the `100.x` IP | Expected. Use the `https://….ts.net` name for the app |
 | TLS warning on `expenses.home.lan` | Expected with `tls internal` — trust local CA once |
+| `*.ts.net` URL: TLS `internal error`; tailscaled logs `address already in use` on `:443` | Caddy is listening on all interfaces. Add `bind <lan-ip> 127.0.0.1` to the Caddy site (or re-run setup), then `sudo systemctl restart caddy`. `ss -tlnp \| grep :443` should not show `*:443` |
 | `tailscale serve` asks to enable HTTPS | https://login.tailscale.com/admin/dns — MagicDNS and HTTPS Certificates, then re-run setup |
 | `421 Misdirected Request` | The hostname isn't in `ALLOWED_HOSTS` in `.env`; add it and restart |
 | `403` on every save/upload | A proxy is changing the `Host`/`Origin` headers, or an old cached page lacks the CSRF header — hard-refresh |

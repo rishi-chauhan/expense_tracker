@@ -4,7 +4,12 @@
 #      caddy hash-password
 #    Paste the $2a$... output below (keep the username you choose).
 # 2. Point expenses.home.lan at the Pi (router DNS or /etc/hosts on clients).
-# 3. Reload: sudo systemctl reload caddy
+# 3. Set `bind` to the Pi's LAN IP (reserve it in your router's DHCP settings).
+#    Do not listen on all interfaces: `tailscale serve` needs <tailscale-ip>:443.
+# 4. Restart: sudo systemctl restart caddy
+#
+# Keep only live site files in /etc/caddy/sites/ — `import sites/*` loads every
+# file there, so a backup copy becomes a duplicate site.
 #
 # Default: internal TLS (Caddy local CA). Trust the CA on client devices once,
 # or temporarily use the http:// block at the bottom for LAN-only HTTP.
@@ -15,6 +20,8 @@
 }
 
 expenses.home.lan {
+	bind 192.168.0.10 127.0.0.1
+
 	tls internal
 
 	basicauth {

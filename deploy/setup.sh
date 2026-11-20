@@ -20,6 +20,8 @@
 #   EXPENSES_ADMIN_USER   default admin
 #   EXPENSES_ADMIN_PASSWORD  required if non-interactive (no TTY)
 #   LAN_SUBNET            default 192.168.0.0/16
+#   CADDY_BIND            addresses Caddy listens on (default: detected LAN IP + 127.0.0.1).
+#                         Never all interfaces: tailscale serve needs <tailscale-ip>:443.
 #   SETUP_FIREWALL=1      apply ufw rules (default 1)
 #   TAILSCALE_HOSTNAME    default expenses
 #   TAILSCALE_AUTH_KEY    optional; reusable, non-ephemeral. Or set TS_AUTHKEY.
@@ -41,6 +43,7 @@ APP_USER="${APP_USER:-}"
 EXPENSES_HOST="${EXPENSES_HOST:-expenses.home.lan}"
 EXPENSES_ADMIN_USER="${EXPENSES_ADMIN_USER:-admin}"
 LAN_SUBNET="${LAN_SUBNET:-192.168.0.0/16}"
+CADDY_BIND="${CADDY_BIND:-}"
 SETUP_FIREWALL="${SETUP_FIREWALL:-1}"
 SKIP_APT="${SKIP_APT:-0}"
 SKIP_INSTALL="${SKIP_INSTALL:-0}"
@@ -74,12 +77,23 @@ need_root() {
   fi
 }
 
+# Primary LAN IPv4 address. Skips loopback and Tailscale's CGNAT range (100.64.0.0/10),
+# which the default route can point at when an exit node is in use.
+detect_lan_ip() {
+  local ip=""
+  ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="src") print $(i+1)}' || true)"
+  if [[ -z "${ip}" || "${ip}" == 127.* || "${ip}" =~ ^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\. ]]; then
+    ip="$(hostname -I 2>/dev/null | tr ' ' '\n' \
+      | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' \
+      | grep -vE '^(127\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.)' \
+      | head -n1 || true)"
+  fi
+  echo "${ip}"
+}
+
 detect_lan_subnet() {
   local ip="" second=""
-  ip="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="src") print $(i+1)}' || true)"
-  if [[ -z "${ip}" ]]; then
-    ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
-  fi
+  ip="$(detect_lan_ip)"
   case "${ip}" in
     10.*)
       echo "10.0.0.0/8"
@@ -240,6 +254,23 @@ configure_caddy() {
     unset EXPENSES_ADMIN_PASSWORD
   fi
 
+  # Bind Caddy to the LAN address + loopback only. Listening on every interface
+  # also grabs <tailscale-ip>:443, so `tailscale serve` cannot bind and the
+  # tailnet URL fails the TLS handshake against Caddy instead.
+  local bind="${CADDY_BIND}"
+  if [[ -z "${bind}" ]]; then
+    local lan_ip=""
+    lan_ip="$(detect_lan_ip)"
+    if [[ -z "${lan_ip}" ]]; then
+      echo "setup.sh: could not detect the Pi's LAN IPv4 address." >&2
+      echo "  Re-run with CADDY_BIND='<lan-ip> 127.0.0.1'." >&2
+      exit 1
+    fi
+    bind="${lan_ip} 127.0.0.1"
+  fi
+  echo "==> Caddy will listen on: ${bind}"
+  echo "    (reserve this LAN IP for the Pi in your router's DHCP settings)"
+
   echo "==> Writing Caddy site ${CADDY_SITE_PATH}"
   run mkdir -p /etc/caddy/sites
   if [[ "${DRY_RUN}" == "1" ]]; then
@@ -249,9 +280,11 @@ configure_caddy() {
     EXPENSES_HOST="${EXPENSES_HOST}" \
     EXPENSES_ADMIN_USER="${EXPENSES_ADMIN_USER}" \
     EXPENSES_HASH="${hash}" \
+    CADDY_BIND_ADDRS="${bind}" \
     awk '
       {
         gsub(/\{\{HOST\}\}/, ENVIRON["EXPENSES_HOST"]);
+        gsub(/\{\{BIND\}\}/, ENVIRON["CADDY_BIND_ADDRS"]);
         gsub(/\{\{USER\}\}/, ENVIRON["EXPENSES_ADMIN_USER"]);
         gsub(/\{\{HASH\}\}/, ENVIRON["EXPENSES_HASH"]);
         print
@@ -284,7 +317,9 @@ configure_caddy() {
   if [[ "${DRY_RUN}" == "1" ]]; then
     echo "[dry-run] systemctl reload caddy (or start when inactive)"
   elif systemctl is-active --quiet caddy; then
-    systemctl reload caddy
+    # restart, not reload: a reload that changes listen addresses can keep the
+    # old *:443 socket (and fails outright if the old config conflicts).
+    systemctl restart caddy
   else
     systemctl start caddy
   fi
