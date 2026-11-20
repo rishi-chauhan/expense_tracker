@@ -125,7 +125,7 @@ sudo tailscale up --auth-key=tskey-auth-... --hostname=pi
 
 Recommended hostname: `pi` (MagicDNS name becomes `pi.<tailnet>.ts.net`). `deploy/setup.sh` keeps whatever name an already-logged-in node has unless `TAILSCALE_HOSTNAME` is set.
 
-The Tailscale node may host other apps on other ports (for example Immich via `tailscale serve --https=8443`). This app uses only HTTPS 443; leave the other serve rules alone.
+The Tailscale node may host other apps on other ports (other `tailscale serve --https=<port>` rules). This app uses only HTTPS 443; leave the other serve rules alone.
 
 Enable start on boot (the install script usually does this):
 
@@ -152,7 +152,7 @@ What this does:
 
 If `serve` complains that 443 is taken on the tailscale interface only, stop and inspect `tailscale serve status`. Do not stop Caddy to “free” LAN port 443; Caddy binds the LAN interfaces, Tailscale Serve binds the tailnet interface. They coexist.
 
-To undo just this publish (does not log the node out, and leaves other ports such as Immich on 8443 alone):
+To undo just this publish (does not log the node out, and leaves serve rules on other ports alone):
 
 ```bash
 sudo tailscale serve --https=443 off

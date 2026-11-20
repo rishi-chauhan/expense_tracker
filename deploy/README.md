@@ -78,7 +78,7 @@ When run with `sudo`, setup uses `SUDO_USER` as `APP_USER`. An OS login named `a
 
 `setup.sh` also merges `localhost,127.0.0.1,<EXPENSES_HOST>,<tailnet name>` into `ALLOWED_HOSTS` in `.env` after Tailscale is set up (existing entries are kept, nothing is duplicated), so requests for any other hostname are refused (DNS-rebinding protection).
 
-The Tailscale node may host other apps on other ports (for example Immich via `tailscale serve --https=8443`). `setup.sh` only adds or replaces the HTTPS 443 serve rule and never runs `tailscale serve reset`.
+The Tailscale node may host other apps on other ports (other `tailscale serve --https=<port>` rules). `setup.sh` only adds or replaces the HTTPS 443 serve rule and never runs `tailscale serve reset`.
 
 ---
 

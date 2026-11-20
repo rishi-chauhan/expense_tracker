@@ -593,8 +593,8 @@ configure_tailscale() {
   local port serve_help
   port="$(app_listen_port)"
   echo "==> Publishing http://127.0.0.1:${port} on the tailnet at HTTPS 443 (not the public internet)"
-  # This node may also publish other apps on other ports (e.g. Immich on
-  # --https=8443). Only ever add/replace the HTTPS 443 handler: never run
+  # This node may also publish other apps on other ports (other
+  # `tailscale serve --https=<port>` rules). Only ever add/replace the HTTPS 443 handler: never run
   # `tailscale serve reset`, a bare `serve off`, or anything that clears other ports.
   serve_help="$(tailscale serve --help 2>&1 || true)"
   local -a serve_args=(serve --bg)
