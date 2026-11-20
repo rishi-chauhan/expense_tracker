@@ -23,7 +23,10 @@
 #   CADDY_BIND            addresses Caddy listens on (default: detected LAN IP + 127.0.0.1).
 #                         Never all interfaces: tailscale serve needs <tailscale-ip>:443.
 #   SETUP_FIREWALL=1      apply ufw rules (default 1)
-#   TAILSCALE_HOSTNAME    default expenses
+#   TAILSCALE_HOSTNAME    unset (default): keep the current machine name if Tailscale is
+#                         already logged in, otherwise name the node "pi" on first login.
+#                         Set it to rename the node (applied with `tailscale set`).
+#                         The app URL is read from the node's real MagicDNS name.
 #   TAILSCALE_AUTH_KEY    optional; reusable, non-ephemeral. Or set TS_AUTHKEY.
 #   TAILSCALE_SSH=1       enable Tailscale SSH (default 1)
 #   APP_AUTH=0            1 = also turn on the optional in-app password (reuses the
@@ -51,7 +54,14 @@ SKIP_CADDY="${SKIP_CADDY:-0}"
 SKIP_FIREWALL="${SKIP_FIREWALL:-0}"
 SKIP_CRON="${SKIP_CRON:-0}"
 SKIP_TAILSCALE="${SKIP_TAILSCALE:-0}"
-TAILSCALE_HOSTNAME="${TAILSCALE_HOSTNAME:-expenses}"
+# No hard default: an already-logged-in node keeps its name unless asked otherwise.
+TAILSCALE_HOSTNAME="${TAILSCALE_HOSTNAME:-}"
+TAILSCALE_HOSTNAME_EXPLICIT=0
+if [[ -n "${TAILSCALE_HOSTNAME}" ]]; then
+  TAILSCALE_HOSTNAME_EXPLICIT=1
+fi
+TAILSCALE_DEFAULT_HOSTNAME="pi"   # used only on a fresh login
+TAILSCALE_NODE_NAME=""            # short machine name, filled in by configure_tailscale
 TAILSCALE_SSH="${TAILSCALE_SSH:-1}"
 DRY_RUN="${DRY_RUN:-0}"
 APP_AUTH="${APP_AUTH:-0}"
@@ -193,6 +203,21 @@ set_env_var() {
   fi
 }
 
+# Last KEY=VALUE from ${APP_ROOT}/.env ('' when absent), quotes/CR/spaces stripped.
+read_env_var() {
+  local key="$1" env_file="${APP_ROOT}/.env" line
+  if [[ ! -r "${env_file}" ]]; then
+    return 0
+  fi
+  line="$(grep -E "^[[:space:]]*${key}=" "${env_file}" | tail -n 1 || true)"
+  line="${line#*=}"
+  line="${line//\"/}"
+  line="${line//\'/}"
+  line="${line//$'\r'/}"
+  line="${line// /}"
+  printf '%s\n' "${line}"
+}
+
 # Optional in-app password (S1). Only with APP_AUTH=1; must run before
 # configure_caddy unsets EXPENSES_ADMIN_PASSWORD.
 configure_app_auth() {
@@ -218,20 +243,44 @@ configure_app_auth() {
   unset app_hash
 }
 
-# Host allow-list (DNS-rebinding defence): localhost + LAN name + tailnet name.
+# Host allow-list (DNS-rebinding defence). Merges into the existing .env value:
+# entries already there are kept (e.g. an old tailnet name after a rename), and
+# localhost, 127.0.0.1, the LAN name and the current tailnet name are added if missing.
 configure_allowed_hosts() {
-  local hosts="localhost,127.0.0.1" ts_host=""
-  if [[ "${SKIP_CADDY}" != "1" ]]; then
-    hosts="${hosts},${EXPENSES_HOST}"
+  local existing ts_host="" entry seen joined
+  local -a wanted=() hosts=()
+  existing="$(read_env_var ALLOWED_HOSTS)"
+  if [[ -n "${existing}" ]]; then
+    IFS=',' read -r -a wanted <<< "${existing}"
   fi
-  if [[ -n "${TAILSCALE_URL}" && "${TAILSCALE_URL}" != *"<tailnet>"* ]]; then
+  wanted+=(localhost 127.0.0.1)
+  if [[ "${SKIP_CADDY}" != "1" ]]; then
+    wanted+=("${EXPENSES_HOST}")
+  fi
+  if [[ -n "${TAILSCALE_URL}" && "${TAILSCALE_URL}" != *"<"* ]]; then
     ts_host="${TAILSCALE_URL#https://}"
     ts_host="${ts_host%%/*}"
     ts_host="${ts_host%%:*}"
-    hosts="${hosts},${ts_host}"
+    wanted+=("${ts_host}")
   fi
-  echo "==> ALLOWED_HOSTS=${hosts}"
-  set_env_var ALLOWED_HOSTS "${hosts}"
+
+  seen=","
+  for entry in "${wanted[@]}"; do
+    entry="${entry// /}"
+    if [[ -z "${entry}" || "${seen}" == *",${entry,,},"* ]]; then
+      continue
+    fi
+    seen="${seen}${entry,,},"
+    hosts+=("${entry}")
+  done
+  joined="$(IFS=,; printf '%s' "${hosts[*]}")"
+
+  if [[ "${joined}" == "${existing}" ]]; then
+    echo "==> ALLOWED_HOSTS unchanged: ${joined}"
+    return 0
+  fi
+  echo "==> ALLOWED_HOSTS=${joined}"
+  set_env_var ALLOWED_HOSTS "${joined}"
   run systemctl restart expense-tracker.service || true
 }
 
@@ -397,20 +446,13 @@ configure_cron() {
 }
 
 app_listen_port() {
-  local env_file="${APP_ROOT}/.env" line
-  if [[ -f "${env_file}" ]]; then
-    line="$(grep -E '^[[:space:]]*PORT=' "${env_file}" | tail -n 1 || true)"
-    line="${line#*=}"
-    line="${line//\"/}"
-    line="${line//\'/}"
-    line="${line//$'\r'/}"
-    line="${line// /}"
-    if [[ "${line}" =~ ^[0-9]+$ ]]; then
-      echo "${line}"
-      return
-    fi
+  local port
+  port="$(read_env_var PORT)"
+  if [[ "${port}" =~ ^[0-9]+$ ]]; then
+    echo "${port}"
+  else
+    echo "3000"
   fi
-  echo "3000"
 }
 
 install_tailscale() {
@@ -434,26 +476,71 @@ install_tailscale() {
 }
 
 tailscale_is_running() {
+  command -v tailscale >/dev/null 2>&1 || return 1
   tailscale status --json 2>/dev/null | grep -Eq '"BackendState":[[:space:]]*"Running"'
 }
 
-configure_tailscale() {
-  if [[ "${SKIP_TAILSCALE}" == "1" ]]; then
-    echo "==> Skipping Tailscale"
+# This node's MagicDNS name (e.g. pi.tail1234.ts.net) without the trailing dot,
+# or '' when unknown. Read-only, so it also runs under DRY_RUN.
+tailscale_dns_name() {
+  local json="" name=""
+  command -v tailscale >/dev/null 2>&1 || return 0
+  json="$(tailscale status --json 2>/dev/null || true)"
+  if [[ -z "${json}" ]]; then
     return 0
   fi
-
-  install_tailscale
-  if [[ "${DRY_RUN}" == "1" ]]; then
-    echo "[dry-run] tailscale up --hostname=${TAILSCALE_HOSTNAME} --ssh=${TAILSCALE_SSH} --operator=${APP_USER}"
-    echo "[dry-run] tailscale serve --bg --yes $(app_listen_port)"
-    TAILSCALE_URL="https://${TAILSCALE_HOSTNAME}.<tailnet>.ts.net"
-    return 0
+  if command -v jq >/dev/null 2>&1; then
+    name="$(printf '%s' "${json}" | jq -r '.Self.DNSName // empty' 2>/dev/null || true)"
+  else
+    # No jq: first "DNSName" inside the "Self" object (peers come later).
+    name="$(printf '%s\n' "${json}" | awk '
+      /"Self":[[:space:]]*\{/ { inself = 1 }
+      inself && /"DNSName"/ {
+        sub(/.*"DNSName":[[:space:]]*"/, ""); sub(/".*/, ""); print; exit
+      }' || true)"
   fi
+  printf '%s\n' "${name%.}"
+}
 
-  local up_help serve_help port
+# Node already logged in: keep its machine name unless TAILSCALE_HOSTNAME was
+# given. Uses `tailscale set`, which changes only the flags passed — `tailscale up`
+# can refuse to change one flag on a configured node (it wants all of them).
+configure_tailscale_existing() {
+  local current set_help
+  current="$(tailscale_dns_name)"
+  current="${current%%.*}"
+  set_help="$(tailscale set --help 2>&1 || true)"
+  local -a set_args=(set)
+
+  if [[ "${TAILSCALE_HOSTNAME_EXPLICIT}" == "1" ]]; then
+    if [[ "${set_help}" != *"--hostname"* ]]; then
+      echo "setup.sh: this Tailscale has no 'tailscale set --hostname'; upgrade it or unset TAILSCALE_HOSTNAME." >&2
+      exit 1
+    fi
+    echo "==> Tailscale already logged in — setting machine name to ${TAILSCALE_HOSTNAME} (was ${current:-unknown})"
+    set_args+=(--hostname="${TAILSCALE_HOSTNAME}")
+  else
+    echo "==> Tailscale already logged in — keeping machine name ${current:-as is}"
+    echo "    (set TAILSCALE_HOSTNAME=... to rename it)"
+  fi
+  if [[ "${TAILSCALE_SSH}" == "1" && "${set_help}" == *"--ssh"* ]]; then
+    set_args+=(--ssh)
+  fi
+  if [[ "${set_help}" == *"--operator"* && -n "${APP_USER}" ]]; then
+    set_args+=(--operator="${APP_USER}")
+  fi
+  if (( ${#set_args[@]} > 1 )); then
+    run tailscale "${set_args[@]}"
+  fi
+  # An auth key is only for first login.
+  unset TS_AUTHKEY TAILSCALE_AUTH_KEY || true
+}
+
+# Fresh node: log in with `tailscale up`, named TAILSCALE_HOSTNAME or "pi".
+configure_tailscale_login() {
+  local name="${TAILSCALE_HOSTNAME:-${TAILSCALE_DEFAULT_HOSTNAME}}" up_help
   up_help="$(tailscale up --help 2>&1 || true)"
-  local -a up_args=(up --hostname="${TAILSCALE_HOSTNAME}" --accept-dns=true)
+  local -a up_args=(up --hostname="${name}" --accept-dns=true)
   if [[ "${TAILSCALE_SSH}" == "1" && "${up_help}" == *"--ssh"* ]]; then
     up_args+=(--ssh)
   fi
@@ -465,40 +552,50 @@ configure_tailscale() {
     export TS_AUTHKEY="${TAILSCALE_AUTH_KEY}"
   fi
 
-  if tailscale_is_running; then
-    echo "==> Tailscale already logged in — applying hostname ${TAILSCALE_HOSTNAME}"
-    # Already online: don't block setup if the daemon is slow to report.
-    if [[ "${up_help}" == *"--timeout"* ]]; then
-      up_args+=(--timeout=90s)
-    fi
-  else
-    echo
-    echo "==> Log this Pi into Tailscale"
-    echo "    Approve the URL (or scan the QR) with the Tailscale account you use on your phone."
-    echo "    This waits until you approve. No public IP and no router port-forward."
-    if [[ -z "${TS_AUTHKEY:-}" && ! -r /dev/tty ]]; then
-      echo "setup.sh: no TTY and no TAILSCALE_AUTH_KEY, so Tailscale cannot log in." >&2
-      echo "Re-run from an SSH session, or:" >&2
-      echo "  sudo TAILSCALE_AUTH_KEY='tskey-auth-...' ./deploy/setup.sh" >&2
-      echo "Create a reusable, non-ephemeral key at https://login.tailscale.com/admin/settings/keys" >&2
-      exit 1
-    fi
-    if [[ -z "${TS_AUTHKEY:-}" && "${up_help}" == *"--qr"* && -r /dev/tty ]]; then
-      up_args+=(--qr)
-    fi
+  echo
+  echo "==> Log this Pi into Tailscale as '${name}'"
+  echo "    Approve the URL (or scan the QR) with the Tailscale account you use on your phone."
+  echo "    This waits until you approve. No public IP and no router port-forward."
+  if [[ "${DRY_RUN}" != "1" && -z "${TS_AUTHKEY:-}" && ! -r /dev/tty ]]; then
+    echo "setup.sh: no TTY and no TAILSCALE_AUTH_KEY, so Tailscale cannot log in." >&2
+    echo "Re-run from an SSH session, or:" >&2
+    echo "  sudo TAILSCALE_AUTH_KEY='tskey-auth-...' ./deploy/setup.sh" >&2
+    echo "Create a reusable, non-ephemeral key at https://login.tailscale.com/admin/settings/keys" >&2
+    exit 1
+  fi
+  if [[ -z "${TS_AUTHKEY:-}" && "${up_help}" == *"--qr"* && -r /dev/tty ]]; then
+    up_args+=(--qr)
   fi
 
   # TS_AUTHKEY is read by the CLI. Do not put the key on the command line.
-  tailscale "${up_args[@]}"
+  run tailscale "${up_args[@]}"
   unset TS_AUTHKEY TAILSCALE_AUTH_KEY || true
 
-  if ! tailscale_is_running; then
+  if [[ "${DRY_RUN}" != "1" ]] && ! tailscale_is_running; then
     echo "setup.sh: Tailscale did not reach Running. Approve the login URL, then re-run setup.sh." >&2
     exit 1
   fi
+}
 
+configure_tailscale() {
+  if [[ "${SKIP_TAILSCALE}" == "1" ]]; then
+    echo "==> Skipping Tailscale"
+    return 0
+  fi
+
+  install_tailscale
+  if tailscale_is_running; then
+    configure_tailscale_existing
+  else
+    configure_tailscale_login
+  fi
+
+  local port serve_help
   port="$(app_listen_port)"
-  echo "==> Publishing http://127.0.0.1:${port} on the tailnet (not the public internet)"
+  echo "==> Publishing http://127.0.0.1:${port} on the tailnet at HTTPS 443 (not the public internet)"
+  # This node may also publish other apps on other ports (e.g. Immich on
+  # --https=8443). Only ever add/replace the HTTPS 443 handler: never run
+  # `tailscale serve reset`, a bare `serve off`, or anything that clears other ports.
   serve_help="$(tailscale serve --help 2>&1 || true)"
   local -a serve_args=(serve --bg)
   if [[ "${serve_help}" == *"--yes"* ]]; then
@@ -509,18 +606,37 @@ configure_tailscale() {
   fi
   # Port form proxies to 127.0.0.1 only. Never use `tailscale funnel` (that is public).
   serve_args+=("${port}")
-  if ! tailscale "${serve_args[@]}"; then
+  if [[ "${DRY_RUN}" == "1" ]]; then
+    run tailscale "${serve_args[@]}"
+  elif ! tailscale "${serve_args[@]}"; then
     echo "setup.sh: tailscale serve failed." >&2
     echo "One-time: enable MagicDNS and HTTPS Certificates at" >&2
     echo "  https://login.tailscale.com/admin/dns" >&2
     echo "Then re-run: sudo SKIP_APT=1 SKIP_INSTALL=1 SKIP_CADDY=1 ./deploy/setup.sh" >&2
     exit 1
+  else
+    tailscale serve status 2>&1 || true
   fi
 
-  local status_out
-  status_out="$(tailscale serve status 2>&1 || true)"
-  printf '%s\n' "${status_out}"
-  TAILSCALE_URL="$(printf '%s\n' "${status_out}" | grep -oE 'https://[A-Za-z0-9.-]+\.ts\.net' | head -n 1 || true)"
+  # The real MagicDNS name, so a renamed node or any tailnet works.
+  local dns_name tries=0
+  dns_name="$(tailscale_dns_name)"
+  # After a rename the DNS name can lag a few seconds behind.
+  if [[ "${DRY_RUN}" != "1" && "${TAILSCALE_HOSTNAME_EXPLICIT}" == "1" ]]; then
+    while [[ "${dns_name,,}" != "${TAILSCALE_HOSTNAME,,}."* ]] && (( tries < 10 )); do
+      sleep 1
+      tries=$((tries + 1))
+      dns_name="$(tailscale_dns_name)"
+    done
+  fi
+  if [[ -n "${dns_name}" ]]; then
+    TAILSCALE_URL="https://${dns_name}"
+    TAILSCALE_NODE_NAME="${dns_name%%.*}"
+  else
+    TAILSCALE_NODE_NAME="${TAILSCALE_HOSTNAME:-${TAILSCALE_DEFAULT_HOSTNAME}}"
+    TAILSCALE_URL="https://${TAILSCALE_NODE_NAME}.<tailnet>.ts.net"
+    echo "WARNING: could not read this node's DNS name (tailscale status --json)." >&2
+  fi
   TAILSCALE_IP="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"
 }
 
@@ -566,9 +682,9 @@ print_summary() {
     echo "  App URL: ${TAILSCALE_URL:-run: tailscale serve status}"
     if [[ -n "${TAILSCALE_IP}" ]]; then
       echo "  SSH:     ssh ${APP_USER}@${TAILSCALE_IP}"
-      echo "           (or ssh ${APP_USER}@${TAILSCALE_HOSTNAME} once MagicDNS is on)"
+      echo "           (or ssh ${APP_USER}@${TAILSCALE_NODE_NAME} once MagicDNS is on)"
     else
-      echo "  SSH:     ssh ${APP_USER}@${TAILSCALE_HOSTNAME}"
+      echo "  SSH:     ssh ${APP_USER}@${TAILSCALE_NODE_NAME}"
     fi
     echo "  Open the App URL in the browser, not the 100.x IP (the certificate is for the name)."
     echo "  Home LAN URL above is unchanged and still asks for the Caddy password."
@@ -587,7 +703,7 @@ echo "  Paisa Kidhar Gaya?! — full setup"
 echo "=========================================="
 echo "  APP_ROOT:      ${APP_ROOT}"
 echo "  EXPENSES_HOST: ${EXPENSES_HOST}"
-echo "  TAILSCALE:     ${TAILSCALE_HOSTNAME} (skip=${SKIP_TAILSCALE})"
+echo "  TAILSCALE:     ${TAILSCALE_HOSTNAME:-keep current name (\"${TAILSCALE_DEFAULT_HOSTNAME}\" on first login)} (skip=${SKIP_TAILSCALE})"
 echo "  DRY_RUN:       ${DRY_RUN}"
 echo
 

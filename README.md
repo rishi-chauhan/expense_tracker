@@ -142,7 +142,7 @@ sudo DRY_RUN=1 ./deploy/setup.sh
 | `APP_ROOT` | `/opt/expense_tracker` | Install directory |
 | `LAN_SUBNET` | auto-detect | ufw allow source |
 | `SKIP_TAILSCALE` | `0` | Set `1` to skip Tailscale |
-| `TAILSCALE_HOSTNAME` | `expenses` | Name of the Pi on your tailnet |
+| `TAILSCALE_HOSTNAME` | default: keep the current name if already logged in, otherwise `pi` | Name of the Pi on your tailnet. Set it only to rename the node. The Tailscale node may host other apps on other ports (e.g. Immich on `--https=8443`); setup only touches the HTTPS 443 serve rule |
 | `TAILSCALE_AUTH_KEY` | (unset) | Optional. Interactive login is the default |
 
 Full Pi guide, restore steps, and troubleshooting: **[deploy/README.md](deploy/README.md)**

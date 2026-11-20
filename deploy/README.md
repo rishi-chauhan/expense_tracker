@@ -70,13 +70,15 @@ When run with `sudo`, setup uses `SUDO_USER` as `APP_USER`. An OS login named `a
 | `SKIP_FIREWALL` | `0` | Skip ufw |
 | `SKIP_CRON` | `0` | Skip backup cron |
 | `SKIP_TAILSCALE` | `0` | Skip Tailscale install, login, and serve |
-| `TAILSCALE_HOSTNAME` | `expenses` | Machine name on the tailnet |
+| `TAILSCALE_HOSTNAME` | default: keep the current name if already logged in, otherwise `pi` | Machine name on the tailnet. Set it only to rename the node (applied with `tailscale set --hostname`). The app URL is read from the node's real MagicDNS name |
 | `TAILSCALE_AUTH_KEY` | (unset) | Optional login key. Prefer the interactive URL. Do not commit this |
 | `TAILSCALE_SSH` | `1` | Allow SSH from your other Tailscale devices |
 | `APP_AUTH` | `0` | `1` = also turn on the optional in-app password (same password as Caddy; writes `AUTH_PASSWORD_HASH` to `.env`). `0` leaves `.env` auth settings untouched |
 | `DRY_RUN` | `0` | Print actions only |
 
-`setup.sh` also writes `ALLOWED_HOSTS=localhost,127.0.0.1,<EXPENSES_HOST>,<tailnet name>` to `.env` after Tailscale is set up, so requests for any other hostname are refused (DNS-rebinding protection).
+`setup.sh` also merges `localhost,127.0.0.1,<EXPENSES_HOST>,<tailnet name>` into `ALLOWED_HOSTS` in `.env` after Tailscale is set up (existing entries are kept, nothing is duplicated), so requests for any other hostname are refused (DNS-rebinding protection).
+
+The Tailscale node may host other apps on other ports (for example Immich via `tailscale serve --https=8443`). `setup.sh` only adds or replaces the HTTPS 443 serve rule and never runs `tailscale serve reset`.
 
 ---
 
@@ -188,7 +190,7 @@ PORT=3000
 # Prefer an SSD path when available:
 # DB_PATH=/mnt/ssd/expense_tracker/expenses.db
 MAX_UPLOAD_SIZE=5242880
-ALLOWED_HOSTS=localhost,127.0.0.1,expenses.home.lan,expenses.<tailnet>.ts.net
+ALLOWED_HOSTS=localhost,127.0.0.1,expenses.home.lan,pi.<tailnet>.ts.net
 AUTH_PASSWORD_HASH=          # optional, see Security checklist
 SESSION_TTL_DAYS=30
 OLLAMA_URL=http://127.0.0.1:11434

@@ -120,10 +120,12 @@ sudo tailscale up
 
 ```bash
 # only if the owner handed you an auth key out of band:
-sudo tailscale up --auth-key=tskey-auth-... --hostname=expenses
+sudo tailscale up --auth-key=tskey-auth-... --hostname=pi
 ```
 
-Recommended hostname: `expenses` (MagicDNS name becomes `expenses.<tailnet>.ts.net`).
+Recommended hostname: `pi` (MagicDNS name becomes `pi.<tailnet>.ts.net`). `deploy/setup.sh` keeps whatever name an already-logged-in node has unless `TAILSCALE_HOSTNAME` is set.
+
+The Tailscale node may host other apps on other ports (for example Immich via `tailscale serve --https=8443`). This app uses only HTTPS 443; leave the other serve rules alone.
 
 Enable start on boot (the install script usually does this):
 
@@ -150,11 +152,13 @@ What this does:
 
 If `serve` complains that 443 is taken on the tailscale interface only, stop and inspect `tailscale serve status`. Do not stop Caddy to “free” LAN port 443; Caddy binds the LAN interfaces, Tailscale Serve binds the tailnet interface. They coexist.
 
-Reset if you need to undo just the publish (does not log the node out):
+To undo just this publish (does not log the node out, and leaves other ports such as Immich on 8443 alone):
 
 ```bash
-sudo tailscale serve reset
+sudo tailscale serve --https=443 off
 ```
+
+Do not use `tailscale serve reset`: it removes every serve rule on the node, including other apps.
 
 ### A3. Optional: keep Caddy basic auth in front of the tailnet URL
 
@@ -251,11 +255,11 @@ Pass conditions:
 - Health is `"status":"ok"`.
 - `3000` is bound to `127.0.0.1` only.
 - ufw still does **not** allow 80/443 from Anywhere.
-- `tailscale serve status` shows `https://expenses.<tailnet>.ts.net` proxying to `http://127.0.0.1:3000`.
+- `tailscale serve status` shows `https://pi.<tailnet>.ts.net` proxying to `http://127.0.0.1:3000`.
 
 From a phone on **cellular data** (Wi-Fi off), Tailscale app connected:
 
-1. Open `https://expenses.<tailnet>.ts.net`.
+1. Open `https://pi.<tailnet>.ts.net`.
 2. Home page loads (upload + dashboard). No certificate warning.
 3. Open `/analytics`. Charts or the empty state render. Refresh on `/analytics` returns the app, not a 404 (SPA fallback).
 4. If statements already exist, totals match what `https://expenses.home.lan` shows on the LAN.
@@ -462,7 +466,7 @@ Use a copy of a backup in a scratch directory if you must not overwrite live dat
 | Tailnet URL loads on Wi-Fi but not on cellular | Client Tailscale app not connected, or MagicDNS off | Open the Tailscale app, confirm the same account, `tailscale status` on both ends shows the peer |
 | Certificate warning on `expenses.home.lan` | Expected. That name uses `tls internal` | Trust Caddy’s local CA once per device, or use the tailnet URL instead |
 | Certificate warning on `*.ts.net` | Serve not configured, or client not using Tailscale DNS | `tailscale serve status`; client must be on the tailnet |
-| `https://expenses.<tailnet>.ts.net` shows the API 404 text about Vite | `NODE_ENV` is not production, so Bun is not serving `dist/` | `/opt/expense_tracker/.env` must contain `NODE_ENV=production`. `bun run start` also sets it. Restart `expense-tracker`. |
+| `https://pi.<tailnet>.ts.net` shows the API 404 text about Vite | `NODE_ENV` is not production, so Bun is not serving `dist/` | `/opt/expense_tracker/.env` must contain `NODE_ENV=production`. `bun run start` also sets it. Restart `expense-tracker`. |
 | Dashboard HTML loads, API calls fail | Proxy stripping `/api` or serving only static files | Serve/tunnel target must be `http://127.0.0.1:3000`, the Bun process, not the `dist/` directory |
 | Refresh on `/analytics` is 404 | Something else is serving files without the SPA fallback | Same fix: proxy to Bun, which already falls back to `index.html` |
 | LAN URL broke after this work | Caddy site was overwritten or Caddy was stopped | Restore `/etc/caddy/sites/expense-tracker`, `systemctl reload caddy`. Do not point the LAN site at a tailnet-only hostname |
